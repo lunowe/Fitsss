@@ -1,26 +1,225 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
-@theme inline {
+/*
+ * NOTE: this block must not use `@theme inline`. With `inline`, Tailwind bakes the
+ * literal values into the utilities (`.bg-bg { background-color: #f2f2f7 }`), so the
+ * `.dark` / `prefers-color-scheme` overrides below never reach any utility class and
+ * dark mode silently does nothing. Without `inline`, utilities emit `var(--color-bg)`
+ * and the overrides work.
+ */
+@theme {
+  --color-bg: #f2f2f7;
+  --color-card: #ffffff;
+  --color-card-2: #f2f2f7;
+  --color-label: #000000;
+  --color-label-2: rgb(60 60 67 / 0.6);
+  --color-label-3: rgb(60 60 67 / 0.3);
+  --color-separator: rgb(60 60 67 / 0.2);
+  --color-fill: rgb(120 120 128 / 0.12);
+  --color-fill-2: rgb(120 120 128 / 0.2);
+  --color-tint: #007aff;
+  --color-ink: #000000;
+  --color-ink-fg: #ffffff;
+  --color-destructive: #ff3b30;
+  --color-success: #34c759;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --color-bg: #f2f2f7;
+  --color-card: #ffffff;
+  --color-card-2: #f2f2f7;
+  --color-label: #000000;
+  --color-label-2: rgb(60 60 67 / 0.6);
+  --color-label-3: rgb(60 60 67 / 0.3);
+  --color-separator: rgb(60 60 67 / 0.2);
+  --color-fill: rgb(120 120 128 / 0.12);
+  --color-fill-2: rgb(120 120 128 / 0.2);
+  --color-tint: #007aff;
+  --color-ink: #000000;
+  --color-ink-fg: #ffffff;
+  --color-destructive: #ff3b30;
+  --color-success: #34c759;
+  --background: var(--color-bg);
+  --foreground: var(--color-label);
+  --card: var(--color-card);
+  --card-foreground: var(--color-label);
+  --popover: var(--color-card);
+  --popover-foreground: var(--color-label);
+  --primary: var(--color-ink);
+  --primary-foreground: var(--color-ink-fg);
+  --secondary: var(--color-fill);
+  --secondary-foreground: var(--color-label);
+  --muted: var(--color-fill);
+  --muted-foreground: var(--color-label-2);
+  --accent: var(--color-fill-2);
+  --accent-foreground: var(--color-label);
+  --border: var(--color-separator);
+  --input: var(--color-separator);
+  --ring: var(--color-tint);
+  --destructive: var(--color-destructive);
+  --radius: 0.75rem;
+  --tabbar-h: 49px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-bg: #000000;
+    --color-card: #1c1c1e;
+    --color-card-2: #2c2c2e;
+    --color-label: #ffffff;
+    --color-label-2: rgb(235 235 245 / 0.6);
+    --color-label-3: rgb(235 235 245 / 0.3);
+    --color-separator: rgb(84 84 88 / 0.6);
+    --color-fill: rgb(120 120 128 / 0.24);
+    --color-fill-2: rgb(120 120 128 / 0.32);
+    --color-tint: #0a84ff;
+    --color-ink: #ffffff;
+    --color-ink-fg: #000000;
+    --color-destructive: #ff453a;
+    --color-success: #30d158;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.dark {
+  --color-bg: #000000;
+  --color-card: #1c1c1e;
+  --color-card-2: #2c2c2e;
+  --color-label: #ffffff;
+  --color-label-2: rgb(235 235 245 / 0.6);
+  --color-label-3: rgb(235 235 245 / 0.3);
+  --color-separator: rgb(84 84 88 / 0.6);
+  --color-fill: rgb(120 120 128 / 0.24);
+  --color-fill-2: rgb(120 120 128 / 0.32);
+  --color-tint: #0a84ff;
+  --color-ink: #ffffff;
+  --color-ink-fg: #000000;
+  --color-destructive: #ff453a;
+  --color-success: #30d158;
+}
+
+/*
+ * Explicit light preference. Must stay after the `prefers-color-scheme: dark`
+ * block so it wins when the OS is dark but the user picked Light.
+ */
+.light {
+  --color-bg: #f2f2f7;
+  --color-card: #ffffff;
+  --color-card-2: #f2f2f7;
+  --color-label: #000000;
+  --color-label-2: rgb(60 60 67 / 0.6);
+  --color-label-3: rgb(60 60 67 / 0.3);
+  --color-separator: rgb(60 60 67 / 0.2);
+  --color-fill: rgb(120 120 128 / 0.12);
+  --color-fill-2: rgb(120 120 128 / 0.2);
+  --color-tint: #007aff;
+  --color-ink: #000000;
+  --color-ink-fg: #ffffff;
+  --color-destructive: #ff3b30;
+  --color-success: #34c759;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-label);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@utility text-large-title {
+  font-size: 34px;
+  line-height: 41px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+}
+
+@utility text-title-1 {
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+@utility text-title-2 {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+@utility text-title-3 {
+  font-size: 20px;
+  line-height: 25px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+@utility text-headline {
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+@utility text-body {
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+@utility text-callout {
+  font-size: 16px;
+  line-height: 21px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+@utility text-subhead {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+@utility text-footnote {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+@utility text-caption {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
 }
