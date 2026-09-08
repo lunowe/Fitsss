@@ -66,6 +66,12 @@ const seedStyles = [
       "Oversized hoodie or a graphic tee over wide, baggy bottoms. Chunky or retro sneakers, a cap when the hair says so. Volume on top, volume below, one loud piece at a time.",
     rules: "Never fitted tops\nOne loud piece per outfit",
   },
+  {
+    name: "Y2K",
+    description:
+      "Early-2000s pop and mall style: low-rise baggy jeans or cargo pants, a cropped or fitted baby tee, a tank under a zip hoodie or a track jacket, denim on denim. Chunky or retro sneakers, a trucker cap or a dad cap, a tiny bag. Light-wash blue, white, pink, silver and metallics; logos and graphics are the point. Playful and a bit loud, never polished.",
+    rules: "Bottoms baggy or wide, never slim\nAt least one logo or graphic piece\nNo blazers, no loafers, no wool coats",
+  },
 ];
 
 function validatedInputs(): BlockInput[] {
@@ -109,27 +115,32 @@ async function resetClosetFor(userId: string) {
 }
 
 async function seedStylesFor(userId: string) {
-  const [{ value: existingStyles }] = await db
-    .select({ value: count() })
+  // Idempotent per name, so a style added to this list later lands on a
+  // database that already has the earlier ones.
+  const existing = await db
+    .select({ name: styles.name, sortOrder: styles.sortOrder })
     .from(styles)
     .where(eq(styles.userId, userId));
+  const have = new Set(existing.map((s) => s.name));
+  let nextOrder = existing.reduce((max, s) => Math.max(max, s.sortOrder + 1), 0);
 
-  if (existingStyles > 0) {
-    console.log(`Styles skipped: ${email} already has ${existingStyles} styles.`);
+  const missing = seedStyles.filter((style) => !have.has(style.name));
+  if (missing.length === 0) {
+    console.log(`Styles skipped: ${email} already has all ${seedStyles.length} seed styles.`);
     return;
   }
 
   await db.insert(styles).values(
-    seedStyles.map((style, index) => ({
+    missing.map((style) => ({
       userId,
       name: style.name,
       description: style.description,
       rules: style.rules,
-      sortOrder: index,
+      sortOrder: nextOrder++,
     })),
   );
 
-  console.log(`Seeded ${seedStyles.length} styles for ${email}.`);
+  console.log(`Seeded ${missing.length} style(s) for ${email}: ${missing.map((s) => s.name).join(", ")}.`);
 }
 
 async function seedBlocksFor(userId: string) {
