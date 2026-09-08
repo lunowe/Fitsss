@@ -1,21 +1,21 @@
 import "server-only";
 
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { blocks, generations, outfitEvents, styles, tasteNotes } from "@/db/schema";
 import { outfitBlockIds, type Outfit, type WeatherSnapshot } from "@/domain";
-import { getLlmClient, isLlmConfigured, llmModel } from "@/lib/llm/client";
+import { callStructured, providerConfigured, type StructuredErrorCode } from "@/lib/llm/provider";
 import { isUuid } from "@/lib/llm/generation-request";
+import { getLlmSettingsForUser } from "@/server/settings-queries";
 import {
   MAX_LEARNED_AVOID,
   MAX_LINE_LENGTH,
   MIN_LINE_LENGTH,
   MAX_LEARNED_LINES,
   MAX_PROMPT_EVENTS,
+  TASTE_SYSTEM_PROMPT,
   affinitySummaryLines,
-  buildTastePrompt,
+  buildTasteUserMessage,
   computeAffinity,
   makeLine,
   mockTasteLines,
@@ -320,23 +320,9 @@ async function upsertNotes(userId: string, styleId: string | null, patch: NotesP
 /* Refresh                                                             */
 /* ------------------------------------------------------------------ */
 
-function describeLlmError(error: unknown): { error: string; code: TasteRefreshErrorCode } {
-  if (error instanceof Anthropic.AuthenticationError) {
-    return {
-      code: "not-configured",
-      error: "Could not sign in to the Claude API. Check that ANTHROPIC_API_KEY is set and valid.",
-    };
-  }
-  if (error instanceof Anthropic.RateLimitError) {
-    return { code: "llm", error: "Rate limited right now. Try again in a moment." };
-  }
-  if (error instanceof Anthropic.APIConnectionError) {
-    return { code: "llm", error: "Could not reach the Claude API. Check your connection and try again." };
-  }
-  if (error instanceof Anthropic.APIError) {
-    return { code: "llm", error: `The Claude API returned an error (${error.status ?? "unknown"}).` };
-  }
-  return { code: "llm", error: "Could not update your taste notes. Try again." };
+/** Provider codes, narrowed to the two this screen distinguishes. */
+function toTasteCode(code: StructuredErrorCode): TasteRefreshErrorCode {
+  return code === "not-configured" ? "not-configured" : "llm";
 }
 
 /** Labels in display order for one event's outfit. */
@@ -361,7 +347,8 @@ export async function refreshTasteNotesForUser(
   userId: string,
   styleId: string | null,
 ): Promise<TasteRefreshResult> {
-  const mock = process.env.LLM_MOCK === "1";
+  const llm = await getLlmSettingsForUser(userId);
+  const mock = llm.provider === "mock";
   const scope = isUuid(styleId) ? styleId : null;
 
   const ctx = await loadTasteContext(userId);
@@ -381,12 +368,9 @@ export async function refreshTasteNotesForUser(
     };
   }
 
-  if (!mock && !isLlmConfigured()) {
-    return {
-      ok: false,
-      code: "not-configured",
-      error: "No Claude API key yet. Add ANTHROPIC_API_KEY to .env.local to learn your taste.",
-    };
+  if (!mock) {
+    const configured = providerConfigured(llm);
+    if (!configured.ok) return { ok: false, code: "not-configured", error: configured.error };
   }
 
   const existing = ctx.notes.get(scope ?? OVERALL) ?? EMPTY_NOTES;
@@ -401,9 +385,8 @@ export async function refreshTasteNotesForUser(
     produced = mockTasteLines(aff, labels);
     model = "mock";
   } else {
-    model = llmModel();
     const style = scope ? ctx.styleById.get(scope) : undefined;
-    const prompt = buildTastePrompt({
+    const user = buildTasteUserMessage({
       scope: style ? { styleName: style.name, styleDescription: style.description } : null,
       learned: existing.lines.filter((line) => line.source === "learned"),
       learnedAvoid: existing.avoid.filter((line) => line.source === "learned"),
@@ -413,31 +396,26 @@ export async function refreshTasteNotesForUser(
       events: promptEvents(inScope, labels),
     });
 
-    let message;
-    try {
-      message = await getLlmClient().messages.parse({
-        model,
-        max_tokens: MAX_TOKENS,
-        thinking: { type: "adaptive" },
-        output_config: {
-          effort: "low",
-          format: zodOutputFormat(tasteOutputSchema),
-        },
-        system: prompt.system,
-        messages: [{ role: "user", content: prompt.user }],
-      });
-    } catch (error) {
-      return { ok: false, ...describeLlmError(error) };
+    const answer = await callStructured(
+      {
+        task: "taste",
+        system: TASTE_SYSTEM_PROMPT,
+        user,
+        schema: tasteOutputSchema,
+        schemaName: "taste_profile",
+        maxTokens: MAX_TOKENS,
+        // Summarising a list of events is not the expensive kind of thinking.
+        effort: "low",
+      },
+      llm,
+    );
+
+    if (!answer.ok) {
+      return { ok: false, code: toTasteCode(answer.code), error: answer.error };
     }
 
-    if (message.stop_reason === "refusal") {
-      return { ok: false, code: "llm", error: "The summarizer declined this request." };
-    }
-    const parsed = message.parsed_output;
-    if (!parsed) {
-      return { ok: false, code: "llm", error: "The summarizer returned nothing usable. Try again." };
-    }
-    produced = { lines: parsed.lines, avoid: parsed.avoid };
+    model = answer.model;
+    produced = { lines: answer.value.lines, avoid: answer.value.avoid };
   }
 
   const refreshedAt = new Date();

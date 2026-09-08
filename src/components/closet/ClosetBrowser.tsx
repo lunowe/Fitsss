@@ -5,16 +5,18 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 
 import { Chip, ChipRow, InsetGroup, LargeTitleHeader, Row, SectionHeader } from "@/components/shell";
-import { CATEGORIES, CATEGORY_LABELS, type Block, type Category } from "@/domain";
+import { categoryIdOf, getPieceType, listCategories, type Block } from "@/domain";
 
 import { BlockTile } from "./BlockTile";
 import { searchHaystack } from "./labels";
 
-const ORDER = new Map(CATEGORIES.map((category, index) => [category, index]));
-
-/** Category order from CATEGORIES, newest first inside a category (query order). */
-function sortByCategory(blocks: Block[]): Block[] {
-  return [...blocks].sort((a, b) => (ORDER.get(a.category) ?? 99) - (ORDER.get(b.category) ?? 99));
+/**
+ * The category a piece is filed under: its type's own category, which may be
+ * one the user added. Falls back to the stored role for a type that is gone.
+ */
+function categoryOf(block: Block): string {
+  const type = getPieceType(block.typeId);
+  return type ? categoryIdOf(type) : block.category;
 }
 
 /**
@@ -29,30 +31,38 @@ export function ClosetBrowser({ blocks, archivedCount }: { blocks: Block[]; arch
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
 
-  const counts = new Map<Category, number>();
-  for (const block of blocks) counts.set(block.category, (counts.get(block.category) ?? 0) + block.quantity);
+  const categories = listCategories();
+  const order = new Map(categories.map((category, index) => [category.id, index]));
+  const labels = new Map(categories.map((category) => [category.id, category.label]));
+
+  const counts = new Map<string, number>();
+  for (const block of blocks) {
+    const id = categoryOf(block);
+    counts.set(id, (counts.get(id) ?? 0) + block.quantity);
+  }
 
   const requested = searchParams.get("c");
-  const present = CATEGORIES.filter((category) => (counts.get(category) ?? 0) > 0);
-  const active: Category | "all" =
-    requested && present.includes(requested as Category) ? (requested as Category) : "all";
+  const present = categories.filter((category) => (counts.get(category.id) ?? 0) > 0);
+  const active: string =
+    requested && present.some((category) => category.id === requested) ? requested : "all";
 
   const total = blocks.reduce((sum, block) => sum + block.quantity, 0);
 
   const trimmed = query.trim().toLowerCase();
-  const scoped = active === "all" ? blocks : blocks.filter((block) => block.category === active);
-  const matches = sortByCategory(
-    trimmed ? scoped.filter((block) => searchHaystack(block).includes(trimmed)) : scoped,
+  const scoped = active === "all" ? blocks : blocks.filter((block) => categoryOf(block) === active);
+  const matches = [...(trimmed ? scoped.filter((block) => searchHaystack(block).includes(trimmed)) : scoped)].sort(
+    (a, b) => (order.get(categoryOf(a)) ?? 99) - (order.get(categoryOf(b)) ?? 99),
   );
 
-  const groups: { category: Category; items: Block[] }[] = [];
+  const groups: { category: string; items: Block[] }[] = [];
   for (const block of matches) {
+    const id = categoryOf(block);
     const last = groups.at(-1);
-    if (last && last.category === block.category) last.items.push(block);
-    else groups.push({ category: block.category, items: [block] });
+    if (last && last.category === id) last.items.push(block);
+    else groups.push({ category: id, items: [block] });
   }
 
-  function selectCategory(category: Category | "all") {
+  function selectCategory(category: string) {
     const next = category === "all" ? pathname : `${pathname}?c=${category}`;
     router.replace(next, { scroll: false });
   }
@@ -85,12 +95,12 @@ export function ClosetBrowser({ blocks, archivedCount }: { blocks: Block[]; arch
           </Chip>
           {present.map((category) => (
             <Chip
-              key={category}
-              selected={active === category}
-              onClick={() => selectCategory(category)}
+              key={category.id}
+              selected={active === category.id}
+              onClick={() => selectCategory(category.id)}
             >
-              {CATEGORY_LABELS[category]}
-              <span className="tabular-nums opacity-60">{counts.get(category)}</span>
+              {category.label}
+              <span className="tabular-nums opacity-60">{counts.get(category.id)}</span>
             </Chip>
           ))}
         </ChipRow>
@@ -131,7 +141,9 @@ export function ClosetBrowser({ blocks, archivedCount }: { blocks: Block[]; arch
         <div className="space-y-6">
           {groups.map((group) => (
             <section key={group.category}>
-              {active === "all" ? <SectionHeader>{CATEGORY_LABELS[group.category]}</SectionHeader> : null}
+              {active === "all" ? (
+                <SectionHeader>{labels.get(group.category) ?? group.category}</SectionHeader>
+              ) : null}
               <div className="grid grid-cols-2 gap-3 px-4">
                 {group.items.map((block) => (
                   <BlockTile key={block.id} block={block} />

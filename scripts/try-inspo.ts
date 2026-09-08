@@ -58,7 +58,8 @@ async function main() {
   const { db, sql } = await import("../src/db");
   const { blocks, user } = await import("../src/db/schema");
   const { outfitBlockIds } = await import("../src/domain");
-  const { isLlmConfigured, llmModel } = await import("../src/lib/llm/client");
+  const { providerConfigured } = await import("../src/lib/llm/provider");
+  const { getLlmSettingsForUser } = await import("../src/server/settings-queries");
   const {
     createInspoFromImageForUser,
     createInspoFromUrlForUser,
@@ -66,18 +67,21 @@ async function main() {
   } = await import("../src/server/inspo-core");
   const { generateOutfitsForUser } = await import("../src/server/generate-core");
 
-  const mock = process.env.LLM_MOCK === "1";
-  if (!mock && !isLlmConfigured()) {
-    console.error("ANTHROPIC_API_KEY is not set, and LLM_MOCK is not 1. Nothing to run.");
+  const email = arg("email") ?? process.env.SEED_EMAIL ?? "dev@fitsss.local";
+  const [owner] = await db.select().from(user).where(eq(user.email, email)).limit(1);
+  if (!owner) {
+    console.error(`No user with email ${email}. Run \`pnpm db:seed\` first.`);
     process.exitCode = 1;
     await sql.end();
     return;
   }
 
-  const email = arg("email") ?? process.env.SEED_EMAIL ?? "dev@fitsss.local";
-  const [owner] = await db.select().from(user).where(eq(user.email, email)).limit(1);
-  if (!owner) {
-    console.error(`No user with email ${email}. Run \`pnpm db:seed\` first.`);
+  // Settings are per user: the row in `settings`, with the environment on top.
+  const llm = await getLlmSettingsForUser(owner.id);
+  const mock = llm.provider === "mock";
+  const configured = providerConfigured(llm);
+  if (!configured.ok) {
+    console.error(configured.error);
     process.exitCode = 1;
     await sql.end();
     return;
@@ -92,7 +96,9 @@ async function main() {
     return;
   }
 
-  console.log(`Importing for ${email} — ${mock ? "LLM_MOCK=1 (mock analysis)" : `model ${llmModel()}`}\n`);
+  console.log(
+    `Importing for ${email} — ${mock ? "mock provider (deterministic analysis)" : `${llm.provider} model ${llm.models.vision}`}\n`,
+  );
 
   const started = Date.now();
   const created = file

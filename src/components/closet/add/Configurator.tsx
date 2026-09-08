@@ -17,11 +17,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  CATEGORY_LABELS,
   PATTERN_LABELS,
   WEIGHTS,
   WEIGHT_LABELS,
+  categoryIdOf,
   fitLabel,
+  getCatalogCategory,
   getMaterial,
   variantLabel,
   type BlockColor,
@@ -55,7 +56,9 @@ export function Configurator({ type }: { type: PieceType }) {
   const options = (usesFit ? type.fitOptions : type.variantOptions) ?? [];
   const optionLabel = usesFit ? fitLabel : variantLabel;
   const optionWord = usesFit ? "fit" : "style";
-  const categoryHref = `/closet/add/${type.category}`;
+  const categoryId = categoryIdOf(type);
+  const categoryLabel = getCatalogCategory(categoryId)?.label ?? categoryId;
+  const categoryHref = `/closet/add/${categoryId}`;
 
   const [colors, setColors] = useState<BlockColor[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
@@ -125,7 +128,7 @@ export function Configurator({ type }: { type: PieceType }) {
       <LargeTitleHeader
         title={type.label}
         subtitle={summary}
-        leading={<BackButton href={categoryHref} label={CATEGORY_LABELS[type.category]} />}
+        leading={<BackButton href={categoryHref} label={categoryLabel} />}
       />
 
       <div className="space-y-6 pt-2">

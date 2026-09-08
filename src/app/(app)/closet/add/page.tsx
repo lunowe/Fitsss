@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import { BackButton, InsetGroup, LargeTitleHeader, Row, Screen } from "@/components/shell";
 import { Silhouette } from "@/components/silhouettes";
-import { CATEGORIES, CATEGORY_HINTS, CATEGORY_LABELS, pieceTypesFor } from "@/domain";
+import { ROLE_FALLBACK_ICON, listCategories, pieceTypesForCategoryId } from "@/domain";
 import { closetSummary } from "@/server/blocks-queries";
+import { applyUserCatalog } from "@/server/catalog-queries";
 
 export const metadata: Metadata = {
   title: "Add pieces",
 };
 
 export default async function AddPiecesPage() {
+  await applyUserCatalog();
   const summary = await closetSummary();
 
   return (
@@ -20,20 +22,26 @@ export default async function AddPiecesPage() {
       />
       <div className="px-4 pt-2">
         <InsetGroup>
-          {CATEGORIES.map((category) => {
-            const first = pieceTypesFor(category)[0];
-            const owned = summary.byCategory[category];
+          {listCategories().map((category) => {
+            const first = pieceTypesForCategoryId(category.id)[0];
+            const owned = summary.byCategoryId[category.id] ?? 0;
             return (
               <Row
-                key={category}
-                href={`/closet/add/${category}`}
+                key={category.id}
+                href={`/closet/add/${category.id}`}
                 leading={
                   first ? (
                     <Silhouette typeId={first.id} color="var(--color-label-3)" size={32} />
-                  ) : null
+                  ) : (
+                    <Silhouette
+                      id={ROLE_FALLBACK_ICON[category.role]}
+                      color="var(--color-label-3)"
+                      size={32}
+                    />
+                  )
                 }
-                title={CATEGORY_LABELS[category]}
-                subtitle={CATEGORY_HINTS[category]}
+                title={category.label}
+                subtitle={category.hint}
                 trailing={<span className="tabular-nums">{owned}</span>}
               />
             );

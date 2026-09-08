@@ -6,12 +6,14 @@ import { ClosetBrowser } from "@/components/closet/ClosetBrowser";
 import { BottomBar, EmptyState, LargeTitleHeader, Screen } from "@/components/shell";
 import { Button } from "@/components/ui/button";
 import { listBlocks } from "@/server/blocks-queries";
+import { applyUserCatalog } from "@/server/catalog-queries";
 
 export const metadata: Metadata = {
   title: "Closet",
 };
 
 export default async function ClosetPage() {
+  await applyUserCatalog();
   const all = await listBlocks({ includeArchived: true });
   const blocks = all.filter((block) => block.archivedAt === null);
   const archivedCount = all.length - blocks.length;

@@ -64,6 +64,7 @@ async function main() {
     refreshTasteNotesForUser,
     tasteNotesForPrompt,
   } = await import("../src/server/taste-core");
+  const { getLlmSettingsForUser } = await import("../src/server/settings-queries");
 
   const email = arg("email") ?? process.env.SEED_EMAIL ?? "dev@fitsss.local";
   const [owner] = await db.select().from(user).where(eq(user.email, email)).limit(1);
@@ -106,12 +107,17 @@ async function main() {
 
   const styleId = arg("style") ?? null;
 
+  const llm = await getLlmSettingsForUser(owner.id);
+
   const before = await getTasteOverviewForUser(owner.id);
-  console.log(`Taste memory for ${email} — ${before.totalEvents} event(s) on file.`);
+  console.log(
+    `Taste memory for ${email} — ${before.totalEvents} event(s) on file, ${llm.provider} model ${llm.models.taste}.`,
+  );
   printProfile("Overall", before.overall);
   for (const [id, profile] of Object.entries(before.byStyle)) printProfile(`Style ${id}`, profile);
 
-  if (flag("refresh") || process.env.LLM_MOCK === "1") {
+  // The mock provider costs nothing, so it refreshes without being asked.
+  if (flag("refresh") || llm.provider === "mock") {
     console.log(`\nRefreshing ${styleId ? `style ${styleId}` : "the overall profile"}…`);
     const started = Date.now();
     const result = await refreshTasteNotesForUser(owner.id, styleId);

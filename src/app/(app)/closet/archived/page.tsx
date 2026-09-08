@@ -4,12 +4,14 @@ import { Archive } from "lucide-react";
 import { ArchivedList } from "@/components/closet/ArchivedList";
 import { BackButton, EmptyState, LargeTitleHeader, Screen } from "@/components/shell";
 import { listBlocks } from "@/server/blocks-queries";
+import { applyUserCatalog } from "@/server/catalog-queries";
 
 export const metadata: Metadata = {
   title: "Archived",
 };
 
 export default async function ArchivedPage() {
+  await applyUserCatalog();
   const all = await listBlocks({ includeArchived: true });
   const archived = all.filter((block) => block.archivedAt !== null);
 

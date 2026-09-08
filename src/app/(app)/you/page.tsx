@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Archive, Plus, Sparkles, User } from "lucide-react";
+import { Archive, Cpu, LayoutList, Plus, Sparkles, User } from "lucide-react";
 import { InsetGroup, LargeTitleHeader, Row, RowIcon, Screen, SectionHeader } from "@/components/shell";
 import { AppearanceControl } from "@/components/you/AppearanceControl";
 import { requireUser } from "@/lib/session";
@@ -89,6 +89,32 @@ export default async function YouPage() {
               }
               title="Add pieces"
               href="/closet/add"
+            />
+          </InsetGroup>
+        </section>
+
+        <section>
+          <SectionHeader>Setup</SectionHeader>
+          <InsetGroup>
+            <Row
+              leading={
+                <RowIcon>
+                  <Cpu aria-hidden />
+                </RowIcon>
+              }
+              title="AI model"
+              subtitle="Provider and models per task"
+              href="/you/model"
+            />
+            <Row
+              leading={
+                <RowIcon>
+                  <LayoutList aria-hidden />
+                </RowIcon>
+              }
+              title="Content"
+              subtitle="Categories, piece types, artwork"
+              href="/you/content"
             />
           </InsetGroup>
         </section>

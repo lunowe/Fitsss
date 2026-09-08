@@ -7,6 +7,7 @@ import { blocks } from "@/db/schema";
 import { derive, type Block, type BlockInput, validateBlockInput } from "@/domain";
 import { requireUser } from "@/lib/session";
 import { rowToBlock } from "@/server/blocks-queries";
+import { applyUserCatalog } from "@/server/catalog-queries";
 
 type CreateBlocksResult = {
   created: Block[];
@@ -45,6 +46,9 @@ function toInsertValues(input: BlockInput, userId: string) {
 
 export async function createBlocks(inputs: unknown[]): Promise<CreateBlocksResult> {
   const currentUser = await requireUser();
+  // Custom piece types are data, so the catalog has to be in place before
+  // anything is validated or derived against it.
+  await applyUserCatalog();
   const failed: CreateBlocksResult["failed"] = [];
   const valid: BlockInput[] = [];
 
@@ -71,6 +75,7 @@ export async function createBlocks(inputs: unknown[]): Promise<CreateBlocksResul
 
 export async function updateBlock(id: string, input: unknown): Promise<UpdateBlockResult> {
   const currentUser = await requireUser();
+  await applyUserCatalog();
   const result = validateBlockInput(input);
 
   if (!result.ok) {

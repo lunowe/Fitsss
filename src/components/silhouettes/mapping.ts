@@ -89,6 +89,15 @@ export const ART_FOR_TYPE: Record<string, ArtMapping> = {
   // belt, sunglasses, watch: no art.
 
   // fullbody: dress and jumpsuit have no art.
+
+  // generated with scripts/gen-art.mjs (claude-opus-5), reviewed by hand
+  skirt: { art: "gen-skirt" },
+  sandals: { art: "gen-sandals" },
+  belt: { art: "gen-belt" },
+  sunglasses: { art: "gen-sunglasses" },
+  watch: { art: "gen-watch" },
+  dress: { art: "gen-dress" },
+  jumpsuit: { art: "gen-jumpsuit" },
 };
 
 /** The art id for a piece type, honouring its variant. Undefined means glyph. */

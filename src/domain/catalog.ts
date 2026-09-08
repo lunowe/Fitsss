@@ -1,4 +1,5 @@
-import type { Category, PieceType } from "./types";
+import type { ArtOverride, CatalogExtension, CustomCategory } from "./catalog-extension";
+import { CATEGORIES, CATEGORY_HINTS, CATEGORY_LABELS, type Category, type PieceType } from "./types";
 
 /* Fit vocabularies. Fit describes silhouette on the body. */
 export const TOP_FITS = ["fitted", "regular", "relaxed", "oversized", "boxy"] as const;
@@ -805,20 +806,151 @@ export const CATALOG: readonly PieceType[] = [
   },
 ];
 
-const byId = new Map(CATALOG.map((t) => [t.id, t]));
+/* ------------------------------------------------------------------ */
+/* Registry: built-ins plus the current user's catalog extension        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The catalog is the built-in table above plus, at runtime, whatever the
+ * signed-in user added: custom categories, custom piece types and artwork
+ * overrides (see `./catalog-extension` for the shapes and validators).
+ *
+ * The registry is module level, which is safe here because Fitsss is a
+ * single-user app: every request in a process belongs to the same person, so
+ * concurrent requests share the same extension. The server applies it at the
+ * start of each request that reads the catalog (`withCatalog` /
+ * `applyUserCatalog` in `src/server/catalog-queries.ts`), and the client gets
+ * it from `CatalogProvider`, which applies it during render before any child
+ * reads `getPieceType`.
+ */
+
+const builtInById = new Map(CATALOG.map((t) => [t.id, t]));
+
+const BUILT_IN_CATEGORY_IDS: ReadonlySet<string> = new Set(CATEGORIES);
+
+let extensionTypes: readonly PieceType[] = [];
+let extensionById = new Map<string, PieceType>();
+let extensionCategories: readonly CustomCategory[] = [];
+let extensionArt = new Map<string, ArtOverride>();
+
+/** A category as shown in the UI: a built-in one or one the user added. */
+export interface CatalogCategory {
+  /** Built-in `Category` value, or a custom category slug. */
+  id: string;
+  label: string;
+  hint: string;
+  /** The built-in category this one behaves as in outfits and weather. */
+  role: Category;
+  custom: boolean;
+}
+
+/** Replaces the current extension. Built-in ids always win over custom ones. */
+export function applyCatalogExtension(extension: CatalogExtension): void {
+  const types = (extension.types ?? []).filter((t) => !builtInById.has(t.id));
+  extensionTypes = types;
+  extensionById = new Map(types.map((t) => [t.id, t]));
+  extensionCategories = [...(extension.categories ?? [])]
+    .filter((c) => !BUILT_IN_CATEGORY_IDS.has(c.id))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label));
+  extensionArt = new Map(Object.entries(extension.art ?? {}));
+}
+
+/** Drops the extension, leaving only the built-in catalog. */
+export function clearCatalogExtension(): void {
+  extensionTypes = [];
+  extensionById = new Map();
+  extensionCategories = [];
+  extensionArt = new Map();
+}
+
+/** What `applyCatalogExtension` was last called with, normalized. */
+export function currentCatalogExtension(): CatalogExtension {
+  return {
+    categories: [...extensionCategories],
+    types: [...extensionTypes],
+    art: Object.fromEntries(extensionArt),
+  };
+}
 
 export function getPieceType(id: string): PieceType | undefined {
-  return byId.get(id);
+  return builtInById.get(id) ?? extensionById.get(id);
 }
 
 export function requirePieceType(id: string): PieceType {
-  const t = byId.get(id);
+  const t = getPieceType(id);
   if (!t) throw new Error(`Unknown piece type: ${id}`);
   return t;
 }
 
+/** Every piece type the user can pick from: built-ins first, then custom. */
+export function allPieceTypes(): PieceType[] {
+  return [...CATALOG, ...extensionTypes];
+}
+
+/** The category a type is filed under: its `categoryId`, else its role. */
+export function categoryIdOf(type: PieceType): string {
+  return type.categoryId ?? type.category;
+}
+
+/** Types whose *role* is this built-in category, wherever they are filed. */
 export function pieceTypesFor(category: Category): PieceType[] {
-  return CATALOG.filter((t) => t.category === category);
+  return allPieceTypes().filter((t) => t.category === category);
+}
+
+/** Types filed under one category id (built-in value or custom slug). */
+export function pieceTypesForCategoryId(id: string): PieceType[] {
+  return allPieceTypes().filter((t) => categoryIdOf(t) === id);
+}
+
+/** Built-ins in `CATEGORIES` order, then the user's own by sort order. */
+export function listCategories(): CatalogCategory[] {
+  return [
+    ...CATEGORIES.map((category) => ({
+      id: category as string,
+      label: CATEGORY_LABELS[category],
+      hint: CATEGORY_HINTS[category],
+      role: category,
+      custom: false,
+    })),
+    ...extensionCategories.map((c) => ({
+      id: c.id,
+      label: c.label,
+      hint: c.hint,
+      role: c.role,
+      custom: true,
+    })),
+  ];
+}
+
+export function getCatalogCategory(id: string): CatalogCategory | undefined {
+  return listCategories().find((c) => c.id === id);
+}
+
+/** The built-in category a category id behaves as, or undefined if unknown. */
+export function categoryRoleOf(id: string): Category | undefined {
+  return getCatalogCategory(id)?.role;
+}
+
+/* ------------------------------------------------------------------ */
+/* Artwork overrides                                                    */
+/* ------------------------------------------------------------------ */
+
+/** Key of an art override: the type, optionally narrowed to one variant. */
+export function artOverrideKey(typeId: string, variant?: string | null): string {
+  return variant ? `${typeId}#${variant}` : typeId;
+}
+
+/** The user's drawing for a type, preferring a variant-specific one. */
+export function getArtOverride(typeId: string, variant?: string): ArtOverride | undefined {
+  if (variant) {
+    const exact = extensionArt.get(artOverrideKey(typeId, variant));
+    if (exact) return exact;
+  }
+  return extensionArt.get(typeId);
+}
+
+export function artOverrideCount(): number {
+  return extensionArt.size;
 }
 
 /** True when the type is described by a fit (garment) rather than a variant. */
@@ -826,10 +958,16 @@ export function isGarment(type: PieceType): boolean {
   return type.fitOptions !== undefined;
 }
 
+/** "silk-scarf" -> "Silk scarf", for vocabulary the user invented. */
+function humanize(slug: string): string {
+  const words = slug.replace(/-/g, " ").trim();
+  return words ? words[0].toUpperCase() + words.slice(1) : slug;
+}
+
 export function fitLabel(fit: string): string {
-  return FIT_LABELS[fit] ?? fit;
+  return FIT_LABELS[fit] ?? humanize(fit);
 }
 
 export function variantLabel(variant: string): string {
-  return VARIANT_LABELS[variant] ?? variant;
+  return VARIANT_LABELS[variant] ?? humanize(variant);
 }

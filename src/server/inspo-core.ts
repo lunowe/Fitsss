@@ -1,15 +1,14 @@
 import "server-only";
 
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { blocks, inspos, styles } from "@/db/schema";
 import type { Block, Inspo, InspoAnalysis, InspoMatch } from "@/domain";
 import {
-  buildInspoSystem,
-  buildInspoUserContent,
+  INSPO_INSTRUCTION,
+  INSPO_SYSTEM_PROMPT,
   buildMockAnalysis,
+  buildVocabulary,
   detectImageMime,
   inspoAnalysisSchema,
   matchInspoToCloset,
@@ -18,9 +17,10 @@ import {
   resolveImageUrl,
   type ImageMime,
 } from "@/lib/inspo";
-import { getLlmClient, isLlmConfigured, llmEffort, llmModel } from "@/lib/llm/client";
+import { callStructured, providerConfigured, type StructuredErrorCode } from "@/lib/llm/provider";
 import { isUuid } from "@/lib/llm/generation-request";
 import { rowToBlock } from "@/server/blocks-queries";
+import { getLlmSettingsForUser } from "@/server/settings-queries";
 import {
   getInspoForUser,
   inspoColumns,
@@ -53,23 +53,9 @@ function fail(code: InspoErrorCode, error: string): InspoError {
   return { ok: false, code, error };
 }
 
-function describeLlmError(error: unknown): InspoError {
-  if (error instanceof Anthropic.AuthenticationError) {
-    return fail(
-      "not-configured",
-      "Could not sign in to the Claude API. Check that ANTHROPIC_API_KEY is set and valid.",
-    );
-  }
-  if (error instanceof Anthropic.RateLimitError) {
-    return fail("llm", "Rate limited right now. Try again in a moment.");
-  }
-  if (error instanceof Anthropic.APIConnectionError) {
-    return fail("llm", "Could not reach the Claude API. Check your connection and try again.");
-  }
-  if (error instanceof Anthropic.APIError) {
-    return fail("llm", `The Claude API returned an error (${error.status ?? "unknown"}).`);
-  }
-  return fail("llm", "Reading the picture did not work. Try again.");
+/** Provider codes, narrowed to the two this screen distinguishes. */
+function toInspoCode(code: StructuredErrorCode): InspoErrorCode {
+  return code === "not-configured" ? "not-configured" : "llm";
 }
 
 async function loadActiveBlocks(userId: string): Promise<Block[]> {
@@ -166,12 +152,11 @@ export async function analyzeInspoForUser(userId: string, id: string): Promise<I
     .limit(1);
   if (!row) return fail("not-found", "That picture is gone.");
 
-  const mock = process.env.LLM_MOCK === "1";
-  if (!mock && !isLlmConfigured()) {
-    return fail(
-      "not-configured",
-      "No Claude API key yet. Add ANTHROPIC_API_KEY to .env.local to read pictures.",
-    );
+  const llm = await getLlmSettingsForUser(userId);
+  const mock = llm.provider === "mock";
+  if (!mock) {
+    const configured = providerConfigured(llm);
+    if (!configured.ok) return fail("not-configured", configured.error);
   }
 
   const owned = await loadActiveBlocks(userId);
@@ -183,32 +168,32 @@ export async function analyzeInspoForUser(userId: string, id: string): Promise<I
     const info = readImageInfo(row.image);
     if (!info) return fail("invalid", "That picture could not be read.");
 
-    let message;
-    try {
-      message = await getLlmClient().messages.parse({
-        model: llmModel(),
-        max_tokens: MAX_TOKENS,
-        thinking: { type: "adaptive" },
-        output_config: {
-          effort: llmEffort(),
-          format: zodOutputFormat(inspoAnalysisSchema),
-        },
-        system: buildInspoSystem(),
-        messages: [
-          {
-            role: "user",
-            content: buildInspoUserContent(info.mime, row.image.toString("base64")),
-          },
+    // Vocabulary, then the picture, then the instruction — the same order the
+    // system prompt describes, so the model reads the rules before the image.
+    const answer = await callStructured(
+      {
+        task: "vision",
+        system: INSPO_SYSTEM_PROMPT,
+        user: [
+          { type: "text", text: buildVocabulary() },
+          { type: "image", mime: info.mime, base64: row.image.toString("base64") },
+          { type: "text", text: INSPO_INSTRUCTION },
         ],
-      });
-    } catch (error) {
-      return describeLlmError(error);
+        schema: inspoAnalysisSchema,
+        schemaName: "inspo_analysis",
+        maxTokens: MAX_TOKENS,
+      },
+      llm,
+    );
+
+    if (!answer.ok) {
+      if (answer.code === "refusal") {
+        return fail("llm", "That picture was declined. Try another one.");
+      }
+      return fail(toInspoCode(answer.code), answer.error);
     }
 
-    if (message.stop_reason === "refusal") {
-      return fail("llm", "That picture was declined. Try another one.");
-    }
-    analysis = normalizeAnalysis(message.parsed_output, llmModel());
+    analysis = normalizeAnalysis(answer.value, answer.model);
     if (analysis.pieces.length === 0) {
       return fail("llm", "No clothes were found in that picture. Try one with the whole outfit in frame.");
     }

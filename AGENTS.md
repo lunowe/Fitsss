@@ -25,6 +25,7 @@ pnpm test           # vitest run
 pnpm db:generate    # drizzle-kit generate (after editing src/db/schema.ts)
 pnpm db:migrate     # apply migrations to DATABASE_URL
 pnpm db:studio      # drizzle studio
+pnpm db:seed --reset # wipe the dev closet + derived data, keep styles/catalog/art/settings, reseed
 ```
 
 Local Postgres runs via Homebrew on `localhost:5432`, database `fitsss`. Env lives in

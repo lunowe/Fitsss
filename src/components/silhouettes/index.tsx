@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import { getPieceType } from "@/domain/catalog";
+import { getArtOverride, getPieceType } from "@/domain/catalog";
 import { SILHOUETTE_IDS, type SilhouetteId } from "@/domain/types";
 
 import { ART } from "./art";
@@ -89,7 +89,11 @@ export function Silhouette({
   className,
   title,
 }: SilhouetteProps) {
-  const art = typeId ? ART[artForType(typeId, variant) ?? ""] : undefined;
+  // The user's own drawing wins over the built-in one; a custom type with no
+  // artwork falls through to the neutral glyph its role was given.
+  const art = typeId
+    ? (getArtOverride(typeId, variant) ?? ART[artForType(typeId, variant) ?? ""])
+    : undefined;
   const label = title ? { role: "img" as const, "aria-label": title } : { "aria-hidden": true };
   const lightness = lightnessOf(color);
   const ink = inkFor(lightness);

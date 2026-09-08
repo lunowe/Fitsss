@@ -128,7 +128,19 @@ export type MaterialId =
  */
 export interface PieceType {
   id: string;
+  /**
+   * The built-in role that drives outfit slots, weather logic and the derived
+   * `category` stored on a block. A custom "Necklace" type has role
+   * `accessory` even though the user files it under a "Jewelry" category.
+   */
   category: Category;
+  /**
+   * The category the user files this type under: a built-in `Category` or the
+   * slug of a custom category. Absent means it equals `category`.
+   */
+  categoryId?: string;
+  /** True for user-defined types that came from a catalog extension. */
+  custom?: boolean;
   label: string;
   /** Plural label for counts, e.g. "T-shirts". */
   plural: string;

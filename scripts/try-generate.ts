@@ -53,20 +53,24 @@ async function main() {
   const { blocks, user } = await import("../src/db/schema");
   const { isOccasionId, outfitBlockIds, WEATHER_CONDITIONS } = await import("../src/domain");
   const { validateGenerationRequest } = await import("../src/lib/llm/generation-request");
-  const { isLlmConfigured, llmEffort, llmModel } = await import("../src/lib/llm/client");
+  const { providerConfigured } = await import("../src/lib/llm/provider");
+  const { getLlmSettingsForUser } = await import("../src/server/settings-queries");
   const { generateOutfitsForUser } = await import("../src/server/generate-core");
-
-  if (!isLlmConfigured()) {
-    console.error("ANTHROPIC_API_KEY is not set. Add it to .env.local and run again.");
-    process.exitCode = 1;
-    await sql.end();
-    return;
-  }
 
   const email = arg("email") ?? process.env.SEED_EMAIL ?? "dev@fitsss.local";
   const [owner] = await db.select().from(user).where(eq(user.email, email)).limit(1);
   if (!owner) {
     console.error(`No user with email ${email}. Run \`pnpm db:seed\` first.`);
+    process.exitCode = 1;
+    await sql.end();
+    return;
+  }
+
+  // Settings are per user: the row in `settings`, with the environment on top.
+  const llm = await getLlmSettingsForUser(owner.id);
+  const configured = providerConfigured(llm);
+  if (!configured.ok) {
+    console.error(configured.error);
     process.exitCode = 1;
     await sql.end();
     return;
@@ -117,7 +121,7 @@ async function main() {
   const labels = new Map(closet.map((row) => [row.id, row.label]));
 
   console.log(
-    `Generating ${parsed.request.count} outfit(s) for ${email} — ${occasion}, ${tempC}° ${condition}, model ${llmModel()} at effort ${llmEffort()}…\n`,
+    `Generating ${parsed.request.count} outfit(s) for ${email} — ${occasion}, ${tempC}° ${condition}, ${llm.provider} model ${llm.models.outfits} at effort ${llm.effort}…\n`,
   );
 
   const started = Date.now();

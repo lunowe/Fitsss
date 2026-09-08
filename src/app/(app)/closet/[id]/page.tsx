@@ -20,6 +20,7 @@ import {
 } from "@/components/shell";
 import { PATTERN_LABELS, WEIGHT_LABELS, getPieceType, isGarment } from "@/domain";
 import { getBlock } from "@/server/blocks-queries";
+import { applyUserCatalog } from "@/server/catalog-queries";
 import { cn } from "@/lib/utils";
 
 type Props = { params: Promise<{ id: string }> };
@@ -56,6 +57,7 @@ function ColorValue({ name, hex }: { name: string; hex: string }) {
 
 export default async function BlockDetailPage({ params }: Props) {
   const { id } = await params;
+  await applyUserCatalog();
   const block = await getBlock(id);
   if (!block) notFound();
 

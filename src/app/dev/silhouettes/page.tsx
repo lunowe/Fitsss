@@ -1,7 +1,8 @@
 import type { CSSProperties } from "react";
 
 import { ART_FOR_TYPE, Silhouette, silhouetteForType } from "@/components/silhouettes";
-import { CATEGORIES, CATEGORY_LABELS, pieceTypesFor } from "@/domain";
+import { getArtOverride, listCategories, pieceTypesForCategoryId } from "@/domain";
+import { applyOptionalUserCatalog } from "@/server/catalog-queries";
 
 export const metadata = { title: "Silhouettes" };
 
@@ -24,7 +25,7 @@ function Cell({
   color: string;
   secondaryColor?: string;
 }) {
-  const mapped = typeId in ART_FOR_TYPE;
+  const mapped = getArtOverride(typeId) !== undefined || typeId in ART_FOR_TYPE;
   return (
     <li className="flex flex-col items-center gap-1.5">
       <div className="flex items-end gap-1">
@@ -71,10 +72,10 @@ function Panel({ theme, size }: { theme: "light" | "dark"; size: number }) {
               />
               {row.label} — art next to the drawn glyph
             </div>
-            {CATEGORIES.map((category) => (
-              <div key={category} className="mt-4">
+            {listCategories().map((category) => (
+              <div key={category.id} className="mt-4">
                 <h3 className="mb-2 text-[10px] uppercase tracking-[0.08em] opacity-40">
-                  {CATEGORY_LABELS[category]}
+                  {category.label}
                 </h3>
                 <ul
                   className="grid gap-x-2 gap-y-4"
@@ -82,7 +83,7 @@ function Panel({ theme, size }: { theme: "light" | "dark"; size: number }) {
                     gridTemplateColumns: `repeat(auto-fill, minmax(${Math.max(size + 60, 120)}px, 1fr))`,
                   }}
                 >
-                  {pieceTypesFor(category).map((type) => (
+                  {pieceTypesForCategoryId(category.id).map((type) => (
                     <Cell
                       key={type.id}
                       typeId={type.id}
@@ -106,11 +107,14 @@ export default async function SilhouetteGalleryPage({
 }: {
   searchParams: Promise<{ size?: string }>;
 }) {
+  await applyOptionalUserCatalog();
   const { size: raw } = await searchParams;
   const parsed = Number(raw);
   const size = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 320) : 64;
-  const types = CATEGORIES.flatMap((category) => pieceTypesFor(category));
-  const mapped = types.filter((type) => type.id in ART_FOR_TYPE).length;
+  const types = listCategories().flatMap((category) => pieceTypesForCategoryId(category.id));
+  const mapped = types.filter(
+    (type) => getArtOverride(type.id) !== undefined || type.id in ART_FOR_TYPE,
+  ).length;
 
   return (
     <main className="min-h-dvh font-sans">

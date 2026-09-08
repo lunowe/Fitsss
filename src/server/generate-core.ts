@@ -1,7 +1,5 @@
 import "server-only";
 
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { blocks, generations, outfitEvents, styles } from "@/db/schema";
@@ -20,16 +18,18 @@ import {
   type OutfitSlots,
 } from "@/domain";
 import { matchToSlots } from "@/lib/inspo/match";
-import { getLlmClient, isLlmConfigured, llmEffort, llmModel } from "@/lib/llm/client";
 import {
+  OUTFIT_SYSTEM_PROMPT,
   buildOutfitPrompt,
   outfitsOutputSchema,
   resolveOutfits,
   type StyleForPrompt,
 } from "@/lib/llm/outfit-prompt";
+import { callStructured, providerConfigured, type StructuredErrorCode } from "@/lib/llm/provider";
 import { isUuid } from "@/lib/llm/generation-request";
 import { rowToBlock } from "@/server/blocks-queries";
 import { loadAnalyzedInspo, styleReferenceLines } from "@/server/inspo-core";
+import { getLlmSettingsForUser } from "@/server/settings-queries";
 import { tasteNotesForPrompt } from "@/server/taste-core";
 
 /**
@@ -69,23 +69,9 @@ type Usage = {
 /* Errors                                                              */
 /* ------------------------------------------------------------------ */
 
-function describeLlmError(error: unknown): { error: string; code: GenerateErrorCode } {
-  if (error instanceof Anthropic.AuthenticationError) {
-    return {
-      code: "not-configured",
-      error: "The stylist could not sign in to the Claude API. Check that ANTHROPIC_API_KEY is set and valid.",
-    };
-  }
-  if (error instanceof Anthropic.RateLimitError) {
-    return { code: "llm", error: "The stylist is rate limited right now. Try again in a moment." };
-  }
-  if (error instanceof Anthropic.APIConnectionError) {
-    return { code: "llm", error: "Could not reach the Claude API. Check your connection and try again." };
-  }
-  if (error instanceof Anthropic.APIError) {
-    return { code: "llm", error: `The Claude API returned an error (${error.status ?? "unknown"}).` };
-  }
-  return { code: "llm", error: "The stylist could not finish. Try again." };
+/** Provider codes, narrowed to the two this screen distinguishes. */
+function toGenerateCode(code: StructuredErrorCode): GenerateErrorCode {
+  return code === "not-configured" ? "not-configured" : "llm";
 }
 
 /* ------------------------------------------------------------------ */
@@ -207,14 +193,12 @@ export async function generateOutfitsForUser(
   request: GenerationRequest,
   options: { tasteNotes?: string } = {},
 ): Promise<GenerateOutfitsResult> {
-  const mock = process.env.LLM_MOCK === "1";
+  const llm = await getLlmSettingsForUser(userId);
+  const mock = llm.provider === "mock";
 
-  if (!mock && !isLlmConfigured()) {
-    return {
-      ok: false,
-      code: "not-configured",
-      error: "No Claude API key yet. Add ANTHROPIC_API_KEY to .env.local to generate outfits.",
-    };
+  if (!mock) {
+    const configured = providerConfigured(llm);
+    if (!configured.ok) return { ok: false, code: "not-configured", error: configured.error };
   }
 
   const active = await loadActiveBlocks(userId);
@@ -278,8 +262,9 @@ export async function generateOutfitsForUser(
   const tasteNotes =
     options.tasteNotes ?? (await tasteNotesForPrompt(userId, request.styleId ?? null));
   const candidateMap = new Map(candidates.map((b) => [b.id, b]));
-  const model = mock ? "mock" : llmModel();
-  const effort = llmEffort();
+  // Overwritten with the id the provider reports, which can differ from the one
+  // asked for (OpenRouter resolves ":floor" and friends to a concrete model).
+  let model = mock ? "mock" : llm.models.outfits;
 
   const usage: Usage = {
     inputTokens: 0,
@@ -317,36 +302,38 @@ export async function generateOutfitsForUser(
           : `Your previous answer could not be used: ${lastProblems.slice(0, 4).join("; ") || "no usable outfit came back"}. Use only the short ids listed above, give every outfit footwear and either a top and a bottom or one full-body piece, and return ${request.count} outfit${request.count === 1 ? "" : "s"}.`,
     });
 
-    let message;
-    try {
-      usage.attempts += 1;
-      message = await getLlmClient().messages.parse({
-        model,
-        max_tokens: MAX_TOKENS,
-        thinking: { type: "adaptive" },
-        output_config: {
-          effort,
-          format: zodOutputFormat(outfitsOutputSchema),
-        },
-        system: prompt.system,
-        messages: [{ role: "user", content: prompt.user }],
-      });
-    } catch (error) {
-      return { ok: false, ...describeLlmError(error) };
+    usage.attempts += 1;
+    const answer = await callStructured(
+      {
+        task: "outfits",
+        system: OUTFIT_SYSTEM_PROMPT,
+        user: prompt.user,
+        schema: outfitsOutputSchema,
+        schemaName: "outfits",
+        maxTokens: MAX_TOKENS,
+      },
+      llm,
+    );
+
+    if (!answer.ok) {
+      // A malformed answer is worth one more go with a correction; a refusal or
+      // a rate limit will say the same thing twice.
+      if (answer.code === "invalid-output" && attempt === 0) {
+        lastProblems = [answer.error];
+        continue;
+      }
+      return { ok: false, code: toGenerateCode(answer.code), error: answer.error };
     }
 
-    usage.inputTokens += message.usage.input_tokens ?? 0;
-    usage.outputTokens += message.usage.output_tokens ?? 0;
-    usage.cacheReadInputTokens += message.usage.cache_read_input_tokens ?? 0;
-    usage.cacheCreationInputTokens += message.usage.cache_creation_input_tokens ?? 0;
-
-    if (message.stop_reason === "refusal") {
-      return { ok: false, code: "llm", error: "The stylist declined this request." };
-    }
+    model = answer.model;
+    usage.inputTokens += answer.usage.inputTokens;
+    usage.outputTokens += answer.usage.outputTokens;
+    usage.cacheReadInputTokens += answer.usage.cacheReadInputTokens ?? 0;
+    usage.cacheCreationInputTokens += answer.usage.cacheCreationInputTokens ?? 0;
 
     const problems: string[] = [];
     const accepted: Outfit[] = [];
-    for (const resolved of resolveOutfits(message.parsed_output, prompt.index)) {
+    for (const resolved of resolveOutfits(answer.value, prompt.index)) {
       const validated = validateOutfit(resolved, candidateMap, request.pinned);
       if (validated.ok) accepted.push(validated.outfit);
       else problems.push(`"${resolved.name || "unnamed"}": ${validated.errors.join(", ")}`);

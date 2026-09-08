@@ -1,7 +1,7 @@
 import { count, eq } from "drizzle-orm";
 import { auth } from "../src/lib/auth";
 import { db, sql } from "../src/db";
-import { blocks, styles, user } from "../src/db/schema";
+import { blocks, generations, inspos, looks, outfitEvents, styles, tasteNotes, user } from "../src/db/schema";
 import { derive, paletteToBlockColor, validateBlockInput, type BlockInput } from "../src/domain";
 
 
@@ -86,8 +86,26 @@ async function main() {
 
   if (!devUser) throw new Error("Seed user could not be created");
 
+  if (process.argv.includes("--reset")) await resetClosetFor(devUser.id);
+
   await seedBlocksFor(devUser.id);
   await seedStylesFor(devUser.id);
+}
+
+/**
+ * `pnpm db:seed --reset`: wipes the dev user's closet and everything derived
+ * from it (looks, generations, feedback, taste notes, inspiration pictures)
+ * so the seed runs fresh. Keeps styles, custom categories and piece types,
+ * artwork and settings, which are configuration rather than data.
+ */
+async function resetClosetFor(userId: string) {
+  await db.delete(outfitEvents).where(eq(outfitEvents.userId, userId));
+  await db.delete(looks).where(eq(looks.userId, userId));
+  await db.delete(generations).where(eq(generations.userId, userId));
+  await db.delete(tasteNotes).where(eq(tasteNotes.userId, userId));
+  await db.delete(inspos).where(eq(inspos.userId, userId));
+  await db.delete(blocks).where(eq(blocks.userId, userId));
+  console.log(`Reset: cleared closet, looks, generations, feedback, taste notes and pictures for ${email}.`);
 }
 
 async function seedStylesFor(userId: string) {

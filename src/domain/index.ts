@@ -2,6 +2,7 @@ export * from "./types";
 export * from "./colors";
 export * from "./materials";
 export * from "./catalog";
+export * from "./catalog-extension";
 export * from "./derive";
 export * from "./validate";
 export * from "./outfit";

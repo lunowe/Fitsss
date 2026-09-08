@@ -5,6 +5,8 @@ import { db } from "@/db";
 import { blocks } from "@/db/schema";
 import {
   CATEGORIES,
+  categoryIdOf,
+  getPieceType,
   type Block,
   type Category,
   type MaterialId,
@@ -78,18 +80,26 @@ export async function getBlock(id: string): Promise<Block | null> {
 export async function closetSummary(): Promise<{
   total: number;
   byCategory: Record<Category, number>;
+  /** Same counts, split by the category the piece is *filed* under. */
+  byCategoryId: Record<string, number>;
 }> {
   const allBlocks = await listBlocks();
   const byCategory = Object.fromEntries(CATEGORIES.map((category) => [category, 0])) as Record<
     Category,
     number
   >;
+  const byCategoryId: Record<string, number> = Object.fromEntries(
+    CATEGORIES.map((category) => [category, 0]),
+  );
 
   let total = 0;
   for (const block of allBlocks) {
     total += block.quantity;
     byCategory[block.category] += block.quantity;
+    const type = getPieceType(block.typeId);
+    const filedUnder = type ? categoryIdOf(type) : block.category;
+    byCategoryId[filedUnder] = (byCategoryId[filedUnder] ?? 0) + block.quantity;
   }
 
-  return { total, byCategory };
+  return { total, byCategory, byCategoryId };
 }

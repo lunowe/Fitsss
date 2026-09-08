@@ -11,6 +11,11 @@ vi.mock("@/db", () => ({ db: { transaction: mocks.transaction } }));
 vi.mock("@/lib/session", () => ({ requireUser: mocks.requireUser }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("server-only", () => ({}));
+// The action loads the user's custom piece types before validating; this test
+// only cares about the built-in catalog.
+vi.mock("@/server/catalog-queries", () => ({
+  applyUserCatalog: async () => ({ categories: [], types: [], art: {} }),
+}));
 
 import { createBlocks } from "./blocks";
 import { rowToBlock } from "./blocks-queries";

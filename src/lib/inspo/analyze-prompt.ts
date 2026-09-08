@@ -1,13 +1,13 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import * as z from "zod/v4";
 import {
-  CATALOG,
   CATEGORIES,
-  CATEGORY_LABELS,
   PALETTE,
   PATTERNS,
   familyForHex,
   getPieceType,
+  listCategories,
+  pieceTypesForCategoryId,
   isMaterialId,
   normalizeHex,
   type BlockColor,
@@ -79,10 +79,12 @@ function options(values: readonly string[] | undefined): string | null {
 export function buildVocabulary(): string {
   const lines: string[] = ["VOCABULARY — the only piece type ids, fits, variants, materials and patterns you may use"];
 
-  for (const category of CATEGORIES) {
-    const types = CATALOG.filter((t) => t.category === category);
+  // Reads the live catalog, so the user's own categories and piece types are
+  // part of the vocabulary the vision model is allowed to answer with.
+  for (const category of listCategories()) {
+    const types = pieceTypesForCategoryId(category.id);
     if (!types.length) continue;
-    lines.push("", `${CATEGORY_LABELS[category]} (category: ${category})`);
+    lines.push("", `${category.label} (category: ${category.role})`);
     for (const type of types) {
       const bits: string[] = [type.id];
       const fits = options(type.fitOptions);
