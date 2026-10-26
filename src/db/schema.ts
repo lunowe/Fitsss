@@ -7,6 +7,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -14,12 +15,19 @@ import {
 } from "drizzle-orm/pg-core";
 import type { BlockColor } from "@/domain";
 
+/** Everyone is a "user"; an "admin" also gets the content screen. */
+export const USER_ROLES = ["user", "admin"] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
+  // Defaulted in the database, because better-auth writes this row on sign-up
+  // and knows nothing about the column.
+  role: text("role").$type<UserRole>().notNull().default("user"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -112,6 +120,28 @@ export const blocks = pgTable(
     index("blocks_user_archived_idx").on(table.userId, table.archivedAt),
     index("blocks_user_category_idx").on(table.userId, table.category),
   ],
+);
+
+/**
+ * One row per `Idempotency-Key` a client sent with `POST /api/v1/blocks`, so a
+ * retried save (lost response, app killed mid-request) returns the first
+ * result instead of storing the pieces twice. Written in the same transaction
+ * as the blocks it describes.
+ */
+export const apiIdempotency = pgTable(
+  "api_idempotency",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    /** Hash of the request body, to refuse a key reused for different input. */
+    requestHash: text("request_hash").notNull(),
+    /** The `{ created, failed }` answer, replayed verbatim. */
+    response: jsonb("response"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.key] })],
 );
 
 export const userRelations = relations(user, ({ many }) => ({
@@ -247,6 +277,8 @@ export const tasteNotes = pgTable(
     lines: jsonb("lines").notNull().default([]),
     /** Things to avoid. TasteLine[] */
     avoid: jsonb("avoid").notNull().default([]),
+    /** Learned lines the person deleted, newest first: never learned again. TasteLine[] */
+    dismissed: jsonb("dismissed").notNull().default([]),
     /** Number of outfit_events that had been considered at the last refresh. */
     eventCount: integer("event_count").notNull().default(0),
     lastRefreshedAt: timestamp("last_refreshed_at", { withTimezone: true }),
@@ -280,6 +312,8 @@ export const inspos = pgTable(
     sourceUrl: text("source_url"),
     /** Resized JPEG/WebP, max ~1024px long side. */
     image: bytea("image").notNull(),
+    /** sha256 of `image`, hex: the same picture added twice is one inspo. */
+    imageHash: text("image_hash"),
     mime: text("mime").notNull(),
     width: integer("width").notNull(),
     height: integer("height").notNull(),
@@ -292,7 +326,11 @@ export const inspos = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("inspos_user_created_idx").on(table.userId, table.createdAt), index("inspos_style_idx").on(table.styleId)],
+  (table) => [
+    index("inspos_user_created_idx").on(table.userId, table.createdAt),
+    index("inspos_style_idx").on(table.styleId),
+    index("inspos_user_hash_idx").on(table.userId, table.imageHash),
+  ],
 );
 
 /* ------------------------------------------------------------------ */

@@ -1,6 +1,6 @@
 import { lookup } from "node:dns/promises";
 
-import { readImageInfo, type ImageMime } from "./image-size";
+import { looksComplete, readImageInfo, type ImageMime } from "./image-size";
 
 /**
  * Pulling a picture off the internet on the user's behalf.
@@ -71,8 +71,50 @@ function isPrivateIpv4(octets: number[]): boolean {
 }
 
 /**
+ * An IPv6 address as eight 16-bit groups, or null when it is not one. Reads
+ * every spelling the URL parser and the resolver produce: "::" runs, a
+ * dotted IPv4 tail ("::ffff:127.0.0.1") and its hex twin ("::ffff:7f00:1").
+ */
+function ipv6Groups(value: string): number[] | null {
+  let head = value;
+  const embedded: number[] = [];
+  const tailStart = head.lastIndexOf(":") + 1;
+  const tail = head.slice(tailStart);
+  if (tail.includes(".")) {
+    const v4 = ipv4Octets(tail);
+    if (!v4) return null;
+    embedded.push((v4[0] << 8) | v4[1], (v4[2] << 8) | v4[3]);
+    head = head.slice(0, tailStart);
+    if (head.endsWith(":") && !head.endsWith("::")) head = head.slice(0, -1);
+  }
+
+  const halves = head.split("::");
+  if (halves.length > 2) return null;
+  const groups = (part: string) => (part === "" ? [] : part.split(":"));
+  const numbers = (parts: string[]) => parts.map((part) => (/^[0-9a-f]{1,4}$/.test(part) ? parseInt(part, 16) : NaN));
+  const left = numbers(groups(halves[0]));
+  const right = halves.length === 2 ? numbers(groups(halves[1])) : [];
+  if ([...left, ...right].some(Number.isNaN)) return null;
+
+  const count = left.length + right.length + embedded.length;
+  if (halves.length === 2) {
+    // "::" stands for at least one group of zeros.
+    if (count > 7) return null;
+    return [...left, ...new Array<number>(8 - count).fill(0), ...right, ...embedded];
+  }
+  return count === 8 ? [...left, ...embedded] : null;
+}
+
+/** The IPv4 address in two 16-bit groups. */
+function v4From(high: number, low: number): number[] {
+  return [high >> 8, high & 0xff, low >> 8, low & 0xff];
+}
+
+/**
  * True for any address we refuse to talk to: loopback, private, link-local,
- * carrier-grade NAT, multicast and reserved space, in both IP families.
+ * carrier-grade NAT, multicast and reserved space, in both IP families, and
+ * every IPv6 form that carries an IPv4 address inside it (mapped,
+ * compatible, translated, NAT64, 6to4), judged by that IPv4 address.
  */
 export function isBlockedAddress(address: string): boolean {
   const raw = address.trim().toLowerCase();
@@ -81,21 +123,26 @@ export function isBlockedAddress(address: string): boolean {
   const v4 = ipv4Octets(raw);
   if (v4) return isPrivateIpv4(v4);
 
-  // Strip a zone index ("fe80::1%en0") before looking at the prefix.
-  const v6 = raw.split("%")[0];
-  if (!v6.includes(":")) return true; // not an address we understand
+  // Strip a zone index ("fe80::1%en0") before parsing.
+  const g = ipv6Groups(raw.split("%")[0]);
+  if (!g) return true; // not an address we understand
 
-  // IPv4-mapped and IPv4-compatible forms carry the v4 address in the tail.
-  const tail = v6.slice(v6.lastIndexOf(":") + 1);
-  const mapped = ipv4Octets(tail);
-  if (mapped) return isPrivateIpv4(mapped);
-
-  if (v6 === "::" || v6 === "::1") return true;
-  if (v6.startsWith("fe8") || v6.startsWith("fe9") || v6.startsWith("fea") || v6.startsWith("feb")) {
-    return true; // fe80::/10 link-local
-  }
-  if (v6.startsWith("fc") || v6.startsWith("fd")) return true; // fc00::/7 unique local
-  if (v6.startsWith("ff")) return true; // ff00::/8 multicast
+  const zero = (from: number, to: number) => g.slice(from, to).every((group) => group === 0);
+  // ::a.b.c.d (compatible, incl. :: and ::1), ::ffff:a.b.c.d (mapped),
+  // ::ffff:0:a.b.c.d (translated), 64:ff9b::a.b.c.d (NAT64).
+  if (zero(0, 6)) return isPrivateIpv4(v4From(g[6], g[7]));
+  if (zero(0, 5) && g[5] === 0xffff) return isPrivateIpv4(v4From(g[6], g[7]));
+  if (zero(0, 4) && g[4] === 0xffff && g[5] === 0) return isPrivateIpv4(v4From(g[6], g[7]));
+  if (g[0] === 0x64 && g[1] === 0xff9b && zero(2, 6)) return isPrivateIpv4(v4From(g[6], g[7]));
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 1) return true; // 64:ff9b:1::/48 local NAT64
+  if (g[0] === 0x2002) return isPrivateIpv4(v4From(g[1], g[2])); // 6to4
+  if (g[0] === 0x2001 && g[1] === 0) return true; // Teredo: hides an IPv4 address
+  if (g[0] === 0x2001 && g[1] === 0xdb8) return true; // documentation
+  if (g[0] === 0x100 && zero(1, 4)) return true; // 100::/64 discard
+  if ((g[0] & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+  if ((g[0] & 0xffc0) === 0xfec0) return true; // fec0::/10 old site-local
+  if ((g[0] & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
+  if ((g[0] & 0xff00) === 0xff00) return true; // ff00::/8 multicast
   return false;
 }
 
@@ -221,10 +268,15 @@ export async function guardedFetch(
   return { ok: false, code: "fetch", error: "That link redirects too many times." };
 }
 
-/** Reads at most `limit` bytes; anything longer is an error, not a truncation. */
+/**
+ * Reads at most `limit` bytes. Past that, an image is an error (`overflow`),
+ * while a page is cut there (`truncate`): only its head is wanted, for the
+ * og:image, and a long page's head is as good as a short one's.
+ */
 async function readCapped(
   body: ReadableStream<Uint8Array> | null,
   limit: number,
+  options: { truncate?: boolean } = {},
 ): Promise<{ ok: true; bytes: Buffer } | { ok: false; overflow: boolean }> {
   if (!body) return { ok: false, overflow: false };
   const reader = body.getReader();
@@ -235,11 +287,14 @@ async function readCapped(
       const { done, value } = await reader.read();
       if (done) break;
       if (!value) continue;
-      total += value.byteLength;
-      if (total > limit) {
-        await reader.cancel();
-        return { ok: false, overflow: true };
+      if (total + value.byteLength > limit) {
+        await reader.cancel().catch(() => {});
+        if (!options.truncate) return { ok: false, overflow: true };
+        chunks.push(value.subarray(0, limit - total));
+        total = limit;
+        break;
       }
+      total += value.byteLength;
       chunks.push(value);
     }
   } catch {
@@ -351,6 +406,9 @@ function toImage(bytes: Buffer, imageUrl: string): ResolveImageResult {
   if (!info) {
     return { ok: false, code: "invalid", error: "That file is not a JPEG, PNG, WebP or GIF." };
   }
+  if (!looksComplete(bytes, info.mime)) {
+    return { ok: false, code: "invalid", error: "That picture is cut off or damaged." };
+  }
   return { ok: true, image: { bytes, mime: info.mime, width: info.width, height: info.height, imageUrl } };
 }
 
@@ -400,7 +458,7 @@ export async function resolveImageUrl(pageUrl: string): Promise<ResolveImageResu
     return toImage(read.bytes, fetched.response.url);
   }
 
-  const html = await readCapped(fetched.response.body, MAX_HTML_BYTES);
+  const html = await readCapped(fetched.response.body, MAX_HTML_BYTES, { truncate: true });
   if (!html.ok) {
     return { ok: false, code: "fetch", error: "That page could not be read." };
   }

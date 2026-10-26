@@ -46,15 +46,18 @@ export function rowToBlock(row: BlockRow): Block {
   };
 }
 
-export async function listBlocks({
-  includeArchived = false,
-}: {
-  includeArchived?: boolean;
-} = {}): Promise<Block[]> {
+export async function listBlocks(options: { includeArchived?: boolean } = {}): Promise<Block[]> {
   const currentUser = await requireUser();
+  return listBlocksForUser(currentUser.id, options);
+}
+
+export async function listBlocksForUser(
+  userId: string,
+  { includeArchived = false }: { includeArchived?: boolean } = {},
+): Promise<Block[]> {
   const where = includeArchived
-    ? eq(blocks.userId, currentUser.id)
-    : and(eq(blocks.userId, currentUser.id), isNull(blocks.archivedAt));
+    ? eq(blocks.userId, userId)
+    : and(eq(blocks.userId, userId), isNull(blocks.archivedAt));
 
   const rows = await db
     .select()
@@ -67,11 +70,15 @@ export async function listBlocks({
 
 export async function getBlock(id: string): Promise<Block | null> {
   const currentUser = await requireUser();
+  return getBlockForUser(currentUser.id, id);
+}
+
+export async function getBlockForUser(userId: string, id: string): Promise<Block | null> {
   if (!UUID_RE.test(id)) return null;
   const [row] = await db
     .select()
     .from(blocks)
-    .where(and(eq(blocks.id, id), eq(blocks.userId, currentUser.id)))
+    .where(and(eq(blocks.id, id), eq(blocks.userId, userId)))
     .limit(1);
 
   return row ? rowToBlock(row) : null;

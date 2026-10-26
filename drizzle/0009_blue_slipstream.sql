@@ -1,0 +1,1 @@
+ALTER TABLE "taste_notes" ADD COLUMN "dismissed" jsonb DEFAULT '[]'::jsonb NOT NULL;

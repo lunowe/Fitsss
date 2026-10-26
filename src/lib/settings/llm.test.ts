@@ -32,6 +32,13 @@ describe("parseLlmSettings", () => {
     expect(parsed.models.outfits).toBe(DEFAULT_LLM_SETTINGS.models.outfits);
   });
 
+  it("takes OpenRouter's ~ aliases, but not punctuation alone", () => {
+    expect(parseLlmSettings({ models: { taste: "~openai/gpt-luna-latest" } }).models.taste).toBe("~openai/gpt-luna-latest");
+    for (const junk of [".", "/", ":", "..", "~"]) {
+      expect(parseLlmSettings({ models: { taste: junk } }).models.taste).toBe(DEFAULT_LLM_SETTINGS.models.taste);
+    }
+  });
+
   it("trims whitespace around a model id", () => {
     expect(parseLlmSettings({ models: { vision: "  google/gemini-3.8-flash " } }).models.vision).toBe(
       "google/gemini-3.8-flash",
@@ -63,6 +70,13 @@ describe("validateLlmSettings", () => {
     expect(result.errors).toHaveLength(2);
     expect(result.errors[0]).toMatch(/provider/i);
     expect(result.errors[1]).toMatch(/Picture reading/);
+  });
+
+  it("refuses a task it does not know rather than ignoring it", () => {
+    const result = validateLlmSettings({ models: { bogus: "a/b" } });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected failure");
+    expect(result.errors[0]).toMatch(/bogus/);
   });
 
   it("treats a missing field as untouched, not as an error", () => {

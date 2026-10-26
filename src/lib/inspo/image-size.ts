@@ -189,3 +189,91 @@ export function readImageInfo(bytes: Uint8Array): ImageInfo | null {
   if (size.width > 65535 || size.height > 65535) return null;
   return { mime, width: size.width, height: size.height };
 }
+
+/* ------------------------------------------------------------------ */
+/* Completeness                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * True when the bytes are a whole picture, not a header with nothing after
+ * it: the image data is there and the file ends where its format says it
+ * ends. A header alone can claim any size; storing one means a picture that
+ * never shows, and a paid vision call that can only fail.
+ *
+ * Structural only (no decoding): PNG has IDAT and ends in IEND, JPEG has its
+ * scan (SOS) followed by EOI, GIF has an image and its trailer, WebP's RIFF
+ * size covers its image chunk.
+ */
+export function looksComplete(bytes: Uint8Array, mime: ImageMime): boolean {
+  const b = bytes;
+  switch (mime) {
+    case "image/png": {
+      if (b.length < 8 + 25 + 12 + 12) return false;
+      let at = 8;
+      let sawData = false;
+      while (at + 12 <= b.length) {
+        const length = u32be(b, at);
+        const type = ascii(b, at + 4, 4);
+        if (type === "IDAT" && length > 0) sawData = true;
+        if (type === "IEND") return sawData;
+        at += 12 + length;
+      }
+      return false;
+    }
+    case "image/jpeg": {
+      // Walk the segment chain from SOI to the image's own start of scan:
+      // whole segments are skipped by their length, so a thumbnail inside
+      // EXIF (a complete little JPEG of its own) is never mistaken for the
+      // picture. Then EOI after the scan: entropy-coded data byte-stuffs
+      // 0xFF, so FF D9 there can only be the end of the image.
+      let at = 2;
+      while (at + 3 < b.length) {
+        if (b[at] !== 0xff) return false;
+        const marker = b[at + 1];
+        if (marker === 0xff) {
+          at += 1;
+          continue;
+        }
+        if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+          at += 2;
+          continue;
+        }
+        if (marker === 0xd9) return false; // ends before any scan
+        const length = u16be(b, at + 2);
+        if (length < 2) return false;
+        if (marker === 0xda) {
+          for (let end = at + 2 + length; end + 1 < b.length; end++) {
+            if (b[end] === 0xff && b[end + 1] === 0xd9) return end > at + 2 + length;
+          }
+          return false;
+        }
+        at += 2 + length;
+      }
+      return false;
+    }
+    case "image/gif": {
+      let last = b.length - 1;
+      while (last > 0 && b[last] === 0) last--;
+      return b.length > 13 && b[last] === 0x3b && b.indexOf(0x2c, 13) !== -1;
+    }
+    case "image/webp": {
+      // The RIFF container says how long it is; every chunk in it has to
+      // fit, and one of them has to be image data (a frame, lossy or
+      // lossless). VP8X, ICCP, EXIF, XMP and ALPH alone are headers and extras.
+      if (b.length < 20) return false;
+      const riffEnd = u32le(b, 4) + 8;
+      if (riffEnd > b.length) return false;
+      let at = 12;
+      let sawImage = false;
+      while (at + 8 <= riffEnd) {
+        const type = ascii(b, at, 4);
+        const size = u32le(b, at + 4);
+        const next = at + 8 + size + (size % 2);
+        if (at + 8 + size > riffEnd) return false;
+        if ((type === "VP8 " || type === "VP8L" || type === "ANMF") && size > 0) sawImage = true;
+        at = next;
+      }
+      return sawImage;
+    }
+  }
+}

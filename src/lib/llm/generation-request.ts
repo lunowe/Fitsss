@@ -1,5 +1,7 @@
 import {
   WEATHER_CONDITIONS,
+  cleanText,
+  clipText,
   isOccasionId,
   type GenerationRequest,
   type WeatherCondition,
@@ -42,8 +44,10 @@ function idList(value: unknown): string[] {
   for (const entry of value) {
     if (typeof entry !== "string") continue;
     const id = entry.trim();
-    if (!id || out.includes(id)) continue;
-    out.push(id);
+    // Piece ids are UUIDs; anything else can't match a piece, and stored
+    // with the request it only wastes space (or breaks the insert).
+    if (!isUuid(id) || out.includes(id.toLowerCase())) continue;
+    out.push(id.toLowerCase());
     if (out.length >= MAX_ID_LIST_LENGTH) break;
   }
   return out;
@@ -74,14 +78,17 @@ export function validateWeatherSnapshot(
 
   if (errors.length) return { ok: false, errors };
 
-  const place = typeof input.place === "string" && input.place.trim() ? input.place.trim().slice(0, 80) : undefined;
+  const place = typeof input.place === "string" && cleanText(input.place).trim()
+    ? clipText(cleanText(input.place).trim(), 80)
+    : undefined;
+  const plausible = (value: number | undefined) => (value !== undefined && value >= -90 && value <= 70 ? value : undefined);
 
   return {
     ok: true,
     weather: {
       tempC: tempC as number,
-      feelsLikeC: optionalNumber(input.feelsLikeC),
-      lowC: optionalNumber(input.lowC),
+      feelsLikeC: plausible(optionalNumber(input.feelsLikeC)),
+      lowC: plausible(optionalNumber(input.lowC)),
       precipitationChance: precipitation,
       condition: condition as WeatherCondition,
       source: source as "forecast" | "manual",
@@ -119,8 +126,8 @@ export function validateGenerationRequest(
   const rawCount = optionalNumber(input.count);
   const count = rawCount === undefined ? DEFAULT_OUTFIT_COUNT : clamp(Math.round(rawCount), MIN_OUTFIT_COUNT, MAX_OUTFIT_COUNT);
 
-  const steerRaw = typeof input.steer === "string" ? input.steer.trim() : "";
-  const steer = steerRaw ? steerRaw.slice(0, MAX_STEER_LENGTH) : undefined;
+  const steerRaw = typeof input.steer === "string" ? cleanText(input.steer).trim() : "";
+  const steer = steerRaw ? clipText(steerRaw, MAX_STEER_LENGTH) : undefined;
 
   const pinned = idList(input.pinned);
   const excludedAll = idList(input.excluded);
@@ -130,7 +137,7 @@ export function validateGenerationRequest(
   return {
     ok: true,
     request: {
-      styleId: isUuid(input.styleId) ? input.styleId : undefined,
+      styleId: isUuid(input.styleId) ? input.styleId.toLowerCase() : undefined,
       occasion,
       weather: weather.weather,
       steer,

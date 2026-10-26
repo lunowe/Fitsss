@@ -67,14 +67,27 @@ describe("validateGenerationRequest", () => {
     expect(result.ok && result.request.steer?.length).toBe(200);
   });
 
-  it("keeps id lists as unique strings and lets a pin win over an exclusion", () => {
+  it("keeps id lists as unique piece ids and lets a pin win over an exclusion", () => {
+    const [a, b, c] = [
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    ];
     const result = validateGenerationRequest(
-      base({ pinned: ["a", "a", 7, " b "], excluded: ["b", "c", null] }),
+      base({ pinned: [a, a, 7, ` ${b} `, "not-an-id", "x\u0000"], excluded: [b, c, null, "y".repeat(400_000)] }),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.request.pinned).toEqual(["a", "b"]);
-    expect(result.request.excluded).toEqual(["c"]);
+    expect(result.request.pinned).toEqual([a, b]);
+    expect(result.request.excluded).toEqual([c]);
+  });
+
+  it("cleans and caps the steer text without splitting a character", () => {
+    const result = validateGenerationRequest(base({ steer: `${"a".repeat(199)}👕 \u0000more` }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.request.steer?.isWellFormed()).toBe(true);
+    expect(result.request.steer).not.toContain("\u0000");
   });
 
   it("rejects a styleId that is not a uuid", () => {

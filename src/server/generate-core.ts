@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, eq, isNull } from "drizzle-orm";
+import { ownedRefs } from "@/server/owned-refs";
 import { db } from "@/db";
 import { blocks, generations, outfitEvents, styles } from "@/db/schema";
 import {
@@ -16,6 +17,8 @@ import {
   type Outfit,
   type OutfitSlot,
   type OutfitSlots,
+  type WeatherSnapshot,
+  isOccasionId,
 } from "@/domain";
 import { matchToSlots } from "@/lib/inspo/match";
 import {
@@ -26,7 +29,7 @@ import {
   type StyleForPrompt,
 } from "@/lib/llm/outfit-prompt";
 import { callStructured, providerConfigured, type StructuredErrorCode } from "@/lib/llm/provider";
-import { isUuid } from "@/lib/llm/generation-request";
+import { isUuid, validateWeatherSnapshot } from "@/lib/llm/generation-request";
 import { rowToBlock } from "@/server/blocks-queries";
 import { loadAnalyzedInspo, styleReferenceLines } from "@/server/inspo-core";
 import { getLlmSettingsForUser } from "@/server/settings-queries";
@@ -91,7 +94,8 @@ async function loadStyle(userId: string, styleId: string | undefined): Promise<S
   const [row] = await db
     .select({ name: styles.name, description: styles.description, rules: styles.rules })
     .from(styles)
-    .where(and(eq(styles.id, styleId), eq(styles.userId, userId)))
+    // Deleting a style archives it; an archived style no longer steers anything.
+    .where(and(eq(styles.id, styleId), eq(styles.userId, userId), isNull(styles.archivedAt)))
     .limit(1);
   return row ? { name: row.name, description: row.description, rules: row.rules } : null;
 }
@@ -185,6 +189,42 @@ function buildMockOutfits(
 }
 
 /* ------------------------------------------------------------------ */
+/* Restyle a picture                                                   */
+/* ------------------------------------------------------------------ */
+
+/** A restyle's weather when the caller has no forecast to hand: a mild grey day. */
+const RESTYLE_FALLBACK_WEATHER: WeatherSnapshot = { tempC: 18, condition: "cloudy", source: "manual" };
+const RESTYLE_DEFAULT_COUNT = 2;
+
+/**
+ * Outfits from the closet in the spirit of a saved picture: a normal
+ * generation with the pictured look described in the prompt. Takes
+ * `{ inspoId, count?, occasion?, weather? }`; a missing or unknown occasion
+ * is "everyday".
+ */
+export async function restyleFromInspoForUser(userId: string, input: unknown): Promise<GenerateOutfitsResult> {
+  const record =
+    input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
+  const inspoId = typeof record.inspoId === "string" ? record.inspoId.trim().toLowerCase() : "";
+  if (!isUuid(inspoId)) return { ok: false, code: "invalid", error: "That picture is gone." };
+
+  const occasion =
+    typeof record.occasion === "string" && isOccasionId(record.occasion) ? record.occasion : "everyday";
+
+  let weather = RESTYLE_FALLBACK_WEATHER;
+  if (record.weather !== undefined && record.weather !== null) {
+    const checked = validateWeatherSnapshot(record.weather);
+    if (!checked.ok) return { ok: false, code: "invalid", error: checked.errors[0] };
+    weather = checked.weather;
+  }
+
+  const rawCount = typeof record.count === "number" && Number.isFinite(record.count) ? record.count : RESTYLE_DEFAULT_COUNT;
+  const count = Math.min(5, Math.max(1, Math.round(rawCount)));
+
+  return generateOutfitsForUser(userId, { occasion, weather, count, pinned: [], excluded: [], inspoId });
+}
+
+/* ------------------------------------------------------------------ */
 /* Generate                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -214,6 +254,15 @@ export async function generateOutfitsForUser(
   for (const block of weatherContext.wearable) {
     if (!excluded.has(block.id)) chosen.set(block.id, block);
   }
+  // A pin that is not (or no longer) an active piece of this closet can never
+  // be satisfied: say so before paying for a model call that must fail.
+  if (request.pinned.some((id) => !byId.has(id))) {
+    return {
+      ok: false,
+      code: "invalid",
+      error: "A pinned piece is no longer in your closet. Unpin it and try again.",
+    };
+  }
   // Pinned pieces survive the weather filter: the user asked for them on purpose.
   for (const id of request.pinned) {
     const block = byId.get(id);
@@ -239,6 +288,9 @@ export async function generateOutfitsForUser(
   }
 
   const style = await loadStyle(userId, request.styleId);
+  // A style id that isn't this user's (or was deleted) is dropped, so the
+  // stored request — and every event derived from it — only names their own.
+  if (request.styleId && !style) request = { ...request, styleId: undefined };
 
   // Phase 4 (inspiration): a restyle is a normal generation with the pictured
   // look described in the prompt. The analysis has to exist already — the
@@ -397,75 +449,96 @@ export async function swapSlotForUser(userId: string, input: SwapSlotInput): Pro
     return { ok: false, error: "Unknown slot." };
   }
 
-  const [generation] = await db
-    .select({ id: generations.id, outfits: generations.outfits, request: generations.request })
-    .from(generations)
-    .where(and(eq(generations.id, generationId), eq(generations.userId, userId)))
-    .limit(1);
+  // Read, change and write the generation in one transaction with its row
+  // locked: two swaps on different cards of one set would otherwise both read
+  // the same outfits, and the second write would undo the first.
+  return db.transaction(async (tx): Promise<SwapSlotResult> => {
+    const [generation] = await tx
+      .select({ id: generations.id, outfits: generations.outfits, request: generations.request })
+      .from(generations)
+      .where(and(eq(generations.id, generationId), eq(generations.userId, userId)))
+      .for("update")
+      .limit(1);
 
-  if (!generation) return { ok: false, error: "That set of outfits is gone." };
+    if (!generation) return { ok: false, error: "That set of outfits is gone." };
 
-  const outfits = (Array.isArray(generation.outfits) ? generation.outfits : []) as Outfit[];
-  const target = outfits.find((o) => o?.id === outfitId);
-  if (!target) return { ok: false, error: "That outfit is no longer available." };
+    const outfits = (Array.isArray(generation.outfits) ? generation.outfits : []) as Outfit[];
+    const target = outfits.find((o) => o?.id === outfitId);
+    if (!target) return { ok: false, error: "That outfit is no longer available." };
 
-  const [blockRow] = await db
-    .select()
-    .from(blocks)
-    .where(and(eq(blocks.id, toBlockId), eq(blocks.userId, userId)))
-    .limit(1);
-  if (!blockRow) return { ok: false, error: "That piece is not in your closet." };
+    const [blockRow] = await tx
+      .select()
+      .from(blocks)
+      .where(and(eq(blocks.id, toBlockId), eq(blocks.userId, userId), isNull(blocks.archivedAt)))
+      .limit(1);
+    if (!blockRow) return { ok: false, error: "That piece is not in your closet." };
 
-  const block = rowToBlock(blockRow);
-  const wanted: Category = isAccessories ? "accessory" : SLOT_CATEGORY[slot as OutfitSlot];
-  if (block.category !== wanted) {
-    return { ok: false, error: `${block.label} cannot go in that slot.` };
-  }
-
-  const slots = { ...target.slots, accessories: [...(target.slots.accessories ?? [])] };
-
-  if (isAccessories) {
-    if (fromBlockId) {
-      const at = slots.accessories.indexOf(fromBlockId);
-      if (at >= 0) slots.accessories[at] = toBlockId;
-      else if (!slots.accessories.includes(toBlockId)) slots.accessories.push(toBlockId);
-    } else if (!slots.accessories.includes(toBlockId)) {
-      slots.accessories.push(toBlockId);
+    const block = rowToBlock(blockRow);
+    const wanted: Category = isAccessories ? "accessory" : SLOT_CATEGORY[slot as OutfitSlot];
+    if (block.category !== wanted) {
+      return { ok: false, error: `${block.label} cannot go in that slot.` };
     }
-    slots.accessories = [...new Set(slots.accessories)].slice(0, MAX_ACCESSORIES);
-  } else {
-    const key = slot as OutfitSlot;
-    slots[key] = toBlockId;
-    // A full-body piece and a top/bottom pair are mutually exclusive.
-    if (key === "fullbody") {
-      slots.top = undefined;
-      slots.bottom = undefined;
-    } else if (key === "top" || key === "bottom") {
-      slots.fullbody = undefined;
+
+    const slots = { ...target.slots, accessories: [...(target.slots.accessories ?? [])] };
+    // Swapping an accessory for itself changes nothing: no write, no event.
+    if (isAccessories && toBlockId === fromBlockId && slots.accessories.includes(toBlockId)) {
+      return { ok: true, outfit: target };
     }
-  }
+    if (isAccessories && toBlockId !== fromBlockId && slots.accessories.includes(toBlockId)) {
+      return { ok: false, error: `${block.label} is already in this outfit.` };
+    }
 
-  const updated: Outfit = { ...target, slots };
-  const nextOutfits = outfits.map((o) => (o.id === outfitId ? updated : o));
+    if (isAccessories) {
+      if (fromBlockId) {
+        const at = slots.accessories.indexOf(fromBlockId);
+        if (at >= 0) slots.accessories[at] = toBlockId;
+        else if (!slots.accessories.includes(toBlockId)) slots.accessories.push(toBlockId);
+      } else if (!slots.accessories.includes(toBlockId)) {
+        slots.accessories.push(toBlockId);
+      }
+      slots.accessories = [...new Set(slots.accessories)].slice(0, MAX_ACCESSORIES);
+    } else {
+      const key = slot as OutfitSlot;
+      slots[key] = toBlockId;
+      // A full-body piece and a top/bottom pair are mutually exclusive.
+      if (key === "fullbody") {
+        slots.top = undefined;
+        slots.bottom = undefined;
+      } else if (key === "top" || key === "bottom") {
+        slots.fullbody = undefined;
+      }
+    }
 
-  const occasion =
-    typeof (generation.request as { occasion?: unknown } | null)?.occasion === "string"
-      ? ((generation.request as { occasion: string }).occasion)
-      : null;
-  const styleId = (generation.request as { styleId?: unknown } | null)?.styleId;
+    // Swapping a top into a dress outfit (or a dress into a top-and-bottom
+    // one) must still leave a wearable outfit; the app never offers the
+    // former, but the API must not store an outfit no one can save.
+    if (!slots.footwear || !(slots.fullbody || (slots.top && slots.bottom))) {
+      return { ok: false, error: "That would leave the outfit without a top and a bottom, or a full-body piece." };
+    }
 
-  await db.transaction(async (tx) => {
-    await tx.update(generations).set({ outfits: nextOutfits }).where(eq(generations.id, generationId));
-    await tx.insert(outfitEvents).values({
-      userId,
-      type: "swapped",
-      outfit: updated,
-      detail: { slot, fromId: fromBlockId ?? null, toId: toBlockId },
-      styleId: isUuid(styleId) ? styleId : null,
-      occasion,
-      generationId,
+    const updated: Outfit = { ...target, slots };
+    const nextOutfits = outfits.map((o) => (o.id === outfitId ? updated : o));
+
+    const occasion =
+      typeof (generation.request as { occasion?: unknown } | null)?.occasion === "string"
+        ? ((generation.request as { occasion: string }).occasion)
+        : null;
+    // Only the user's own style, whatever an older stored request says.
+    const { styleId } = await ownedRefs(userId, {
+      styleId: (generation.request as { styleId?: unknown } | null)?.styleId,
     });
-  });
 
-  return { ok: true, outfit: updated };
+      await tx.update(generations).set({ outfits: nextOutfits }).where(eq(generations.id, generationId));
+      await tx.insert(outfitEvents).values({
+        userId,
+        type: "swapped",
+        outfit: updated,
+        detail: { slot, fromId: fromBlockId ?? null, toId: toBlockId },
+        styleId,
+        occasion,
+        generationId,
+      });
+
+      return { ok: true, outfit: updated };
+  });
 }

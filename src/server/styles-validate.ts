@@ -4,6 +4,8 @@
  * `styles-queries.ts` because that one is `server-only`. Unit tested.
  */
 
+import { cleanText, hasVisibleText, textLength } from "@/domain/text";
+
 export const MAX_ACTIVE_STYLES = 6;
 export const MAX_STYLE_NAME = 40;
 export const MAX_STYLE_TEXT = 600;
@@ -26,7 +28,7 @@ function asString(value: unknown): string {
 export function normalizeRules(raw: unknown): string | null {
   const lines = asString(raw)
     .split("\n")
-    .map((line) => line.trim())
+    .map((line) => cleanText(line).trim())
     .filter(Boolean);
   return lines.length ? lines.join("\n") : null;
 }
@@ -35,11 +37,11 @@ export function validateStyleInput(input: unknown): Validated<StyleInput> {
   const errors: string[] = [];
   const raw = (typeof input === "object" && input !== null ? input : {}) as Record<string, unknown>;
 
-  const name = asString(raw.name).trim();
-  if (!name) errors.push("A style needs a name");
-  else if (name.length > MAX_STYLE_NAME) errors.push(`Keep the name under ${MAX_STYLE_NAME} characters`);
+  const name = cleanText(asString(raw.name)).trim();
+  if (!hasVisibleText(name)) errors.push("A style needs a name");
+  else if (textLength(name) > MAX_STYLE_NAME) errors.push(`Keep the name under ${MAX_STYLE_NAME} characters`);
 
-  const description = asString(raw.description).trim();
+  const description = cleanText(asString(raw.description)).trim();
   if (description.length > MAX_STYLE_TEXT) {
     errors.push(`Keep the description under ${MAX_STYLE_TEXT} characters`);
   }

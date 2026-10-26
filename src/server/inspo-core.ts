@@ -1,9 +1,19 @@
 import "server-only";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { createHash } from "node:crypto";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { blocks, inspos, styles } from "@/db/schema";
-import type { Block, Inspo, InspoAnalysis, InspoMatch } from "@/domain";
+import {
+  applyCatalogExtension,
+  cleanText,
+  clipText,
+  hasVisibleText,
+  type Block,
+  type Inspo,
+  type InspoAnalysis,
+  type InspoMatch,
+} from "@/domain";
 import {
   INSPO_INSTRUCTION,
   INSPO_SYSTEM_PROMPT,
@@ -11,6 +21,7 @@ import {
   buildVocabulary,
   detectImageMime,
   inspoAnalysisSchema,
+  looksComplete,
   matchInspoToCloset,
   normalizeAnalysis,
   readImageInfo,
@@ -20,6 +31,7 @@ import {
 import { callStructured, providerConfigured, type StructuredErrorCode } from "@/lib/llm/provider";
 import { isUuid } from "@/lib/llm/generation-request";
 import { rowToBlock } from "@/server/blocks-queries";
+import { loadCatalogExtension } from "@/server/catalog-queries";
 import { getLlmSettingsForUser } from "@/server/settings-queries";
 import {
   getInspoForUser,
@@ -70,47 +82,82 @@ async function loadActiveBlocks(userId: string): Promise<Block[]> {
 /* Create                                                              */
 /* ------------------------------------------------------------------ */
 
+/** A stored picture: new, or the one already there with the same bytes. */
+export type StoreInspoResult = { ok: true; inspo: Inspo; existing: boolean } | InspoError;
+
+/** Only a web link is kept as the source: it may be shown as one. */
+function cleanSourceUrl(value: string | null | undefined): string | null {
+  const text = typeof value === "string" ? cleanText(value).trim() : "";
+  if (!text || text.length > 2048) return null;
+  try {
+    const url = new URL(text);
+    if (url.username || url.password) return null;
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Stores the bytes, unless this person already has exactly this picture:
+ * then that one comes back. A retried upload whose answer was lost, a
+ * double tap or the same pin shared twice all end as one inspo.
+ */
 async function insertInspo(
   userId: string,
   input: { bytes: Buffer; mime: ImageMime; width: number; height: number; sourceUrl: string | null },
-): Promise<Inspo> {
-  const [row] = await db
-    .insert(inspos)
-    .values({
-      userId,
-      sourceUrl: input.sourceUrl,
-      image: input.bytes,
-      mime: input.mime,
-      width: input.width,
-      height: input.height,
-    })
-    .returning(inspoColumns);
-  return rowToInspo(row);
+): Promise<{ inspo: Inspo; existing: boolean }> {
+  const imageHash = createHash("sha256").update(input.bytes).digest("hex");
+  return db.transaction(async (tx) => {
+    // Two sends of the same picture take turns, so the second finds the first.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`inspo:${userId}:${imageHash}`}))`);
+    const [found] = await tx
+      .select(inspoColumns)
+      .from(inspos)
+      .where(and(eq(inspos.userId, userId), eq(inspos.imageHash, imageHash)))
+      .limit(1);
+    if (found) return { inspo: rowToInspo(found), existing: true };
+
+    const [row] = await tx
+      .insert(inspos)
+      .values({
+        userId,
+        sourceUrl: input.sourceUrl,
+        image: input.bytes,
+        imageHash,
+        mime: input.mime,
+        width: input.width,
+        height: input.height,
+      })
+      .returning(inspoColumns);
+    return { inspo: rowToInspo(row), existing: false };
+  });
 }
 
 /**
  * Imports a picture from a link: a direct image URL, or a page that declares
- * one (a Pinterest pin, a lookbook post). Analysis runs straight after, so a
- * successful import comes back ready to look at.
+ * one (a Pinterest pin, a lookbook post). Stores it unread; the analysis is
+ * a separate, slow step.
  */
-export async function createInspoFromUrlForUser(userId: string, url: string): Promise<InspoResult> {
-  const resolved = await resolveImageUrl(url);
+export async function storeInspoFromUrlForUser(userId: string, url: string): Promise<StoreInspoResult> {
+  const link = typeof url === "string" ? cleanText(url).trim() : "";
+  if (!link) return fail("invalid", "Paste a link first.");
+  const resolved = await resolveImageUrl(link);
   if (!resolved.ok) return fail(resolved.code, resolved.error);
 
   const { bytes, mime, width, height, imageUrl } = resolved.image;
-  const sourceUrl = url.trim().slice(0, 2048) || imageUrl;
-  const created = await insertInspo(userId, { bytes, mime, width, height, sourceUrl });
-  return analyzeInspoForUser(userId, created.id);
+  const sourceUrl = cleanSourceUrl(link) ?? cleanSourceUrl(imageUrl);
+  return { ok: true, ...(await insertInspo(userId, { bytes, mime, width, height, sourceUrl })) };
 }
 
 /**
- * Stores an already-resized upload. The mime and the dimensions come from the
- * bytes themselves, never from what the browser claimed.
+ * Stores an already-resized upload, unread. The mime and the dimensions come
+ * from the bytes themselves, never from what the client claimed.
  */
-export async function createInspoFromImageForUser(
+export async function storeInspoFromImageForUser(
   userId: string,
   input: { bytes: Buffer; sourceUrl?: string | null },
-): Promise<InspoResult> {
+): Promise<StoreInspoResult> {
   const { bytes } = input;
   if (!bytes || bytes.byteLength === 0) return fail("invalid", "That file is empty.");
   if (bytes.byteLength > MAX_UPLOAD_BYTES) {
@@ -120,17 +167,39 @@ export async function createInspoFromImageForUser(
     return fail("invalid", "That file is not a JPEG, PNG, WebP or GIF.");
   }
   const info = readImageInfo(bytes);
-  if (!info) return fail("invalid", "That picture could not be read.");
+  if (!info || !looksComplete(bytes, info.mime)) return fail("invalid", "That picture could not be read.");
 
-  const sourceUrl = input.sourceUrl?.trim().slice(0, 2048) || null;
-  const created = await insertInspo(userId, {
-    bytes,
-    mime: info.mime,
-    width: info.width,
-    height: info.height,
-    sourceUrl,
-  });
-  return analyzeInspoForUser(userId, created.id);
+  return {
+    ok: true,
+    ...(await insertInspo(userId, {
+      bytes,
+      mime: info.mime,
+      width: info.width,
+      height: info.height,
+      sourceUrl: cleanSourceUrl(input.sourceUrl),
+    })),
+  };
+}
+
+/** Stored, then read straight away: what the web's add screen waits for. */
+async function storeThenAnalyze(userId: string, stored: StoreInspoResult): Promise<InspoResult> {
+  if (!stored.ok) return stored;
+  // A picture added before comes back as it is, unless it was never read.
+  if (stored.existing && stored.inspo.analysis) return { ok: true, inspo: stored.inspo };
+  return analyzeInspoForUser(userId, stored.inspo.id);
+}
+
+/** A link imported and analysed in one go, so it comes back ready to look at. */
+export async function createInspoFromUrlForUser(userId: string, url: string): Promise<InspoResult> {
+  return storeThenAnalyze(userId, await storeInspoFromUrlForUser(userId, url));
+}
+
+/** An upload stored and analysed in one go. */
+export async function createInspoFromImageForUser(
+  userId: string,
+  input: { bytes: Buffer; sourceUrl?: string | null },
+): Promise<InspoResult> {
+  return storeThenAnalyze(userId, await storeInspoFromImageForUser(userId, input));
 }
 
 /* ------------------------------------------------------------------ */
@@ -144,6 +213,20 @@ export async function createInspoFromImageForUser(
  */
 export async function analyzeInspoForUser(userId: string, id: string): Promise<InspoResult> {
   if (!isInspoId(id)) return fail("not-found", "That picture is gone.");
+  // Two screens (or two devices) opening the same unread picture share one
+  // model call instead of paying for two and racing to store them.
+  const key = `${userId}:${id.toLowerCase()}`;
+  const running = analysing.get(key);
+  if (running) return running;
+  const analysis = runAnalysis(userId, id).finally(() => analysing.delete(key));
+  analysing.set(key, analysis);
+  return analysis;
+}
+
+/** Analyses in progress in this process, by user and picture. */
+const analysing = new Map<string, Promise<InspoResult>>();
+
+async function runAnalysis(userId: string, id: string): Promise<InspoResult> {
 
   const [row] = await db
     .select({ id: inspos.id, image: inspos.image, mime: inspos.mime })
@@ -160,13 +243,24 @@ export async function analyzeInspoForUser(userId: string, id: string): Promise<I
   }
 
   const owned = await loadActiveBlocks(userId);
+  // The catalog registry is process-global, and while this waits (on the
+  // database, on the model) another request swaps in its own user's. So this
+  // user's is applied right before each stretch that reads it, and those
+  // stretches are synchronous.
+  const extension = await loadCatalogExtension(userId);
 
   let analysis: InspoAnalysis;
+  let match: InspoMatch;
   if (mock) {
+    applyCatalogExtension(extension);
     analysis = buildMockAnalysis(owned);
+    match = matchInspoToCloset(analysis, owned);
   } else {
     const info = readImageInfo(row.image);
     if (!info) return fail("invalid", "That picture could not be read.");
+
+    applyCatalogExtension(extension);
+    const vocabulary = buildVocabulary();
 
     // Vocabulary, then the picture, then the instruction — the same order the
     // system prompt describes, so the model reads the rules before the image.
@@ -175,7 +269,7 @@ export async function analyzeInspoForUser(userId: string, id: string): Promise<I
         task: "vision",
         system: INSPO_SYSTEM_PROMPT,
         user: [
-          { type: "text", text: buildVocabulary() },
+          { type: "text", text: vocabulary },
           { type: "image", mime: info.mime, base64: row.image.toString("base64") },
           { type: "text", text: INSPO_INSTRUCTION },
         ],
@@ -193,13 +287,13 @@ export async function analyzeInspoForUser(userId: string, id: string): Promise<I
       return fail(toInspoCode(answer.code), answer.error);
     }
 
+    applyCatalogExtension(extension);
     analysis = normalizeAnalysis(answer.value, answer.model);
     if (analysis.pieces.length === 0) {
       return fail("llm", "No clothes were found in that picture. Try one with the whole outfit in frame.");
     }
+    match = matchInspoToCloset(analysis, owned);
   }
-
-  const match: InspoMatch = matchInspoToCloset(analysis, owned);
 
   const [updated] = await db
     .update(inspos)
@@ -224,12 +318,14 @@ export async function setInspoStyleForUser(
 
   if (styleId !== null) {
     if (!isUuid(styleId)) return fail("invalid", "That is not a style.");
+    // A deleted style is archived, not gone: it can't take new references.
     const [style] = await db
       .select({ id: styles.id })
       .from(styles)
-      .where(and(eq(styles.id, styleId), eq(styles.userId, userId)))
+      .where(and(eq(styles.id, styleId), eq(styles.userId, userId), isNull(styles.archivedAt)))
       .limit(1);
-    if (!style) return fail("not-found", "That style is gone.");
+    // "invalid", not "not-found": the picture is still there.
+    if (!style) return fail("invalid", "That style is gone.");
   }
 
   const [row] = await db
@@ -246,7 +342,9 @@ export async function setInspoNoteForUser(
 ): Promise<InspoResult> {
   const { id } = input ?? {};
   if (!isInspoId(id)) return fail("not-found", "That picture is gone.");
-  const note = typeof input?.note === "string" ? input.note.trim().slice(0, MAX_NOTE_LENGTH) : "";
+  const cleaned = typeof input?.note === "string" ? clipText(cleanText(input.note).trim(), MAX_NOTE_LENGTH) : "";
+  // Nothing but zero-width characters is no note at all.
+  const note = hasVisibleText(cleaned) ? cleaned : "";
 
   const [row] = await db
     .update(inspos)

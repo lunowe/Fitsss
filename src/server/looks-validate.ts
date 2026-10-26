@@ -5,6 +5,10 @@
 
 import {
   WEATHER_CONDITIONS,
+  cleanText,
+  clipText,
+  hasVisibleText,
+  textLength,
   isOccasionId,
   outfitBlockIds,
   type Outfit,
@@ -43,9 +47,11 @@ function optionalNumber(value: unknown): number | undefined {
 
 /** A look's name: required, trimmed, capped. */
 export function validateLookName(name: unknown): Validated<string> {
-  const trimmed = typeof name === "string" ? name.trim() : "";
-  if (!trimmed) return { ok: false, errors: ["A look needs a name"] };
-  if (trimmed.length > MAX_LOOK_NAME) {
+  const trimmed = typeof name === "string" ? cleanText(name).trim() : "";
+  if (!hasVisibleText(trimmed)) return { ok: false, errors: ["A look needs a name"] };
+  // Counted like the save path counts (code points), so a saved name can
+  // always be saved again.
+  if (textLength(trimmed) > MAX_LOOK_NAME) {
     return { ok: false, errors: [`Keep the name under ${MAX_LOOK_NAME} characters`] };
   }
   return { ok: true, value: trimmed };
@@ -54,19 +60,23 @@ export function validateLookName(name: unknown): Validated<string> {
 /** Keeps only the fields the app stores, so nothing extra reaches jsonb. */
 export function normalizeWeather(raw: unknown): WeatherSnapshot | undefined {
   const w = record(raw);
-  const tempC = optionalNumber(w.tempC);
+  // Plausible air temperatures only: a stored 1e100 crashed the app that
+  // displays it, and nothing real is outside this.
+  const inRange = (value: number | undefined, min: number, max: number) =>
+    value !== undefined && value >= min && value <= max ? value : undefined;
+  const tempC = inRange(optionalNumber(w.tempC), -90, 70);
   if (tempC === undefined) return undefined;
   const condition = WEATHER_CONDITIONS.includes(w.condition as WeatherCondition)
     ? (w.condition as WeatherCondition)
     : "clear";
   return {
     tempC,
-    feelsLikeC: optionalNumber(w.feelsLikeC),
-    lowC: optionalNumber(w.lowC),
-    precipitationChance: optionalNumber(w.precipitationChance),
+    feelsLikeC: inRange(optionalNumber(w.feelsLikeC), -90, 70),
+    lowC: inRange(optionalNumber(w.lowC), -90, 70),
+    precipitationChance: inRange(optionalNumber(w.precipitationChance), 0, 100),
     condition,
     source: w.source === "manual" ? "manual" : "forecast",
-    place: typeof w.place === "string" && w.place.trim() ? w.place.trim().slice(0, 60) : undefined,
+    place: typeof w.place === "string" && w.place.trim() ? clipText(w.place.trim(), 60) : undefined,
   };
 }
 
@@ -79,10 +89,12 @@ export function validateOutfitSlots(raw: unknown): Validated<OutfitSlots> {
   const s = record(raw);
   const pick = (key: "top" | "layer" | "outerwear" | "bottom" | "fullbody") => {
     const id = s[key];
-    return typeof id === "string" && id ? id : undefined;
+    return typeof id === "string" && UUID_RE.test(id) ? id : undefined;
   };
 
-  const footwear = typeof s.footwear === "string" ? s.footwear : "";
+  // Piece ids are UUIDs; anything else can't be a piece (and would make the
+  // ownership query fail rather than say so).
+  const footwear = typeof s.footwear === "string" && UUID_RE.test(s.footwear) ? s.footwear : "";
   const fullbody = pick("fullbody");
   const slots: OutfitSlots = {
     top: fullbody ? undefined : pick("top"),
@@ -100,7 +112,7 @@ export function validateOutfitSlots(raw: unknown): Validated<OutfitSlots> {
     ),
   );
   for (const id of Array.isArray(s.accessories) ? s.accessories : []) {
-    if (typeof id === "string" && id && !seen.has(id)) {
+    if (typeof id === "string" && UUID_RE.test(id) && !seen.has(id)) {
       seen.add(id);
       slots.accessories.push(id);
     }
@@ -122,18 +134,19 @@ export function validateSaveLookInput(input: unknown): Validated<SaveLookInput> 
   const slots = validateOutfitSlots(outfitRaw.slots);
   if (!slots.ok) return slots;
 
-  const name = typeof outfitRaw.name === "string" && outfitRaw.name.trim()
-    ? outfitRaw.name.trim().slice(0, MAX_LOOK_NAME)
-    : "Look";
+  // Cleaned before the emptiness check, so NUL or zero-width-only names
+  // fall back to "Look" like an empty one.
+  const cleanName = typeof outfitRaw.name === "string" ? clipText(cleanText(outfitRaw.name).trim(), MAX_LOOK_NAME) : "";
+  const name = hasVisibleText(cleanName) ? cleanName : "Look";
 
   const outfit: Outfit = {
-    id: typeof outfitRaw.id === "string" && outfitRaw.id ? outfitRaw.id : "",
+    id: typeof outfitRaw.id === "string" ? clipText(outfitRaw.id, 64) : "",
     name,
     slots: slots.value,
-    why: typeof outfitRaw.why === "string" ? outfitRaw.why.trim().slice(0, MAX_WHY) : "",
+    why: typeof outfitRaw.why === "string" ? clipText(outfitRaw.why.trim(), MAX_WHY) : "",
     tip:
       typeof outfitRaw.tip === "string" && outfitRaw.tip.trim()
-        ? outfitRaw.tip.trim().slice(0, MAX_TIP)
+        ? clipText(outfitRaw.tip.trim(), MAX_TIP)
         : undefined,
   };
 

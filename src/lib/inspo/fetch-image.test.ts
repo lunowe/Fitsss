@@ -47,6 +47,46 @@ describe("isBlockedAddress", () => {
     expect(isBlockedAddress("::ffff:8.8.8.8")).toBe(false);
   });
 
+  it("sees through every IPv6 spelling of an IPv4 address (the URL parser writes hex)", () => {
+    for (const address of [
+      "::ffff:7f00:1", // what new URL("http://[::ffff:127.0.0.1]/") turns into
+      "0:0:0:0:0:ffff:7f00:1",
+      "0000:0000:0000:0000:0000:ffff:7f00:0001",
+      "::ffff:a9fe:a9fe", // 169.254.169.254
+      "::ffff:a00:1", // 10.0.0.1
+      "::ffff:c0a8:101", // 192.168.1.1
+      "::7f00:1", // IPv4-compatible
+      "::127.0.0.1",
+      "::ffff:0:7f00:1", // IPv4-translated
+      "64:ff9b::7f00:1", // NAT64
+      "64:ff9b::127.0.0.1",
+      "64:ff9b:1::1",
+      "2002:7f00:1::1", // 6to4 around 127.0.0.1
+      "2002:a9fe:a9fe::", // 6to4 around the metadata endpoint
+      "2001:0:4136:e378:8000:63bf:3fff:fdd2", // Teredo
+      "2001:db8::1",
+      "100::1",
+      "fec0::1",
+      "febf::1",
+      "::ffff:7f00:1%lo0",
+      "1:2:3:4:5:6:7:8:9", // not an address
+      "::ffff:999.0.0.1",
+      "fe80:::1",
+    ]) {
+      expect(isBlockedAddress(address), address).toBe(true);
+    }
+    for (const address of ["::ffff:808:808", "64:ff9b::808:808", "2002:808:808::1", "2a00:1450:4001:82b::200e"]) {
+      expect(isBlockedAddress(address), address).toBe(false);
+    }
+  });
+
+  it("blocks the forms the URL parser hands the guard", () => {
+    for (const link of ["http://[::ffff:127.0.0.1]:3100/", "http://[::ffff:7f00:1]/", "http://[0:0:0:0:0:ffff:7f00:1]/"]) {
+      const host = new URL(link).hostname.replace(/^\[|\]$/g, "");
+      expect(isBlockedAddress(host), link).toBe(true);
+    }
+  });
+
   it("allows public IPv6", () => {
     expect(isBlockedAddress("2606:4700:4700::1111")).toBe(false);
   });

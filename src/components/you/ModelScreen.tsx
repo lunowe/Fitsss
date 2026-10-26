@@ -168,6 +168,7 @@ export function ModelScreen({
               options={PROVIDER_OPTIONS}
               // "OpenRouter" is one character too wide for the default padding.
               className="w-full [&_button]:px-1"
+              disabled={Boolean(providerPinned)}
               onValueChange={setProvider}
             />
           </div>
@@ -181,19 +182,28 @@ export function ModelScreen({
       <section>
         <SectionHeader>Models</SectionHeader>
         <InsetGroup>
-          {LLM_TASKS.map((task) => (
-            <Row
-              key={task}
-              title={LLM_TASK_LABELS[task]}
-              subtitle={current.models[task]}
-              onClick={() => setPicking(task)}
-              chevron
-            />
-          ))}
+          {LLM_TASKS.map((task) => {
+            const pin = overrides.models[task];
+            // A pinned model is shown, not offered: picking would change nothing.
+            // The footnote names the variable; the row has room for the id only.
+            return pin ? (
+              <Row key={task} title={LLM_TASK_LABELS[task]} subtitle={current.models[task]} />
+            ) : (
+              <Row
+                key={task}
+                title={LLM_TASK_LABELS[task]}
+                subtitle={current.models[task]}
+                onClick={() => setPicking(task)}
+                chevron
+              />
+            );
+          })}
         </InsetGroup>
         <SectionFooter>
           {current.provider === "mock"
-            ? "The mock provider ignores these; they come back when you switch to a real one."
+            ? providerPinned
+              ? "The mock provider ignores these."
+              : "The mock provider ignores these; they come back when you switch to a real one."
             : current.provider === "anthropic"
               ? "Called through the Anthropic SDK, so the anthropic/ prefix is dropped on the way out."
               : "Picture reading only lists models that can take an image."}
@@ -212,6 +222,7 @@ export function ModelScreen({
               value={current.effort}
               options={EFFORT_OPTIONS}
               className="w-full"
+              disabled={Boolean(effortPinned)}
               onValueChange={setEffort}
             />
           </div>
@@ -233,7 +244,7 @@ export function ModelScreen({
                 <Button
                   variant="secondary"
                   className="w-full"
-                  disabled={pending || state.status === "running"}
+                  disabled={pending || state.status === "running" || current.provider === "mock"}
                   onClick={() => runTest(task)}
                 >
                   {state.status === "running" ? (
@@ -260,7 +271,9 @@ export function ModelScreen({
           })}
         </div>
         <SectionFooter>
-          One tiny structured call per task, against the model above. Real key, real request.
+          {current.provider === "mock"
+            ? "The mock provider makes no calls, so there is nothing to test."
+            : "One tiny structured call per task, against the model above. Real key, real request."}
         </SectionFooter>
       </section>
 

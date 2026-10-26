@@ -18,6 +18,7 @@ export function SegmentedControl<T extends string>({
   options,
   label,
   className,
+  disabled = false,
 }: {
   value: T;
   onValueChange: (value: T) => void;
@@ -25,6 +26,8 @@ export function SegmentedControl<T extends string>({
   /** Accessible name for the group. */
   label?: string;
   className?: string;
+  /** Shown but not changeable (a setting the server's environment holds). */
+  disabled?: boolean;
 }) {
   const index = Math.max(
     0,
@@ -33,6 +36,7 @@ export function SegmentedControl<T extends string>({
   const count = Math.max(options.length, 1);
 
   function move(delta: number) {
+    if (disabled) return;
     const next = options[(index + delta + count) % count];
     if (next) onValueChange(next.value);
   }
@@ -41,7 +45,8 @@ export function SegmentedControl<T extends string>({
     <div
       role="radiogroup"
       aria-label={label}
-      className={cn("relative flex h-8 select-none rounded-[9px] bg-fill p-0.5", className)}
+      aria-disabled={disabled || undefined}
+      className={cn("relative flex h-8 select-none rounded-[9px] bg-fill p-0.5", disabled && "opacity-60", className)}
       onKeyDown={(event) => {
         if (event.key === "ArrowRight" || event.key === "ArrowDown") {
           event.preventDefault();
@@ -69,6 +74,7 @@ export function SegmentedControl<T extends string>({
             role="radio"
             aria-checked={selected}
             tabIndex={selected ? 0 : -1}
+            disabled={disabled}
             onClick={() => onValueChange(option.value)}
             className={cn(
               "relative z-10 min-w-0 flex-1 truncate rounded-[7px] px-3 text-footnote transition-colors duration-150 ease-out",

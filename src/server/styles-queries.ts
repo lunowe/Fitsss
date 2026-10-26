@@ -36,10 +36,14 @@ export function rowToStyle(row: StyleRow): Style {
 /** Active styles for the signed-in user, in the order the user arranged them. */
 export async function listStyles(): Promise<Style[]> {
   const currentUser = await requireUser();
+  return listStylesForUser(currentUser.id);
+}
+
+export async function listStylesForUser(userId: string): Promise<Style[]> {
   const rows = await db
     .select()
     .from(styles)
-    .where(and(eq(styles.userId, currentUser.id), isNull(styles.archivedAt)))
+    .where(and(eq(styles.userId, userId), isNull(styles.archivedAt)))
     .orderBy(asc(styles.sortOrder), asc(styles.createdAt));
 
   return rows.map(rowToStyle);
@@ -47,11 +51,15 @@ export async function listStyles(): Promise<Style[]> {
 
 export async function getStyle(id: string): Promise<Style | null> {
   const currentUser = await requireUser();
+  return getStyleForUser(currentUser.id, id);
+}
+
+export async function getStyleForUser(userId: string, id: string): Promise<Style | null> {
   if (!UUID_RE.test(id)) return null;
   const [row] = await db
     .select()
     .from(styles)
-    .where(and(eq(styles.id, id), eq(styles.userId, currentUser.id), isNull(styles.archivedAt)))
+    .where(and(eq(styles.id, id), eq(styles.userId, userId), isNull(styles.archivedAt)))
     .limit(1);
 
   return row ? rowToStyle(row) : null;

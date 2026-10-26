@@ -2,10 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import type { Inspo, OccasionId, WeatherSnapshot } from "@/domain";
-import { isOccasionId } from "@/domain";
 import { requireUser } from "@/lib/session";
-import { validateWeatherSnapshot } from "@/lib/llm/generation-request";
-import { generateOutfitsForUser, type GenerateOutfitsResult } from "@/server/generate-core";
+import { restyleFromInspoForUser, type GenerateOutfitsResult } from "@/server/generate-core";
 import {
   analyzeInspoForUser,
   createInspoFromImageForUser,
@@ -24,9 +22,6 @@ import {
 
 export type InspoError = { ok: false; error: string; code: InspoErrorCode };
 export type InspoActionResult = { ok: true; inspo: Inspo } | InspoError;
-
-/** Default weather for a restyle when the caller has no forecast to hand. */
-const FALLBACK_WEATHER: WeatherSnapshot = { tempC: 18, condition: "cloudy", source: "manual" };
 
 function revalidate() {
   revalidatePath("/inspo");
@@ -77,31 +72,7 @@ export async function restyleFromInspo(input: {
   weather?: WeatherSnapshot;
 }): Promise<GenerateOutfitsResult> {
   const currentUser = await requireUser();
-  const inspoId = typeof input?.inspoId === "string" ? input.inspoId.trim() : "";
-  if (!inspoId) {
-    return { ok: false, code: "invalid", error: "That picture is gone." };
-  }
-
-  const occasion: OccasionId =
-    typeof input?.occasion === "string" && isOccasionId(input.occasion) ? input.occasion : "everyday";
-
-  let weather = FALLBACK_WEATHER;
-  if (input?.weather) {
-    const checked = validateWeatherSnapshot(input.weather);
-    if (!checked.ok) return { ok: false, code: "invalid", error: checked.errors[0] };
-    weather = checked.weather;
-  }
-
-  const count = Math.min(5, Math.max(1, Math.round(Number(input?.count ?? 2)) || 2));
-
-  return generateOutfitsForUser(currentUser.id, {
-    occasion,
-    weather,
-    count,
-    pinned: [],
-    excluded: [],
-    inspoId,
-  });
+  return restyleFromInspoForUser(currentUser.id, input);
 }
 
 /** Saves the picture as a reference for a style, or unfiles it with null. */

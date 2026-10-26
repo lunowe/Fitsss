@@ -5,7 +5,7 @@ import { getPieceType, fitLabel, variantLabel } from "@/domain/catalog";
 import type { Category } from "@/domain/types";
 import { BRIEFS, generateArt } from "@/lib/art";
 import type { ArtBrief, ArtExample } from "@/lib/art/types";
-import { requireUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/session";
 import { withCatalog } from "@/server/catalog-queries";
 import { setPieceArt } from "@/server/content";
 import { getLlmSettingsForUser } from "@/server/settings-queries";
@@ -78,7 +78,7 @@ export type GeneratePieceArtResult =
  * drawing as a preview. Nothing is saved until `keepGeneratedArt` is called.
  */
 export async function generatePieceArt(input: { typeId: string; variant?: string | null }): Promise<GeneratePieceArtResult> {
-  const currentUser = await requireUser();
+  const currentUser = await requireAdmin();
   const typeId = typeof input?.typeId === "string" ? input.typeId.trim() : "";
   const variant = typeof input?.variant === "string" && input.variant.trim() ? input.variant.trim() : null;
   if (!typeId) return { ok: false, error: "Pick a piece type first." };

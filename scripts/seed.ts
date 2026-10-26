@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { count, eq } from "drizzle-orm";
 import { auth } from "../src/lib/auth";
 import { db, sql } from "../src/db";
@@ -46,33 +48,14 @@ rawInputs.push(
   { typeId: "scarf", color: paletteToBlockColor("grey"), variant: "wool-scarf", material: "wool", pattern: "solid", quantity: 1 },
 );
 
-/** Three honest starting styles for the dev user. */
-const seedStyles = [
-  {
-    name: "Clean minimal",
-    description:
-      "Neutrals only: white, grey, navy, black, cream. A relaxed tee or a fine knit with straight trousers, white leather sneakers or loafers. One dark anchor piece holds the outfit together.",
-    rules: "No logos\nMax one pattern per outfit\nNothing baggy on both halves",
-  },
-  {
-    name: "Smart casual",
-    description:
-      "A shirt or a knit with chinos or wool trousers, loafers or chelsea boots. A blazer or an overshirt on top when it is cool. Put together without looking like the office.",
-    rules: "No sweatpants\nNo graphic tees\nShoes always leather",
-  },
-  {
-    name: "Streetwear",
-    description:
-      "Oversized hoodie or a graphic tee over wide, baggy bottoms. Chunky or retro sneakers, a cap when the hair says so. Volume on top, volume below, one loud piece at a time.",
-    rules: "Never fitted tops\nOne loud piece per outfit",
-  },
-  {
-    name: "Y2K",
-    description:
-      "Early-2000s pop and mall style: low-rise baggy jeans or cargo pants, a cropped or fitted baby tee, a tank under a zip hoodie or a track jacket, denim on denim. Chunky or retro sneakers, a trucker cap or a dad cap, a tiny bag. Light-wash blue, white, pink, silver and metallics; logos and graphics are the point. Playful and a bit loud, never polished.",
-    rules: "Bottoms baggy or wide, never slim\nAt least one logo or graphic piece\nNo blazers, no loafers, no wool coats",
-  },
-];
+/**
+ * The starting styles, shared with `scripts/seed-styles.mjs` so the prose the
+ * model reads lives in exactly one place. Read rather than imported: the .mjs
+ * runs on runtime dependencies alone, inside the deployed container.
+ */
+const seedStyles: { name: string; description: string; rules: string }[] = JSON.parse(
+  readFileSync(new URL("./seed-styles.json", import.meta.url), "utf8"),
+);
 
 function validatedInputs(): BlockInput[] {
   return rawInputs.map((input, index) => {

@@ -77,8 +77,9 @@ function cleanModelId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > MAX_MODEL_ID_LENGTH) return null;
-  // Anything a URL path segment would choke on is not a model id.
-  return /^[A-Za-z0-9._:@/-]+$/.test(trimmed) ? trimmed : null;
+  // Anything a URL path segment would choke on is not a model id, and nor is
+  // punctuation alone. `~` starts OpenRouter's aliases (`~openai/gpt-luna-latest`).
+  return /^[A-Za-z0-9._:@/~-]+$/.test(trimmed) && /[A-Za-z0-9]/.test(trimmed) ? trimmed : null;
 }
 
 /**
@@ -128,6 +129,13 @@ export function validateLlmSettings(
     if (value !== undefined && cleanModelId(value) === null) {
       errors.push(`"${LLM_TASK_LABELS[task]}" needs a model id.`);
     }
+  }
+  // A misspelt task would otherwise change nothing and still report success.
+  // One message however many there are: the answer stays small.
+  const unknown = Object.keys(rawModels).filter((key) => !isLlmTask(key));
+  if (unknown.length) {
+    const more = unknown.length > 1 ? ` (and ${unknown.length - 1} more)` : "";
+    errors.push(`There is no task "${unknown[0].slice(0, 40)}"${more}. Pick one of ${LLM_TASKS.join(", ")}.`);
   }
 
   if (errors.length) return { ok: false, errors };

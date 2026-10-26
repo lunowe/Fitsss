@@ -118,7 +118,12 @@ export async function withCatalog<T>(userId: string, fn: () => Promise<T> | T): 
 /** Applies the signed-in user's extension. Safe to call more than once. */
 export async function applyUserCatalog(): Promise<CatalogExtension> {
   const currentUser = await requireUser();
-  const extension = await loadCatalogExtension(currentUser.id);
+  return applyUserCatalogFor(currentUser.id);
+}
+
+/** Same, for callers that already know the user — core functions and routes. */
+export async function applyUserCatalogFor(userId: string): Promise<CatalogExtension> {
+  const extension = await loadCatalogExtension(userId);
   applyCatalogExtension(extension);
   return extension;
 }

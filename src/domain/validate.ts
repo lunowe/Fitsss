@@ -1,6 +1,7 @@
 import { getPieceType, isGarment } from "./catalog";
 import { normalizeHex } from "./colors";
 import { isMaterialId } from "./materials";
+import { cleanText, clipText } from "./text";
 import {
   COLOR_FAMILIES,
   PATTERNS,
@@ -23,7 +24,7 @@ function validateColor(raw: unknown, field: string, errors: string[]): BlockColo
   const c = raw as Record<string, unknown>;
   const hex = typeof c.hex === "string" ? normalizeHex(c.hex) : null;
   if (!hex) errors.push(`${field}.hex: expected #rrggbb`);
-  const name = typeof c.name === "string" ? c.name.trim().slice(0, 40) : "";
+  const name = typeof c.name === "string" ? clipText(c.name, 40).trim() : "";
   if (!name) errors.push(`${field}.name: required`);
   const family = c.family;
   if (typeof family !== "string" || !(COLOR_FAMILIES as readonly string[]).includes(family)) {
@@ -31,7 +32,7 @@ function validateColor(raw: unknown, field: string, errors: string[]): BlockColo
   }
   if (!hex || !name) return undefined;
   const out: BlockColor = { name, hex, family: family as BlockColor["family"] };
-  if (typeof c.paletteId === "string") out.paletteId = c.paletteId;
+  if (typeof c.paletteId === "string" && /^[a-z0-9-]{1,40}$/.test(c.paletteId)) out.paletteId = c.paletteId;
   return out;
 }
 
@@ -97,8 +98,8 @@ export function validateBlockInput(raw: unknown): ValidationResult {
     else quantity = q;
   }
 
-  const nickname = typeof r.nickname === "string" && r.nickname.trim() ? r.nickname.trim().slice(0, 60) : undefined;
-  const notes = typeof r.notes === "string" && r.notes.trim() ? r.notes.trim().slice(0, 500) : undefined;
+  const nickname = typeof r.nickname === "string" && cleanText(r.nickname).trim() ? clipText(cleanText(r.nickname).trim(), 60) : undefined;
+  const notes = typeof r.notes === "string" && cleanText(r.notes).trim() ? clipText(cleanText(r.notes).trim(), 500) : undefined;
 
   if (errors.length || !type || !color) return { ok: false, errors };
 

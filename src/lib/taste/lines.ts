@@ -1,3 +1,4 @@
+import { cleanText, hasVisibleText, textLength } from "@/domain/text";
 import type { TasteLine } from "./types";
 
 /**
@@ -9,6 +10,10 @@ export const MIN_LINE_LENGTH = 3;
 export const MAX_LINE_LENGTH = 120;
 export const MAX_LEARNED_LINES = 12;
 export const MAX_LEARNED_AVOID = 8;
+/** Lines the person writes, per list: every one goes into every outfit prompt. */
+export const MAX_USER_LINES = 30;
+/** Deleted learned lines remembered, so a refresh does not bring them back. */
+export const MAX_DISMISSED = 100;
 
 /** FNV-1a over the normalized text. Same text in, same id out, forever. */
 export function lineId(text: string): string {
@@ -21,11 +26,16 @@ export function lineId(text: string): string {
   return hash.toString(36).padStart(7, "0");
 }
 
-/** Trims and caps a line the person typed. Returns null when it is unusable. */
+/**
+ * Cleans and checks a line (typed by the person or written by the model).
+ * Returns null when it is unusable: too short or long in characters (code
+ * points, as the app counts them), or nothing but invisible ones.
+ */
 export function normalizeLineText(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  const text = value.replace(/\s+/g, " ").trim();
-  if (text.length < MIN_LINE_LENGTH || text.length > MAX_LINE_LENGTH) return null;
+  const text = cleanText(value).replace(/\s+/g, " ").trim();
+  const length = textLength(text);
+  if (length < MIN_LINE_LENGTH || length > MAX_LINE_LENGTH || !hasVisibleText(text)) return null;
   return text;
 }
 
@@ -93,4 +103,36 @@ export function mergeLines(
     if (next.length - kept.length >= limit) break;
   }
   return next;
+}
+
+/**
+ * The learned lines a refresh may still write, given the notes when it
+ * started (`before`) and now (`now`, both lists). Dropped:
+ * - lines deleted while the model was thinking: the model saw them and may
+ *   well hand them back, but they stay deleted;
+ * - lines deleted before (`dismissed`): the person said they were wrong;
+ * - anything the person said themselves, in either list: their words win, so
+ *   "Earth tones" moved from a learned like to their own avoid is not also
+ *   written back as a like;
+ * - anything in `taken` (the other list, merged first), so no id is in both
+ *   lists and deleting a line by id deletes exactly one.
+ */
+export function refreshCandidates<T extends { text: string }>(
+  candidates: T[],
+  before: TasteLine[],
+  now: TasteLine[],
+  options: { dismissed?: TasteLine[]; taken?: TasteLine[] } = {},
+): T[] {
+  const still = new Set(now.map((line) => line.id));
+  const blocked = new Set([
+    ...before.map((line) => line.id).filter((id) => !still.has(id)),
+    ...now.filter((line) => line.source === "user").map((line) => line.id),
+    ...(options.dismissed ?? []).map((line) => line.id),
+    ...(options.taken ?? []).map((line) => line.id),
+  ]);
+  if (blocked.size === 0) return candidates;
+  return candidates.filter((candidate) => {
+    const text = normalizeLineText(candidate.text);
+    return !text || !blocked.has(lineId(text));
+  });
 }

@@ -26,6 +26,7 @@ import {
   type SilhouetteId,
   type Weight,
 } from "./types";
+import { clipText } from "./text";
 
 /* ------------------------------------------------------------------ */
 /* Shapes                                                              */
@@ -177,7 +178,7 @@ export function validateCustomCategory(
   if (!label) errors.push("A category needs a name");
   else if (label.length > MAX_LABEL) errors.push(`Keep the name under ${MAX_LABEL} characters`);
 
-  const hint = asString(input.hint).trim().slice(0, MAX_HINT);
+  const hint = clipText(asString(input.hint).trim(), MAX_HINT);
 
   const roleRaw = asString(input.role).trim();
   if (!(CATEGORIES as readonly string[]).includes(roleRaw)) {

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ContentScreen } from "@/components/content/ContentScreen";
 import { BackButton, LargeTitleHeader, Screen } from "@/components/shell";
 import { ART } from "@/components/silhouettes";
+import { requireAdmin } from "@/lib/session";
 import { applyUserCatalog } from "@/server/catalog-queries";
 import {
   blockCountsByType,
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
 const BUILT_IN_ART_COUNT = Object.keys(ART).length;
 
 export default async function ContentPage() {
+  await requireAdmin();
   await applyUserCatalog();
   const [categories, types, art, usage] = await Promise.all([
     listCustomCategories(),

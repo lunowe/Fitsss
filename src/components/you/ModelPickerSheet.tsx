@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
 const MAX_ROWS = 60;
 
 function price(perMillion: number): string {
-  if (perMillion <= 0) return "free";
+  if (perMillion < 0) return "varies";
+  if (perMillion === 0) return "free";
   if (perMillion < 1) return `$${perMillion.toFixed(2)}`;
   if (perMillion < 100) return `$${perMillion.toFixed(2)}`;
   return `$${Math.round(perMillion)}`;
@@ -46,7 +47,9 @@ function ModelRow({
         <div className="truncate text-footnote text-label-2">{model.id}</div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <span className="text-caption tabular-nums text-label-2">
-            {price(model.promptPricePerM)} in · {price(model.completionPricePerM)} out / 1M
+            {model.promptPricePerM < 0
+              ? "Price varies with the model it picks"
+              : `${price(model.promptPricePerM)} in · ${price(model.completionPricePerM)} out / 1M`}
           </span>
           {model.vision ? <Badge>vision</Badge> : null}
           {model.reasoning ? <Badge>reasoning</Badge> : null}
@@ -91,8 +94,11 @@ export function ModelPickerSheet({
     let rows = models;
     // A text-only model cannot read a picture, however good it is otherwise.
     if (task === "vision") rows = rows.filter((model) => model.vision);
-    // Called through the SDK, so only what Anthropic itself serves.
-    if (provider === "anthropic") rows = rows.filter((model) => model.id.startsWith("anthropic/"));
+    // Called through the SDK, so only what Anthropic itself serves: not
+    // OpenRouter's variants of it (`:batch`, `:free`).
+    if (provider === "anthropic") {
+      rows = rows.filter((model) => model.id.startsWith("anthropic/") && !model.id.includes(":"));
+    }
     return rows;
   }, [models, provider, task]);
 

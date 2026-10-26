@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Archive, Cpu, LayoutList, Plus, Sparkles, User } from "lucide-react";
 import { InsetGroup, LargeTitleHeader, Row, RowIcon, Screen, SectionHeader } from "@/components/shell";
 import { AppearanceControl } from "@/components/you/AppearanceControl";
-import { requireUser } from "@/lib/session";
+import { isAdmin, requireUser } from "@/lib/session";
 import { getTasteOverview } from "@/server/taste-queries";
 import { SignOutRow } from "./sign-out-button";
 
@@ -14,6 +14,7 @@ const APP_VERSION = "0.1.0";
 
 export default async function YouPage() {
   const [user, taste] = await Promise.all([requireUser(), getTasteOverview()]);
+  const admin = await isAdmin(user.id);
 
   // Every scope's list, added up: what the app currently believes about you.
   const learned = [taste.overall, ...Object.values(taste.byStyle)].reduce(
@@ -106,16 +107,18 @@ export default async function YouPage() {
               subtitle="Provider and models per task"
               href="/you/model"
             />
-            <Row
-              leading={
-                <RowIcon>
-                  <LayoutList aria-hidden />
-                </RowIcon>
-              }
-              title="Content"
-              subtitle="Categories, piece types, artwork"
-              href="/you/content"
-            />
+            {admin && (
+              <Row
+                leading={
+                  <RowIcon>
+                    <LayoutList aria-hidden />
+                  </RowIcon>
+                }
+                title="Content"
+                subtitle="Categories, piece types, artwork"
+                href="/you/content"
+              />
+            )}
           </InsetGroup>
         </section>
 

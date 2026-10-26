@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { blocks, customCategories, customPieceTypes, pieceArt } from "@/db/schema";
 import { validateCustomCategory, validateCustomPieceType } from "@/domain";
 import { normalizeSvgArt } from "@/lib/art-normalize";
-import { requireUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/session";
 import { invalidateCatalogExtension } from "@/server/catalog-queries";
 
 export type ContentResult = { ok: true } | { ok: false; errors: string[] };
@@ -28,7 +28,7 @@ function revalidate(userId: string) {
 /* ------------------------------------------------------------------ */
 
 export async function createCustomCategory(input: unknown): Promise<ContentResult> {
-  const currentUser = await requireUser();
+  const currentUser = await requireAdmin();
 
   const existing = await db
     .select({ slug: customCategories.slug })
@@ -56,7 +56,7 @@ export async function createCustomCategory(input: unknown): Promise<ContentResul
  * point at it.
  */
 export async function updateCustomCategory(id: string, input: unknown): Promise<ContentResult> {
-  const currentUser = await requireUser();
+  const currentUser = await requireAdmin();
   if (!UUID_RE.test(id)) return { ok: false, errors: NOT_FOUND };
 
   const [row] = await db
@@ -90,7 +90,7 @@ export async function updateCustomCategory(id: string, input: unknown): Promise<
 }
 
 export async function archiveCustomCategory(id: string): Promise<ContentResult> {
-  const currentUser = await requireUser();
+  const currentUser = await requireAdmin();
   if (!UUID_RE.test(id)) return { ok: false, errors: NOT_FOUND };
 
   const [row] = await db
@@ -136,7 +136,7 @@ export async function archiveCustomCategory(id: string): Promise<ContentResult> 
 }
 
 export async function reorderCustomCategories(ids: string[]): Promise<ContentResult> {
-  const currentUser = await requireUser();
+  const currentUser = await requireAdmin();
   if (!Array.isArray(ids)) return { ok: false, errors: ["Nothing to reorder"] };
 
   const rows = await db
@@ -165,7 +165,7 @@ export async function reorderCustomCategories(ids: string[]): Promise<ContentRes
 /* ------------------------------------------------------------------ */
 
 export async function createCustomPieceType(input: unknown): Promise<ContentResult> {
-  const currentUser = await requireUser();
+  const currentUser = await requireAdmin();
 
   const existing = await db
     .select({ slug: customPieceTypes.slug })
@@ -200,7 +200,7 @@ export async function createCustomPieceType(input: unknown): Promise<ContentResu
 
 /** Everything but the slug is editable: blocks store the slug as their typeId. */
 export async function updateCustomPieceType(id: string, input: unknown): Promise<ContentResult> {
-  const currentUser = await requireUser();
+  const currentUser = await requireAdmin();
   if (!UUID_RE.test(id)) return { ok: false, errors: NOT_FOUND };
 
   const [row] = await db
@@ -244,7 +244,7 @@ export async function updateCustomPieceType(id: string, input: unknown): Promise
 }
 
 export async function archiveCustomPieceType(id: string): Promise<ContentResult> {
-  const currentUser = await requireUser();
+  const currentUser = await requireAdmin();
   if (!UUID_RE.test(id)) return { ok: false, errors: NOT_FOUND };
 
   const [row] = await db
@@ -291,7 +291,7 @@ export async function archiveCustomPieceType(id: string): Promise<ContentResult>
 }
 
 export async function reorderCustomPieceTypes(ids: string[]): Promise<ContentResult> {
-  const currentUser = await requireUser();
+  const currentUser = await requireAdmin();
   if (!Array.isArray(ids)) return { ok: false, errors: ["Nothing to reorder"] };
 
   const rows = await db
@@ -330,7 +330,7 @@ export async function setPieceArt(input: {
   svg: string;
   source?: string;
 }): Promise<ContentResult> {
-  const currentUser = await requireUser();
+  const currentUser = await requireAdmin();
 
   const typeId = typeof input?.typeId === "string" ? input.typeId.trim() : "";
   if (!typeId) return { ok: false, errors: ["Pick a piece type"] };
@@ -380,7 +380,7 @@ export async function setPieceArt(input: {
 
 /** Removes an override; a built-in type falls back to its own drawing. */
 export async function deletePieceArt(id: string): Promise<ContentResult> {
-  const currentUser = await requireUser();
+  const currentUser = await requireAdmin();
   if (!UUID_RE.test(id)) return { ok: false, errors: NOT_FOUND };
 
   const [row] = await db

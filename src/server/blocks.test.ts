@@ -15,6 +15,8 @@ vi.mock("server-only", () => ({}));
 // only cares about the built-in catalog.
 vi.mock("@/server/catalog-queries", () => ({
   applyUserCatalog: async () => ({ categories: [], types: [], art: {} }),
+  applyUserCatalogFor: async () => ({ categories: [], types: [], art: {} }),
+  loadCatalogExtension: async () => ({ categories: [], types: [], art: {} }),
 }));
 
 import { createBlocks } from "./blocks";

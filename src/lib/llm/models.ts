@@ -14,7 +14,11 @@ export interface ModelInfo {
   id: string;
   name: string;
   contextLength: number;
-  /** US dollars per million tokens, already multiplied out. */
+  /**
+   * US dollars per million tokens, already multiplied out. -1 when it varies:
+   * OpenRouter's routers (`openrouter/auto`) pass the price of whatever they
+   * pick, and say so with a negative price.
+   */
   promptPricePerM: number;
   completionPricePerM: number;
   vision: boolean;
@@ -49,7 +53,8 @@ interface RawModel {
 
 function perMillion(value: string | undefined): number {
   const n = Number(value);
-  return Number.isFinite(n) ? n * 1_000_000 : 0;
+  if (!Number.isFinite(n)) return 0;
+  return n < 0 ? -1 : n * 1_000_000;
 }
 
 function toModelInfo(raw: RawModel): ModelInfo | null {

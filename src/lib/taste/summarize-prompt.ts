@@ -87,6 +87,8 @@ export interface BuildTastePromptInput {
   userLines: TasteLine[];
   /** Avoid-lines the person typed. */
   userAvoid: TasteLine[];
+  /** Learned lines the person deleted as wrong. */
+  dismissed?: TasteLine[];
   /** Output of `affinitySummaryLines`. */
   affinity: { favorites: string[]; avoid: string[] };
   /** Chronological, oldest first. Only the last 60 are used. */
@@ -160,6 +162,16 @@ export function buildTasteUserMessage(input: BuildTastePromptInput): string {
     if (input.userLines.length) stated.push("Likes:", ...input.userLines.map((l) => `- ${l.text}`));
     if (input.userAvoid.length) stated.push("Avoid:", ...input.userAvoid.map((l) => `- ${l.text}`));
     sections.push(stated.join("\n"));
+  }
+
+  /* Lines the person deleted */
+  if (input.dismissed?.length) {
+    sections.push(
+      [
+        "REMOVED BY THE PERSON — wrong about them; never write these again, nor close variants",
+        ...input.dismissed.slice(0, 20).map((l) => `- ${l.text}`),
+      ].join("\n"),
+    );
   }
 
   /* Affinity */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectImageMime, readImageInfo } from "./image-size";
+import { detectImageMime, looksComplete, readImageInfo } from "./image-size";
 
 /**
  * Tiny hand-built headers. Nothing here is a real image: the parsers only ever
@@ -124,5 +124,68 @@ describe("readImageInfo", () => {
 
   it("returns null for a zero-sized image", () => {
     expect(readImageInfo(png(0, 10))).toBeNull();
+  });
+});
+
+describe("looksComplete", () => {
+  it("refuses a header with nothing after it, whatever size it claims", () => {
+    expect(looksComplete(png(65535, 65535), "image/png")).toBe(false);
+    expect(looksComplete(jpeg(1, 50000), "image/jpeg")).toBe(false);
+    expect(looksComplete(gif(65535, 1), "image/gif")).toBe(false);
+    expect(looksComplete(webpExtended(9, 9), "image/webp")).toBe(false);
+  });
+
+  it("accepts whole pictures", async () => {
+    const { deflateSync, crc32 } = await import("node:zlib");
+    const chunk = (type: string, body: Buffer) => {
+      const head = Buffer.alloc(4);
+      head.writeUInt32BE(body.length);
+      const crc = Buffer.alloc(4);
+      crc.writeUInt32BE(crc32(Buffer.concat([Buffer.from(type), body])) >>> 0);
+      return Buffer.concat([head, Buffer.from(type), body, crc]);
+    };
+    const header = Buffer.from([0, 0, 0, 2, 0, 0, 0, 2, 8, 2, 0, 0, 0]);
+    const whole = Buffer.concat([
+      Buffer.from(PNG_MAGIC),
+      chunk("IHDR", header),
+      chunk("IDAT", deflateSync(Buffer.alloc(14))),
+      chunk("IEND", Buffer.alloc(0)),
+    ]);
+    expect(looksComplete(whole, "image/png")).toBe(true);
+
+    const scan = bytes([...jpeg(2, 2)], [0xff, 0xda], u16be(8), [1, 1, 0, 0, 0x3f, 0], [0x12, 0x34, 0xff, 0x00, 0x56], [0xff, 0xd9]);
+    expect(looksComplete(scan, "image/jpeg")).toBe(true);
+
+    const image = bytes([...gif(1, 1)], [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0x02, 0x02, 0x44, 0x01, 0x00], 0x3b);
+    expect(looksComplete(image, "image/gif")).toBe(true);
+
+    const lossy = riff("VP8 ", [0x30, 0x01, 0x00, 0x9d, 0x01, 0x2a, ...u16le(2), ...u16le(2), ...new Array(20).fill(7)]);
+    expect(looksComplete(lossy, "image/webp")).toBe(true);
+  });
+
+  it("accepts extended WebPs (alpha, animation, metadata) and refuses one cut short", () => {
+    const vp8x = (flags: number) => [..."VP8X"].map((c) => c.charCodeAt(0)).concat(u32le(10), [flags, 0, 0, 0], u24le(1), u24le(1));
+    const chunk = (type: string, data: number[]) => [...type].map((c) => c.charCodeAt(0)).concat(u32le(data.length), data, data.length % 2 ? [0] : []);
+    const container = (...chunks: number[][]) => {
+      const body = chunks.flat();
+      return bytes("RIFF", u32le(body.length + 4), "WEBP", body);
+    };
+    const frame = chunk("VP8 ", [0x30, 0x01, 0x00, 0x9d, 0x01, 0x2a, ...u16le(2), ...u16le(2), ...new Array(15).fill(7)]);
+    const alpha = container(vp8x(0x10), chunk("ALPH", [0, 1, 2]), frame);
+    const animated = container(vp8x(0x02), chunk("ANIM", [0, 0, 0, 0, 0, 0]), chunk("ANMF", [...new Array(16).fill(0), ...frame]));
+    const exif = container(vp8x(0x08), frame, chunk("EXIF", [1, 2, 3, 4]));
+    for (const picture of [alpha, animated, exif]) expect(looksComplete(picture, "image/webp")).toBe(true);
+
+    expect(looksComplete(container(vp8x(0x10)), "image/webp")).toBe(false);
+    expect(looksComplete(alpha.slice(0, alpha.length - 6), "image/webp")).toBe(false);
+  });
+
+  it("does not take an EXIF thumbnail for the picture in a cut-off JPEG", () => {
+    const thumbnail = [0xff, 0xd8, 0xff, 0xda, ...u16be(8), 1, 1, 0, 0, 0x3f, 0, 0x11, 0x22, 0xff, 0xd9];
+    const app1 = [0xff, 0xe1, ...u16be(2 + 6 + thumbnail.length), ..."Exif\0\0".split("").map((c) => c.charCodeAt(0)), ...thumbnail];
+    const start = [0xff, 0xd8, ...app1, 0xff, 0xc0, ...u16be(17), 8, ...u16be(4000), ...u16be(6000), 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1];
+    const scan = [0xff, 0xda, ...u16be(8), 1, 1, 0, 0, 0x3f, 0, ...new Array(64).fill(0x5a)];
+    expect(looksComplete(bytes(start, scan), "image/jpeg")).toBe(false);
+    expect(looksComplete(bytes(start, scan, [0xff, 0xd9]), "image/jpeg")).toBe(true);
   });
 });

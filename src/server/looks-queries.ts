@@ -46,10 +46,14 @@ export function rowToLook(row: LookRow): Look {
 /** Active looks, newest first. */
 export async function listLooks(): Promise<Look[]> {
   const currentUser = await requireUser();
+  return listLooksForUser(currentUser.id);
+}
+
+export async function listLooksForUser(userId: string): Promise<Look[]> {
   const rows = await db
     .select()
     .from(looks)
-    .where(and(eq(looks.userId, currentUser.id), isNull(looks.archivedAt)))
+    .where(and(eq(looks.userId, userId), isNull(looks.archivedAt)))
     .orderBy(desc(looks.createdAt));
 
   return rows.map(rowToLook);
@@ -57,11 +61,15 @@ export async function listLooks(): Promise<Look[]> {
 
 export async function getLook(id: string): Promise<Look | null> {
   const currentUser = await requireUser();
+  return getLookForUser(currentUser.id, id);
+}
+
+export async function getLookForUser(userId: string, id: string): Promise<Look | null> {
   if (!UUID_RE.test(id)) return null;
   const [row] = await db
     .select()
     .from(looks)
-    .where(and(eq(looks.id, id), eq(looks.userId, currentUser.id), isNull(looks.archivedAt)))
+    .where(and(eq(looks.id, id), eq(looks.userId, userId), isNull(looks.archivedAt)))
     .limit(1);
 
   return row ? rowToLook(row) : null;
