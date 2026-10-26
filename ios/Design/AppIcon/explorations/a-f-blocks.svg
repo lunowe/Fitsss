@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Direction A: the letter F assembled from three blocks (continuity with the web mark). -->
+  <rect id="bg" width="1024" height="1024" fill="#ffffff"/>
+  <g id="mark" fill="#000000">
+    <rect x="312" y="232" width="160" height="560" rx="32"/>
+    <rect x="512" y="232" width="200" height="160" rx="32"/>
+    <rect x="512" y="432" width="140" height="160" rx="32"/>
+  </g>
+</svg>

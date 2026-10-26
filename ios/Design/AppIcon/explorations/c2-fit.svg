@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Direction C2: a "fit" as two garment blocks, tee over trousers, both in the app's flat-drawing language. -->
+  <rect id="bg" width="1024" height="1024" fill="#ffffff"/>
+  <g id="mark" fill="#000000" stroke="#000000" stroke-width="20" stroke-linejoin="round">
+    <!-- tee: tee.svg outline in 128-unit space, scaled 3.3, centred at x=512, top at y=160 -->
+    <g transform="translate(300.8 144.5) scale(3.3)">
+      <path d="M52.7 4.7 L29.5 13.2 L20.5 20 L7.1 31.9 L4.7 33.9 L23 50.1 L31.1 45.3 L31.1 106 L96.9 106 L96.9 45.3 L105 50.1 L123.3 33.9 L120.9 31.9 L107.5 20 L98.5 13.2 L75.3 4.7 C75.3 33 52.7 33 52.7 4.7 Z" stroke-width="6"/>
+    </g>
+    <!-- trousers: waistband 240 wide, two legs with a clear gap, 300 tall -->
+    <path d="M392 552 H632 L622 852 H548 L512 640 L476 852 H402 Z"/>
+  </g>
+</svg>

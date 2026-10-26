@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Direction B2: the tee traced from the app's own technical-flat drawing (tee.svg), as one solid block. -->
+  <rect id="bg" width="1024" height="1024" fill="#ffffff"/>
+  <g id="mark" fill="#000000" stroke="#000000" stroke-width="24" stroke-linejoin="round">
+    <path d="M453.7 251.2 L334.1 295.1 L287.7 330.1 L218.6 391.5 L206.2 401.8 L300.6 485.3 L342.4 460.6 L342.4 773.5 L681.6 773.5 L681.6 460.6 L723.4 485.3 L817.8 401.8 L805.4 391.5 L736.3 330.1 L689.9 295.1 L570.3 251.2 C570.3 345 453.7 345 453.7 251.2 Z"/>
+  </g>
+</svg>

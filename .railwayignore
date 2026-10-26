@@ -1,0 +1,2 @@
+# The native app is built with Xcode, not part of the server image.
+ios/

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Fitsss app icon, default (light) appearance. Source of truth for build.mjs, which
+    derives the dark and tinted variants by swapping the two colours below.
+
+    The mark is the app's own tee drawing (src/components/silhouettes/art/tee.svg,
+    128-unit space) reduced to one solid shape and cut into its blocks along the
+    armhole seams: body + two sleeves. The seams are 18 px gaps at 1024 so they
+    read as construction lines at 60 pt and fade to a hairline at 29 pt.
+
+    Colours: background = --color-card (light), mark = --color-ink (light).
+    No pre-rounded corners, no alpha: iOS masks the shape.
+  -->
+  <rect id="bg" width="1024" height="1024" fill="#ffffff"/>
+  <g id="mark" transform="translate(160 199.6) scale(5.5)" fill="#000000" stroke="#000000" stroke-width="2.909" stroke-linejoin="round">
+    <!-- body -->
+    <path d="M52.7 4.7 L34.19 11.48 L34.19 106 L93.81 106 L93.81 11.48 L75.3 4.7 C75.3 30 52.7 30 52.7 4.7 Z"/>
+    <!-- left sleeve -->
+    <path d="M28.01 14.33 L20.5 20 L7.1 31.9 L4.7 33.9 L23 50.1 L28.01 47.13 Z"/>
+    <!-- right sleeve -->
+    <path d="M99.99 14.33 L107.5 20 L120.9 31.9 L123.3 33.9 L105 50.1 L99.99 47.13 Z"/>
+  </g>
+</svg>

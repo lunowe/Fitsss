@@ -55,8 +55,9 @@ src/components/closet/   closet features (grid, item sheet, add flow under close
   denormalized. Clients never compute warmth/formality themselves.
 - **Validation at the boundary.** Server actions call `validateBlockInput` on anything that came
   from the client. Return `{ ok, errors }` shaped results; do not throw for user errors.
-- **Server actions over route handlers** for mutations. Queries are plain async functions in
-  `src/server` called from server components. Client components receive data as props.
+- **Server actions over route handlers** for mutations in the web app. Queries are plain async
+  functions in `src/server` called from server components. Client components receive data as
+  props. The one exception is `/api/v1`, the JSON API for the native app (below).
 - **Tokens only.** Colors and type come from `globals.css` tokens per `DESIGN.md`. The only raw
   hex in JSX is a garment's own color.
 - **Mobile first.** Build and test at 390×844 first. Everything reachable by thumb; primary
@@ -67,3 +68,19 @@ src/components/closet/   closet features (grid, item sheet, add flow under close
   verified by running the app.
 - **Definition of done** for any work package: `pnpm typecheck && pnpm lint && pnpm test &&
   pnpm build` all pass, and the flow was exercised in a browser at mobile width.
+
+## Native iOS app (`ios/`)
+
+A SwiftUI client for the same server, documented in `ios/README.md` (layout, rules, build and
+simulator commands). It talks to `src/app/api/v1/*` with better-auth bearer tokens; the
+handlers are thin wrappers (`src/lib/api/route.ts` `withUser`) around the same `*-core.ts`
+functions the server actions use, so a rule lives in one place for both clients.
+
+- **Keep `/api/v1` in step.** A change to the domain or a server action that the app also
+  uses has to keep the matching `/api/v1` route and its JSON shape working. `GET /api/v1/catalog`
+  (`src/server/catalog-payload.ts`) is how the app learns every vocabulary and drawing; never
+  make the app hard-code one.
+- **Tenant isolation is tested** in `src/app/api/v1/v1.test.ts` against the dev
+  database. Add new per-user routes to it.
+- **Definition of done** for iOS work: the touched module and the app build, `FitsssKit-Package`
+  tests pass, and the flow was exercised in the simulator in light and dark mode.

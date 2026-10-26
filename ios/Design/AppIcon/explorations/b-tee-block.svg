@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Direction B: one garment block, the tee, in the app's technical-flat proportions. -->
+  <rect id="bg" width="1024" height="1024" fill="#ffffff"/>
+  <g id="mark" fill="#000000" stroke="#000000" stroke-width="28" stroke-linejoin="round" transform="translate(0 -14)">
+    <path d="M432 262 L300 300 L188 410 L265 488 L352 403 L352 790 L672 790 L672 403 L759 488 L836 410 L724 300 L592 262 Q512 400 432 262 Z"/>
+  </g>
+</svg>

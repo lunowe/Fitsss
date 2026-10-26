@@ -1,0 +1,563 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AF2F748987B04A53032F7DF1 /* FitsssKit in Frameworks */ = {isa = PBXBuildFile; productRef = 49D32028282D6DEF4E4F8795 /* FitsssKit */; };
+		B6BDE282BD2DCC8D2B0BA8D0 /* FitsssShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8AF3B77D29E8CF038F86E864 /* FitsssShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FCB9000A1808D3897D7363E5 /* ShareFeature in Frameworks */ = {isa = PBXBuildFile; productRef = DC6577EF82CB3A2E8593339D /* ShareFeature */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		424F0ECB8E91E264636AD920 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3483C381684D93A59A775DCC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3C4C1E42F3133F5036CE3D63;
+			remoteInfo = Fitsss;
+		};
+		63CFD9598F54C8EE36AC1410 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3483C381684D93A59A775DCC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4AB7CEB3307176FEEF5219D0;
+			remoteInfo = FitsssShare;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A06E58945582A2F9920EC51E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B6BDE282BD2DCC8D2B0BA8D0 /* FitsssShare.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		2DC2450695E74C194E24117C /* Fitsss.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fitsss.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4F118BD951DE3420470A1A14 /* FitsssUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitsssUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8AF3B77D29E8CF038F86E864 /* FitsssShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FitsssShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		11F09FD7AC41306DAE6649D9 /* FitsssUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FitsssUITests;
+			sourceTree = "<group>";
+		};
+		8F087DEA6BF8F852D5E00F4C /* FitsssShare */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FitsssShare;
+			sourceTree = "<group>";
+		};
+		9FD3A56FC16021FD4297F651 /* Fitsss */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Fitsss;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E2F73043FCA97237FC776832 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FCB9000A1808D3897D7363E5 /* ShareFeature in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E6795C617F7554500460E517 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F43E16C14D9EC9FDAA4157C4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AF2F748987B04A53032F7DF1 /* FitsssKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1855994FB8750EAB196051EB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				2DC2450695E74C194E24117C /* Fitsss.app */,
+				8AF3B77D29E8CF038F86E864 /* FitsssShare.appex */,
+				4F118BD951DE3420470A1A14 /* FitsssUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D1E9EB2680C5F55004540A46 = {
+			isa = PBXGroup;
+			children = (
+				9FD3A56FC16021FD4297F651 /* Fitsss */,
+				8F087DEA6BF8F852D5E00F4C /* FitsssShare */,
+				11F09FD7AC41306DAE6649D9 /* FitsssUITests */,
+				1855994FB8750EAB196051EB /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3C4C1E42F3133F5036CE3D63 /* Fitsss */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 57E6FAAD97E9E4B067FDA998 /* Build configuration list for PBXNativeTarget "Fitsss" */;
+			buildPhases = (
+				439C6C4DBE01B3B40B83998D /* Sources */,
+				F43E16C14D9EC9FDAA4157C4 /* Frameworks */,
+				2EF0BCFC3757E03328876A9E /* Resources */,
+				A06E58945582A2F9920EC51E /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A6B5F70104E51D397A4A1D15 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				9FD3A56FC16021FD4297F651 /* Fitsss */,
+			);
+			name = Fitsss;
+			packageProductDependencies = (
+				49D32028282D6DEF4E4F8795 /* FitsssKit */,
+			);
+			productName = Fitsss;
+			productReference = 2DC2450695E74C194E24117C /* Fitsss.app */;
+			productType = "com.apple.product-type.application";
+		};
+		4AB7CEB3307176FEEF5219D0 /* FitsssShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 73E7E15C4A23251876AF78E2 /* Build configuration list for PBXNativeTarget "FitsssShare" */;
+			buildPhases = (
+				A4EA6E0928B0F1E0FA178076 /* Sources */,
+				E2F73043FCA97237FC776832 /* Frameworks */,
+				0F4EB71ADC92B84D5BEC29ED /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8F087DEA6BF8F852D5E00F4C /* FitsssShare */,
+			);
+			name = FitsssShare;
+			packageProductDependencies = (
+				DC6577EF82CB3A2E8593339D /* ShareFeature */,
+			);
+			productName = FitsssShare;
+			productReference = 8AF3B77D29E8CF038F86E864 /* FitsssShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		5A69EC73341D70EED0B39E89 /* FitsssUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 47B3CB54738C61E56C5C3418 /* Build configuration list for PBXNativeTarget "FitsssUITests" */;
+			buildPhases = (
+				D8F9FD422D5D0370CBA0A7D1 /* Sources */,
+				E6795C617F7554500460E517 /* Frameworks */,
+				5D376683BA1C14232CBE6FFA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA4747AD864605D71D0C5647 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				11F09FD7AC41306DAE6649D9 /* FitsssUITests */,
+			);
+			name = FitsssUITests;
+			packageProductDependencies = (
+			);
+			productName = FitsssUITests;
+			productReference = 4F118BD951DE3420470A1A14 /* FitsssUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3483C381684D93A59A775DCC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					3C4C1E42F3133F5036CE3D63 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					4AB7CEB3307176FEEF5219D0 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					5A69EC73341D70EED0B39E89 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 3C4C1E42F3133F5036CE3D63;
+					};
+				};
+			};
+			buildConfigurationList = E66C8F27EDFA14C81B4436F3 /* Build configuration list for PBXProject "Fitsss" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D1E9EB2680C5F55004540A46;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				22A5D9D800F9C578680388BF /* XCLocalSwiftPackageReference "Packages/FitsssKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 1855994FB8750EAB196051EB /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3C4C1E42F3133F5036CE3D63 /* Fitsss */,
+				4AB7CEB3307176FEEF5219D0 /* FitsssShare */,
+				5A69EC73341D70EED0B39E89 /* FitsssUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0F4EB71ADC92B84D5BEC29ED /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2EF0BCFC3757E03328876A9E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5D376683BA1C14232CBE6FFA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		439C6C4DBE01B3B40B83998D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A4EA6E0928B0F1E0FA178076 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D8F9FD422D5D0370CBA0A7D1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A6B5F70104E51D397A4A1D15 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4AB7CEB3307176FEEF5219D0 /* FitsssShare */;
+			targetProxy = 63CFD9598F54C8EE36AC1410 /* PBXContainerItemProxy */;
+		};
+		AA4747AD864605D71D0C5647 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3C4C1E42F3133F5036CE3D63 /* Fitsss */;
+			targetProxy = 424F0ECB8E91E264636AD920 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		02568C9FCD8FC5D5FB7B435E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C6W5PBM62N;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lunowe.FitsssUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Fitsss;
+			};
+			name = Debug;
+		};
+		103F015D7E6D88A8682BF7B0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/Fitsss.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C6W5PBM62N;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Fitsss-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Fitsss;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Fitsss uses your location to get today’s weather for your outfits.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lunowe.Fitsss;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		598C56AC5E2D14E305C7C2D0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		6C1721FC0E673E4FCAB14E79 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/FitsssShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C6W5PBM62N;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/FitsssShare-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Fitsss;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lunowe.Fitsss.Share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		6FDF412E4C18924993003DD7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/Fitsss.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C6W5PBM62N;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Fitsss-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Fitsss;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Fitsss uses your location to get today’s weather for your outfits.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lunowe.Fitsss;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		8BACEE6A916340E93DB5847C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/FitsssShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C6W5PBM62N;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/FitsssShare-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Fitsss;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lunowe.Fitsss.Share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		9AAF48E84D628FA9AA1E2FD5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		F135E4A44C3D4A88BDC5769C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C6W5PBM62N;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lunowe.FitsssUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Fitsss;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		47B3CB54738C61E56C5C3418 /* Build configuration list for PBXNativeTarget "FitsssUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				02568C9FCD8FC5D5FB7B435E /* Debug */,
+				F135E4A44C3D4A88BDC5769C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		57E6FAAD97E9E4B067FDA998 /* Build configuration list for PBXNativeTarget "Fitsss" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6FDF412E4C18924993003DD7 /* Debug */,
+				103F015D7E6D88A8682BF7B0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		73E7E15C4A23251876AF78E2 /* Build configuration list for PBXNativeTarget "FitsssShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8BACEE6A916340E93DB5847C /* Debug */,
+				6C1721FC0E673E4FCAB14E79 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E66C8F27EDFA14C81B4436F3 /* Build configuration list for PBXProject "Fitsss" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				598C56AC5E2D14E305C7C2D0 /* Debug */,
+				9AAF48E84D628FA9AA1E2FD5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		22A5D9D800F9C578680388BF /* XCLocalSwiftPackageReference "Packages/FitsssKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/FitsssKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		49D32028282D6DEF4E4F8795 /* FitsssKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FitsssKit;
+		};
+		DC6577EF82CB3A2E8593339D /* ShareFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShareFeature;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 3483C381684D93A59A775DCC /* Project object */;
+}
