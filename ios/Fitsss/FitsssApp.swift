@@ -26,6 +26,7 @@ struct FitsssApp: App {
                 .environment(app.inspos)
                 .environment(app.taste)
                 .environment(app.llm)
+                .environment(app.trips)
                 .environment(app.todayIntents)
                 .toastHost(app.toasts, baseInset: 64)
                 // System / Light / Dark from the You tab, for the whole window.
@@ -49,6 +50,7 @@ final class AppModel {
     let inspos: InspoStore
     let taste: TasteStore
     let llm: LLMSettingsStore
+    let trips: TripsStore
     let todayIntents = TodayIntents()
     let toasts = ToastCenter()
 
@@ -64,5 +66,6 @@ final class AppModel {
         self.inspos = InspoStore(api: api)
         self.taste = TasteStore(api: api)
         self.llm = LLMSettingsStore(api: api)
+        self.trips = TripsStore(api: api)
     }
 }

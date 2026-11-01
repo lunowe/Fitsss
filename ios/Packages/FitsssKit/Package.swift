@@ -19,7 +19,7 @@ let mainActorByDefault: [SwiftSetting] = [
 
 let features = [
     "ClosetFeature", "AddFlowFeature", "AccountFeature", "TodayFeature", "LooksFeature", "StylesFeature",
-    "InspoFeature", "TasteFeature", "ShareFeature",
+    "InspoFeature", "TasteFeature", "ShareFeature", "TripsFeature",
 ]
 let modules = ["FitsssCore", "GarmentArt", "FitsssUI"] + features
 

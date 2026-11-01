@@ -23,11 +23,31 @@ nonisolated public struct Catalog: Codable, Sendable {
     public var dislikeReasons: [Option]?
     /// Outfit slots in display order, with the role that fills each.
     public var outfitSlots: [OutfitSlotInfo]?
+    /// Packing for a trip. Optional like the others above.
+    public var trips: TripVocabulary?
 
     /// An id with its display label, e.g. `("cotton", "Cotton")`.
     public struct Option: Codable, Hashable, Sendable, Identifiable {
         public var id: String
         public var label: String
+    }
+}
+
+/// What a trip's days can be for, the bags, and the limits on dates.
+nonisolated public struct TripVocabulary: Codable, Hashable, Sendable {
+    /// `city`, `beach`, `outdoors`… each with a one-line hint.
+    public var activities: [Occasion]
+    /// `carry-on`, `checked`.
+    public var luggage: [Occasion]
+    /// A trip of up to this many nights defaults to a carry-on.
+    public var carryOnMaxNights: Int
+    public var maxDays: Int
+    public var maxLeadDays: Int
+
+    /// The bag a trip of `days` days gets unless the person picks one.
+    public func defaultLuggage(days: Int) -> String {
+        let id = days - 1 <= carryOnMaxNights ? "carry-on" : "checked"
+        return luggage.contains { $0.id == id } ? id : luggage.first?.id ?? id
     }
 }
 

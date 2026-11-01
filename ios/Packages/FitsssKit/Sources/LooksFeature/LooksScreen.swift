@@ -10,6 +10,9 @@ import SwiftUI
 //     looks/inspo              the Inspo shelf
 //     looks/inspo/new          the Inspo shelf with "Add a picture" open
 //     looks/inspo/<inspoId>    a picture's detail page
+//     looks/trips              the Trips shelf
+//     looks/trips/new          the Trips shelf with "Plan a trip" open
+//     looks/trips/<tripId>     a trip's detail page
 
 /// Where the Looks tab's navigation stack can go.
 enum LooksDestination: Hashable {
@@ -17,11 +20,13 @@ enum LooksDestination: Hashable {
     case look(id: String, rename: Bool = false)
     /// A saved picture, drawn by the app's `LooksInspo.detail`.
     case inspo(id: String)
+    /// A trip, drawn by the app's `LooksTrips.detail`.
+    case trip(id: String)
 }
 
-/// The Looks tab's two shelves, as on the web's `LooksTabs`.
+/// The Looks tab's three shelves: the web's `LooksTabs`, plus Trips.
 enum LooksShelf: Hashable {
-    case saved, inspo
+    case saved, inspo, trips
 }
 
 /// The Inspo half of the Looks tab. It lives in InspoFeature, which this
@@ -47,22 +52,50 @@ public struct LooksInspo {
     }
 }
 
+/// The Trips third of the Looks tab. It lives in TripsFeature, which this
+/// module does not depend on, so the app hands its views in, like `LooksInspo`.
+public struct LooksTrips {
+    /// The shelf, given the actions that open a trip (by id) and "Plan a trip".
+    let shelf: (_ open: @escaping (String) -> Void, _ plan: @escaping () -> Void) -> AnyView
+    /// A trip's detail page, pushed on this tab's stack.
+    let detail: (_ id: String) -> AnyView
+    /// "Plan a trip", presented as a sheet. `close` dismisses it; `created`
+    /// takes the new trip's id (the tab closes the sheet and opens it, and
+    /// the detail packs it).
+    let plan: (_ close: @escaping () -> Void, _ created: @escaping (String) -> Void) -> AnyView
+
+    public init(
+        shelf: @escaping (_ open: @escaping (String) -> Void, _ plan: @escaping () -> Void) -> AnyView,
+        detail: @escaping (_ id: String) -> AnyView,
+        plan: @escaping (_ close: @escaping () -> Void, _ created: @escaping (String) -> Void) -> AnyView
+    ) {
+        self.shelf = shelf
+        self.detail = detail
+        self.plan = plan
+    }
+}
+
 /// The Looks tab (the web's `/looks`): its own navigation stack, rooted at
-/// two shelves under one large title, Saved (the looks you kept) and Inspo
-/// (the pictures you brought), switched by a segmented control.
+/// three shelves under one large title, Saved (the looks you kept), Inspo
+/// (the pictures you brought) and Trips (the bags you packed), switched by
+/// a segmented control.
 public struct LooksScreen: View {
     private let inspo: LooksInspo
+    private let trips: LooksTrips
 
     @State private var path: [LooksDestination]
     @State private var shelf: LooksShelf
     @State private var isAddingInspo: Bool
+    @State private var isPlanningTrip: Bool
 
-    public init(inspo: LooksInspo) {
+    public init(inspo: LooksInspo, trips: LooksTrips) {
         self.inspo = inspo
+        self.trips = trips
         let launch = Self.launchState(for: LaunchOptions.route)
         _path = State(initialValue: launch.path)
         _shelf = State(initialValue: launch.shelf)
         _isAddingInspo = State(initialValue: launch.addsInspo)
+        _isPlanningTrip = State(initialValue: launch.plansTrip)
     }
 
     public var body: some View {
@@ -73,7 +106,12 @@ public struct LooksScreen: View {
                     { id in path.append(.inspo(id: id)) },
                     { isAddingInspo = true }
                 ),
-                onAddInspo: { isAddingInspo = true }
+                tripsShelf: trips.shelf(
+                    { id in path.append(.trip(id: id)) },
+                    { isPlanningTrip = true }
+                ),
+                onAddInspo: { isAddingInspo = true },
+                onPlanTrip: { isPlanningTrip = true }
             )
             .navigationDestination(for: LooksDestination.self) { destination in
                 switch destination {
@@ -81,6 +119,8 @@ public struct LooksScreen: View {
                     LookDetailScreen(lookId: id, opensRename: rename)
                 case .inspo(let id):
                     inspo.detail(id)
+                case .trip(let id):
+                    trips.detail(id)
                 }
             }
         }
@@ -94,34 +134,53 @@ public struct LooksScreen: View {
                 }
             )
         }
+        .sheet(isPresented: $isPlanningTrip) {
+            trips.plan(
+                { isPlanningTrip = false },
+                { id in
+                    isPlanningTrip = false
+                    shelf = .trips
+                    path.append(.trip(id: id))
+                }
+            )
+        }
     }
 
-    static func launchState(for route: [String]) -> (shelf: LooksShelf, path: [LooksDestination], addsInspo: Bool) {
-        guard route.first == "looks", route.count > 1 else { return (.saved, [], false) }
+    static func launchState(for route: [String]) -> (shelf: LooksShelf, path: [LooksDestination], addsInspo: Bool, plansTrip: Bool) {
+        guard route.first == "looks", route.count > 1 else { return (.saved, [], false, false) }
         if route[1] == "inspo" {
-            guard route.count > 2 else { return (.inspo, [], false) }
-            return route[2] == "new" ? (.inspo, [], true) : (.inspo, [.inspo(id: route[2])], false)
+            guard route.count > 2 else { return (.inspo, [], false, false) }
+            return route[2] == "new" ? (.inspo, [], true, false) : (.inspo, [.inspo(id: route[2])], false, false)
         }
-        return (.saved, [.look(id: route[1], rename: route.count > 2 && route[2] == "rename")], false)
+        if route[1] == "trips" {
+            guard route.count > 2 else { return (.trips, [], false, false) }
+            return route[2] == "new" ? (.trips, [], false, true) : (.trips, [.trip(id: route[2])], false, false)
+        }
+        return (.saved, [.look(id: route[1], rename: route.count > 2 && route[2] == "rename")], false, false)
     }
 }
 
-/// The tab's root: the large title with the shelf's count, the Saved | Inspo
-/// control pinned under it, and the shelf. "+" adds a picture on Inspo.
+/// The tab's root: the large title with the shelf's count, the Saved |
+/// Inspo | Trips control pinned under it, and the shelf. "+" adds a picture
+/// on Inspo and plans a trip on Trips.
 private struct LooksRootScreen: View {
     @Binding var shelf: LooksShelf
     let inspoShelf: AnyView
+    let tripsShelf: AnyView
     let onAddInspo: () -> Void
+    let onPlanTrip: () -> Void
 
     @Environment(LooksStore.self) private var looks
     @Environment(ClosetStore.self) private var closet
     @Environment(InspoStore.self) private var inspos
+    @Environment(TripsStore.self) private var trips
 
     var body: some View {
         Group {
             switch shelf {
             case .saved: LooksGridScreen()
             case .inspo: inspoShelf
+            case .trips: tripsShelf
             }
         }
         .background(Color.fitsssBackground)
@@ -131,13 +190,14 @@ private struct LooksRootScreen: View {
             Picker("Shelf", selection: $shelf) {
                 Text("Saved").tag(LooksShelf.saved)
                 Text("Inspo").tag(LooksShelf.inspo)
+                Text("Trips").tag(LooksShelf.trips)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
             .padding(.horizontal, Metrics.pagePadding)
             .padding(.top, 4)
             .padding(.bottom, 8)
-            .accessibilityLabel("Looks or inspo")
+            .accessibilityLabel("Looks, inspo or trips")
             .accessibilityIdentifier("looks.shelf")
         }
         .toolbar {
@@ -145,6 +205,12 @@ private struct LooksRootScreen: View {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Add a picture", systemImage: "plus", action: onAddInspo)
                         .accessibilityIdentifier("inspo.add")
+                }
+            }
+            if shelf == .trips {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Plan a trip", systemImage: "plus", action: onPlanTrip)
+                        .accessibilityIdentifier("trips.add")
                 }
             }
         }
@@ -158,6 +224,11 @@ private struct LooksRootScreen: View {
             guard inspos.phase == .loaded || !inspos.inspos.isEmpty else { return "" }
             let count = inspos.inspos.count
             return "\(count.formatted()) \(count == 1 ? "picture" : "pictures")"
+        case .trips:
+            guard trips.phase == .loaded || !trips.trips.isEmpty else { return "" }
+            if trips.trips.isEmpty { return "No trips yet" }
+            let upcoming = trips.upcoming().count
+            return upcoming == 0 ? "\(trips.trips.count.formatted()) past" : "\(upcoming.formatted()) upcoming"
         }
     }
 }

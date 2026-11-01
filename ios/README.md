@@ -35,6 +35,8 @@ ios/
     TasteFeature           Taste screen (You → Taste notes): learned and written lines
     ShareFeature           the share extension's sheet: reads the share, uploads with the
                            app's session; also in the app as `dev/share`
+    TripsFeature           packing for a trip: the Trips shelf (Looks' third segment), the
+                           "Plan a trip" sheet (also Today's row), a trip's suitcase and days
 ```
 
 Shared across features: `OutfitsStore`, `LooksStore`, `StylesStore` (FitsssCore),
@@ -80,6 +82,14 @@ All under the server's base URL, JSON, `Authorization: Bearer <token>`.
 | `GET /api/v1/settings/llm`, `PATCH {provider?, effort?, models?: {task: id}}` | `{settings, chosen, pinned, providers, tasks, effortLevels}`: what a model call uses, what the person picked, what the server's environment holds (by variable name), and the vocabulary; PATCH changes only what it names |
 | `GET /api/v1/settings/llm/models` | `{models, suggested}`: OpenRouter's models that answer in a schema; empty when OpenRouter can't be reached |
 | `POST /api/v1/settings/llm/test {task}` | `{model, ms, sample}`: one small real call; 503 under the mock or without a key, 502 `test_failed`, 429 after 20 real calls in 10 minutes |
+| `GET /api/v1/places?q=` | up to eight `TripPlace`s with their time zones; fewer than two characters answers `[]` |
+| `GET/POST /api/v1/trips`, `GET/PATCH/DELETE /api/v1/trips/:id` | `Trip`s, latest start first. POST `TripDraft` stores one with its weather, unpacked (201; 503 `weather_failed`, 409 `limit_reached`). PATCH `TripPatch`: name and options for the next packing, `packed` ticks, `counts` (never below what the days wear) |
+| `POST /api/v1/trips/:id/plan {steer?}` | packs it: the suitcase and an outfit a day; slow; 409 `empty_closet`/`too_few_pieces`, 502 `plan_failed`, 503 `not_configured`/`weather_failed` |
+| `POST /api/v1/trips/:id/swap {date, slot, toBlockId, fromBlockId?}` | another piece in one slot of one day; the suitcase follows |
+| `GET /api/v1/places?q=` | up to eight `TripPlace`s (name, region, country, lat/lon, time zone); fewer than two characters answers `[]` |
+| `GET/POST /api/v1/trips`, `GET/PATCH/DELETE /api/v1/trips/:id` | `Trip`s, latest start first. POST `{place, startDate, endDate, name?, activities?, luggage?, laundry?, styleId?, steer?}` stores it with the weather per day (forecast, else typical for the dates), unpacked, 201; 503 `weather_failed`. PATCH: name and options (kept for the next packing), `packed: {blockId: bool}`, `counts: {blockId: n}` (never below what the days wear, never above the piece's quantity) |
+| `POST /api/v1/trips/:id/plan {steer?}` | packs it: the suitcase and an outfit per day, never more of a piece than owned (`warnings` say where the days want more); slow; 409 `empty_closet`/`too_few_pieces`, 502 `plan_failed`, 503 |
+| `POST /api/v1/trips/:id/swap {date, slot, toBlockId, fromBlockId?}` | another of the person's pieces in one slot of one day; the suitcase follows |
 
 **Saving pieces** (`POST /api/v1/blocks`) is idempotent: send an `Idempotency-Key` (a UUID per
 batch, persisted with the exact inputs) and resend the same inputs with the same key whenever
@@ -150,7 +160,8 @@ Launch arguments (`FitsssCore/Networking/LaunchOptions.swift`):
 - `-FitsssServer <url>`: server; the simulator defaults to `http://localhost:3100`.
 - `-FitsssLogin email:password`: sign in on launch (debug builds).
 - `-FitsssRoute a/b/c`: open a screen directly. Each feature documents its routes in
-  its root view; `dev/art` opens the drawing gallery, `dev/share…` the share
+  its root view (`looks/trips`, `looks/trips/new`, `looks/trips/<id>` and `today/trip`
+  are the trips'); `dev/art` opens the drawing gallery, `dev/share…` the share
   extension's sheet (`ShareFeature/ShareSheetDemo.swift`).
 - `-FitsssTab today|closet|looks|styles|you`.
 

@@ -144,6 +144,48 @@ import Testing
         #expect(store.current?.settings.effort == "medium", "still not, after the read failed too")
     }
 
+    @Test func aStaleRecoveryFetchDoesNotUndoANewerTick() async throws {
+        let net = HeldNetwork.start()
+        defer { net.stop() }
+        let store = TripsStore(api: net.client)
+        net.answer("GET", "/api/v1/trips") { _ in Self.envelope("[\(Self.trip(packed: false))]") }
+        await store.load()
+
+        // The first tick fails; its recovery read is slow and sees the trip unticked.
+        let patches = Counter()
+        net.answer("PATCH", "/api/v1/trips/t1") { _ in
+            patches.next() == 1 ? Data(#"{"error":{"code":"boom","message":"refused"}}"#.utf8) : Self.envelope(Self.trip(packed: true))
+        }
+        net.answer("GET", "/api/v1/trips/t1", hold: true) { _ in Self.envelope(Self.trip(packed: false)) }
+        await #expect(throws: APIError.self) { try await store.setPacked("t1", blockId: "b1", packed: true) }
+        try await net.waitForRequests(3)
+        // Ticked again, this time stored.
+        try await store.setPacked("t1", blockId: "b1", packed: true)
+        net.releaseAll()
+        try await Task.sleep(for: .milliseconds(150))
+
+        #expect(store.trip("t1")?.plan?.packing.first?.packed == true)
+    }
+
+    @Test func aLateAnswerDoesNotBringBackADeletedTrip() async throws {
+        let net = HeldNetwork.start()
+        defer { net.stop() }
+        let store = TripsStore(api: net.client)
+        net.answer("GET", "/api/v1/trips") { _ in Self.envelope("[\(Self.trip(packed: false))]") }
+        await store.load()
+
+        net.answer("PATCH", "/api/v1/trips/t1", hold: true) { _ in Self.envelope(Self.trip(packed: true)) }
+        net.answer("DELETE", "/api/v1/trips/t1") { _ in Self.envelope("null") }
+        let tick = Task { try await store.setPacked("t1", blockId: "b1", packed: true) }
+        try await net.waitForRequests(2)
+        try await store.remove("t1")
+        net.releaseAll()
+        _ = try? await tick.value
+
+        #expect(store.trip("t1") == nil)
+        #expect(store.trips.isEmpty)
+    }
+
     // MARK: - Fixtures
 
     nonisolated static func envelope(_ json: String) -> Data { Data(#"{"data":\#(json)}"#.utf8) }
@@ -167,9 +209,21 @@ import Testing
         return #"{"settings":\#(choice),"chosen":\#(choice),"pinned":{"provider":null,"models":{"outfits":null,"taste":null,"vision":null},"effort":null},"providers":[{"id":"openrouter","label":"OpenRouter","keyVar":"OPENROUTER_API_KEY","configured":true,"modelPrefix":null}],"tasks":[{"id":"outfits","label":"Outfits","hint":"h","needsVision":false}],"effortLevels":["low","medium","high"]}"#
     }
 
+    nonisolated static func trip(packed: Bool) -> String {
+        let outfit = #"{"id":"o1","name":"Look","slots":{"top":"b1","bottom":"b2","footwear":"b3","accessories":[]},"why":"."}"#
+        let plan = #"{"days":[{"date":"2026-11-07","outfit":\#(outfit)}],"packing":[{"blockId":"b1","count":1,"packed":\#(packed)},{"blockId":"b2","count":1,"packed":false},{"blockId":"b3","count":1,"packed":false}],"tips":[],"warnings":[]}"#
+        return #"{"id":"t1","name":"Lisbon","place":{"name":"Lisbon","lat":38.7,"lon":-9.1,"timezone":"Europe/Lisbon"},"startDate":"2026-11-07","endDate":"2026-11-07","options":{"activities":[],"luggage":"carry-on","laundry":false},"weather":[{"date":"2026-11-07","tempC":19,"condition":"cloudy","source":"forecast"}],"plan":\#(plan),"model":"mock","createdAt":"2026-10-26T09:06:44.324Z","updatedAt":"2026-10-26T09:06:44.324Z"}"#
+    }
+
     nonisolated static func overview(_ ids: [String]) -> String {
         #"{"overall":\#(profile(ids)),"byStyle":{},"totalEvents":0}"#
     }
+}
+
+/// Counts calls from the network's queue.
+final class Counter: Sendable {
+    private let value = Mutex(0)
+    func next() -> Int { value.withLock { $0 += 1; return $0 } }
 }
 
 /// A `URLProtocol` stand-in for the server: canned answers per method and
@@ -266,8 +320,11 @@ final class HeldProtocol: URLProtocol, @unchecked Sendable {
         let url = request.url!
         network.handle(request) { [weak self] data in
             guard let self else { return }
-            let ok = !String(decoding: data, as: UTF8.self).hasPrefix(#"{"error""#)
-            let response = HTTPURLResponse(url: url, statusCode: ok ? 200 : 404, httpVersion: nil, headerFields: nil)!
+            let text = String(decoding: data, as: UTF8.self)
+            let ok = !text.hasPrefix(#"{"error""#)
+            // An error with code "boom" is a server failure; any other a 404.
+            let status = ok ? 200 : text.contains(#""code":"boom""#) ? 500 : 404
+            let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
             self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             self.client?.urlProtocol(self, didLoad: data)
             self.client?.urlProtocolDidFinishLoading(self)

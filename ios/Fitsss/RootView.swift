@@ -10,6 +10,7 @@ import StylesFeature
 import SwiftUI
 import TasteFeature
 import TodayFeature
+import TripsFeature
 
 /// Signed out: the sign-in screen. Signed in: the tabs.
 struct RootView: View {
@@ -22,6 +23,7 @@ struct RootView: View {
     @Environment(InspoStore.self) private var inspos
     @Environment(TasteStore.self) private var taste
     @Environment(LLMSettingsStore.self) private var llm
+    @Environment(TripsStore.self) private var trips
     @Environment(TodayIntents.self) private var todayIntents
     @Environment(\.scenePhase) private var scenePhase
 
@@ -65,7 +67,8 @@ struct RootView: View {
                         async let insposLoad: Void = inspos.load()
                         async let tasteLoad: Void = taste.load()
                         async let llmLoad: Void = llm.load()
-                        _ = await (catalogLoad, closetLoad, stylesLoad, looksLoad, latestLoad, insposLoad, tasteLoad, llmLoad)
+                        async let tripsLoad: Void = trips.load()
+                        _ = await (catalogLoad, closetLoad, stylesLoad, looksLoad, latestLoad, insposLoad, tasteLoad, llmLoad, tripsLoad)
                     }
             }
         }
@@ -104,6 +107,9 @@ struct RootView: View {
         inspos.reset()
         taste.reset()
         llm.reset()
+        trips.reset()
+        // Packing outcomes and pending packs belong to the old session.
+        TripPacker.shared.reset()
         todayIntents.reset()
     }
 }
@@ -127,17 +133,28 @@ struct MainTabs: View {
         TabView(selection: $tab) {
             Tab("Today", systemImage: "sun.max", value: AppTab.today) {
                 // "Restyle a picture": add one, then style it, in a sheet.
-                TodayScreen(restylePicture: { close in AnyView(AddInspoSheet(onClose: close)) })
+                // "Plan a trip": plan one, then watch it packed, in a sheet.
+                TodayScreen(
+                    restylePicture: { close in AnyView(AddInspoSheet(onClose: close)) },
+                    planTrip: { close in AnyView(PlanTripSheet(onClose: close)) }
+                )
             }
             Tab("Closet", systemImage: "tshirt", value: AppTab.closet) {
                 ClosetScreen(addFlow: { close in AnyView(AddFlowView(onClose: close)) })
             }
             Tab("Looks", systemImage: "square.grid.2x2", value: AppTab.looks) {
-                LooksScreen(inspo: LooksInspo(
-                    shelf: { open, add in AnyView(InspoShelf(onOpen: open, onAdd: add)) },
-                    detail: { id in AnyView(InspoDetailScreen(inspoId: id)) },
-                    add: { close, added in AnyView(AddInspoSheet(onClose: close, onAdded: added)) }
-                ))
+                LooksScreen(
+                    inspo: LooksInspo(
+                        shelf: { open, add in AnyView(InspoShelf(onOpen: open, onAdd: add)) },
+                        detail: { id in AnyView(InspoDetailScreen(inspoId: id)) },
+                        add: { close, added in AnyView(AddInspoSheet(onClose: close, onAdded: added)) }
+                    ),
+                    trips: LooksTrips(
+                        shelf: { open, plan in AnyView(TripsShelf(onOpen: open, onPlan: plan)) },
+                        detail: { id in AnyView(TripDetailScreen(tripId: id)) },
+                        plan: { close, created in AnyView(PlanTripSheet(onClose: close, onCreated: created)) }
+                    )
+                )
             }
             Tab("Styles", systemImage: "bookmark", value: AppTab.styles) {
                 StylesScreen()

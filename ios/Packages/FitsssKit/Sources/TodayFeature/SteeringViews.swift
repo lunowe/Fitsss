@@ -130,16 +130,46 @@ struct PinnedRow: View {
     }
 }
 
-/// "Restyle a picture", under the steering block as on the web: opens
-/// "Add a picture", which flows into styling it from the closet.
-struct RestylePictureRow: View {
+/// "Restyle a picture" and "Plan a trip", under the steering block as on
+/// the web: one grouped card, a row for each shortcut the app hands in.
+/// Restyling opens "Add a picture", which flows into styling it from the
+/// closet; planning opens "Plan a trip", which flows into the packed bag.
+struct ShortcutRows: View {
+    let onRestyle: (() -> Void)?
+    let onPlanTrip: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if let onRestyle {
+                ShortcutRow(symbol: "photo", title: "Restyle a picture", action: onRestyle)
+                    .accessibilityHint("Add an inspiration picture and style it from your closet")
+                    .accessibilityIdentifier("today.restylePicture")
+            }
+            if onRestyle != nil, onPlanTrip != nil {
+                Divider().padding(.leading, 58)
+            }
+            if let onPlanTrip {
+                ShortcutRow(symbol: "suitcase", title: "Plan a trip", action: onPlanTrip)
+                    .accessibilityHint("Pick a place and dates, and pack a bag from your closet")
+                    .accessibilityIdentifier("today.planTrip")
+            }
+        }
+        .background(Color.fitsssCard, in: RoundedRectangle(cornerRadius: Metrics.cardRadius))
+        .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius))
+        .padding(.horizontal, Metrics.pagePadding)
+    }
+}
+
+private struct ShortcutRow: View {
+    let symbol: String
+    let title: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                RowIcon(systemName: "photo")
-                Text("Restyle a picture")
+                RowIcon(systemName: symbol)
+                Text(title)
                     .font(.body)
                     .foregroundStyle(Color.fitsssLabel)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -153,10 +183,5 @@ struct RestylePictureRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(RowPressStyle())
-        .background(Color.fitsssCard, in: RoundedRectangle(cornerRadius: Metrics.cardRadius))
-        .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius))
-        .padding(.horizontal, Metrics.pagePadding)
-        .accessibilityHint("Add an inspiration picture and style it from your closet")
-        .accessibilityIdentifier("today.restylePicture")
     }
 }

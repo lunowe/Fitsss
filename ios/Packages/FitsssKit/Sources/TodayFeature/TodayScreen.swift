@@ -7,6 +7,7 @@ import SwiftUI
 //     today            the screen (the default tab)
 //     today/weather    the manual weather sheet, open
 //     today/results    scrolled to the outfits (the last set, once loaded)
+//     today/trip       "Plan a trip", open
 //
 // "Style this piece" in the Closet is not a route: it sets
 // `TodayIntents.pinnedBlockId` and the app switches to this tab.
@@ -15,20 +16,26 @@ import SwiftUI
 /// The native `src/app/(app)/today/page.tsx` and `TodayScreen.tsx`.
 ///
 /// "Restyle a picture" (adding an inspiration picture and styling it from
-/// the closet) lives in InspoFeature, which this module does not depend on:
-/// the app hands it in as `restylePicture`, a sheet's content that receives
-/// the action that closes it. Without it the row is left out.
+/// the closet) lives in InspoFeature and "Plan a trip" (packing a bag for a
+/// trip) in TripsFeature, neither of which this module depends on: the app
+/// hands them in as `restylePicture` and `planTrip`, a sheet's content each,
+/// receiving the action that closes it. Without one, its row is left out.
 public struct TodayScreen: View {
     @State private var model = TodayModel(route: LaunchOptions.route)
     private let restylePicture: ((_ close: @escaping () -> Void) -> AnyView)?
+    private let planTrip: ((_ close: @escaping () -> Void) -> AnyView)?
 
-    public init(restylePicture: ((_ close: @escaping () -> Void) -> AnyView)? = nil) {
+    public init(
+        restylePicture: ((_ close: @escaping () -> Void) -> AnyView)? = nil,
+        planTrip: ((_ close: @escaping () -> Void) -> AnyView)? = nil
+    ) {
         self.restylePicture = restylePicture
+        self.planTrip = planTrip
     }
 
     public var body: some View {
         NavigationStack {
-            TodayContent(model: model, restylePicture: restylePicture)
+            TodayContent(model: model, restylePicture: restylePicture, planTrip: planTrip)
         }
     }
 }
@@ -36,6 +43,7 @@ public struct TodayScreen: View {
 private struct TodayContent: View {
     @Bindable var model: TodayModel
     let restylePicture: ((_ close: @escaping () -> Void) -> AnyView)?
+    let planTrip: ((_ close: @escaping () -> Void) -> AnyView)?
 
     @Environment(SessionStore.self) private var session
     @Environment(CatalogStore.self) private var catalogStore
@@ -50,6 +58,7 @@ private struct TodayContent: View {
 
     @State private var today = Date.now
     @State private var isRestylingPicture = false
+    @State private var isPlanningTrip = false
 
     private static let topID = "today.top"
     private static let resultsID = "today.results"
@@ -74,6 +83,10 @@ private struct TodayContent: View {
                 _ = model.consumeRoute()
                 try? await Task.sleep(for: .milliseconds(400))
                 model.isWeatherSheetPresented = true
+            } else if model.pendingRoute == "trip", planTrip != nil {
+                _ = model.consumeRoute()
+                try? await Task.sleep(for: .milliseconds(400))
+                isPlanningTrip = true
             }
             await model.loadWeather(outfits: outfits)
         }
@@ -116,9 +129,15 @@ private struct TodayContent: View {
         .sheet(isPresented: $isRestylingPicture) {
             restylePicture?({ isRestylingPicture = false })
         }
-        // "Add pieces" from inside the sheet switches to the Closet tab;
-        // the sheet would otherwise stay up over it.
-        .onChange(of: intents.closetRequests) { isRestylingPicture = false }
+        .sheet(isPresented: $isPlanningTrip) {
+            planTrip?({ isPlanningTrip = false })
+        }
+        // "Add pieces" from inside a sheet switches to the Closet tab; the
+        // sheet would otherwise stay up over it.
+        .onChange(of: intents.closetRequests) {
+            isRestylingPicture = false
+            isPlanningTrip = false
+        }
     }
 
     // MARK: - The screen
@@ -150,8 +169,11 @@ private struct TodayContent: View {
                         }
                     )
 
-                    if restylePicture != nil, !closet.blocks.isEmpty {
-                        RestylePictureRow { isRestylingPicture = true }
+                    if restylePicture != nil || planTrip != nil, !closet.blocks.isEmpty {
+                        ShortcutRows(
+                            onRestyle: restylePicture == nil ? nil : { isRestylingPicture = true },
+                            onPlanTrip: planTrip == nil ? nil : { isPlanningTrip = true }
+                        )
                     }
 
                     results
