@@ -68,7 +68,7 @@ function leatherTote(): KitPiece {
     clip: body,
     extent: [body, front, back],
     graphic: [CX, 142, 50],
-    logo: [CX, 140, 18],
+    logo: [CX, 140, 23],
   });
 }
 

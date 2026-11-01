@@ -27,11 +27,11 @@ interface TankSpec {
 const BASE: TankSpec = { neckW: 18, strap: 10, chestW: 52, hemW: 51, armhole: 52, length: 142 };
 
 const FITS: Record<string, Partial<TankSpec>> = {
-  fitted: { neckW: 17, strap: 8, chestW: 46, waistW: 41, hemW: 44, armhole: 48, length: 138 },
+  fitted: { neckW: 17, strap: 8, chestW: 45, waistW: 39, hemW: 43, armhole: 48, length: 138 },
   regular: {},
-  relaxed: { neckW: 19, strap: 11, chestW: 57, hemW: 56, armhole: 55, length: 146 },
-  oversized: { neckW: 21, strap: 12, chestW: 66, hemW: 65, armhole: 62, length: 160 },
-  boxy: { neckW: 21, strap: 12, chestW: 65, hemW: 65, armhole: 58, length: 128 },
+  relaxed: { neckW: 19, strap: 11, chestW: 59, hemW: 58, armhole: 56, length: 150 },
+  oversized: { neckW: 22, strap: 13, chestW: 72, hemW: 71, armhole: 66, length: 164 },
+  boxy: { neckW: 22, strap: 13, chestW: 70, hemW: 70, armhole: 60, length: 128 },
 };
 
 function tank(fit: string): KitPiece {
@@ -54,14 +54,14 @@ function tank(fit: string): KitPiece {
   // Armhole binding, a seam inside the curve.
   const binding = path([S[0] - 3, S[1] + 1.5], [C([S[0] - 4, NECK_Y + s.armhole * 0.55], [CX + s.chestW - 9, A[1] - 4], [A[0] - 1, A[1] - 3.5])]);
   const hemLine = path([CX - s.hemW + 2, s.length - 4], [L([CX + s.hemW - 2, s.length - 4])]);
-  const chestY = A[1] + (s.length - A[1]) * 0.2;
+  const graphicSize = Math.min(Math.round(s.chestW * 2 * 0.48), Math.round((s.length - 10 - A[1]) * 0.72));
   return piece({
     base: [fill(outline)],
     lines: [rib.fills, ink(stroke(outline), seam(binding), seam(mirrored(binding)), seam(hemLine)), rib.lines],
     clip: outline,
     extent: [outline, frame(150, 100)],
     stripe: "h",
-    graphic: [CX, chestY + 8, Math.round(s.chestW * 0.7)],
+    graphic: [CX, Math.round((A[1] + 2 + graphicSize / 2) * 10) / 10, graphicSize],
   });
 }
 

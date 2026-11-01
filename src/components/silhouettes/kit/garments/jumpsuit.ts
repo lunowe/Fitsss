@@ -26,9 +26,9 @@ interface JumpsuitSpec {
 }
 
 const FITS: Record<string, JumpsuitSpec> = {
-  fitted: { shoulderW: 52, chestW: 48, waistW: 39, hipW: 43, kneeW: 27, hemW: 21, gap: 6 },
-  relaxed: { shoulderW: 55, chestW: 52, waistW: 46, hipW: 47, kneeW: 34, hemW: 31, gap: 7 },
-  wide: { shoulderW: 55, chestW: 52, waistW: 45, hipW: 48, kneeW: 40, hemW: 48, gap: 8 },
+  fitted: { shoulderW: 52, chestW: 48, waistW: 38, hipW: 43, kneeW: 26, hemW: 21, gap: 6 },
+  relaxed: { shoulderW: 56, chestW: 53, waistW: 47, hipW: 48, kneeW: 36, hemW: 34, gap: 7 },
+  wide: { shoulderW: 57, chestW: 54, waistW: 46, hipW: 48, kneeW: 47, hemW: 53, gap: 8 },
 };
 
 function jumpsuit(fit: string): KitPiece {

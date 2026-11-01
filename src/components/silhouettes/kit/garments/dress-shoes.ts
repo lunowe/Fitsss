@@ -1,53 +1,51 @@
 /**
  * Dress shoes, side view, toe right: a sleek last with a long vamp and an
- * almond toe on a thin welted sole with a heel. The oxford's closed lacing
- * is a narrow V facing stitched under the vamp with a cap toe; the derby's
- * open lacing is a free flap on top of a plain vamp; the monk has no laces,
- * two buckled straps instead.
+ * almond toe on a thin welted sole with a stacked heel. The oxford's closed
+ * lacing is a narrow V facing stitched under the vamp, with a cap toe; the
+ * derby's open lacing is a free flap on top of a plain vamp; the monk has
+ * no laces, two buckled straps instead.
  */
 import { C, fill, ink, L, path, piece, Q, seam, shade, stroke, type Pt } from "../draw";
 import type { KitPiece } from "../types";
-import { buckle, footSole, GROUND, laceBars } from "../parts-feet";
+import { buckle, eyestay, footSole, GROUND, smooth, splineSegs } from "../parts-feet";
 
 const X0 = 22;
 const X1 = 186;
 
 function last() {
-  const s = footSole({ x0: X0, x1: X1, depth: 6, spring: 4, heel: 8, heelLen: 38, welt: true });
-  const heelTop: Pt = [32, 62];
-  const dip: Pt = [62, 72];
-  const throat: Pt = [82, 60];
-  const vamp: Pt = [132, 82];
-  const upper = path([X0, GROUND], [
-    C([13, 110], [16, 74], heelTop),
-    C([44, 60], [54, 68], dip),
-    C([68, 70], [75, 60], throat),
-    C([94, 61], [116, 74], vamp),
-    C([152, 86], [170, 90], [180, 95]),
-    C([186, 99], [188, 105], [187, 110]),
-    Q([186.5, 113], s.toe),
-    ...s.topBack,
-  ], true);
-  const counter = path([44, 61], [C([36, 80], [36, 100], [40, GROUND])]);
+  const s = footSole({ x0: X0, x1: X1, depth: 6, spring: 4, heel: 9, heelLen: 38, welt: true });
+  const heelTop: Pt = [36, 59];
+  const dip: Pt = [60, 70];
+  const throat: Pt = [84, 59];
+  const vamp: Pt = [128, 79];
+  const outline: Pt[] = [
+    [X0, GROUND], [18.5, 102], [18, 86], [21, 72], [28, 62], heelTop, [48, 64], dip, [72, 66], throat,
+    [98, 65.5], [114, 72.5], vamp, [146, 84.5], [162, 90.5], [174, 97], [181.5, 104], [185.5, 109.5], s.toe,
+  ];
+  const upper = path(outline[0], [...splineSegs(outline), ...s.topBack], true);
+  const counter = smooth([[42, 61.5], [38, 80], [37, 100], [38, GROUND]]);
   // The mouth: the inside of the shoe seen over the low topline.
-  const mouth = shade(path([35, 63], [C([44, 61], [54, 69], [63, 73]), Q([50, 71], [40, 66])], true), 0.28);
-  return { s, upper, counter, mouth, throat, vamp };
+  const mouthPts = outline.slice(5, 9);
+  const mouth = shade(path(mouthPts[0], [...splineSegs(mouthPts), C([58, 67], [46, 64], mouthPts[0])], true), 0.28);
+  // The quarter's front edge, from the throat down to the welt.
+  const quarter = smooth([[86, 68], [85, 88], [87, 106], [89, GROUND]]);
+  return { s, upper, counter, mouth, quarter, throat, vamp };
 }
 
 function oxford(): KitPiece {
   const l = last();
-  // Closed lacing: the facing is a slim V whose edges meet at the vamp, under the vamp's edge.
-  const stayBottom = path([84, 67], [C([100, 73], [116, 80], l.vamp)]);
-  const laces = laceBars([86, 62], [126, 80], [86, 68], [126, 82.5], 5);
+  // Closed lacing: a slim facing whose lower edge meets the vamp's edge in a V.
+  const stay = eyestay(l.throat, l.vamp, 7, 5, 0, 0.12, 0.88);
+  const facing = path(l.throat, [Q([106, 66], l.vamp), Q([106, 73], stay.a2)], true);
   // Cap toe: a straight seam across the toe.
-  const cap = path([158, 87], [C([157, 98], [156, 108], [156, GROUND])]);
-  const quarter = path([84, 68], [C([84, 90], [86, 106], [88, GROUND])]);
+  const cap = smooth([[158, 89.5], [156.5, 100], [156, 108], [156, GROUND]]);
   return piece({
     base: [fill(l.upper)],
     lines: [
       l.s.fills,
       l.mouth,
-      ink(stroke(l.upper), stroke(stayBottom), ...laces, seam(cap), seam(quarter), seam(l.counter)),
+      shade(facing, 0.08),
+      ink(stroke(l.upper), stroke(stay.top), stroke(path(stay.a2, [Q([106, 73], l.vamp)])), ...stay.bars, seam(cap), seam(l.quarter), seam(l.counter)),
       l.s.lines,
     ],
     clip: l.upper,
@@ -58,15 +56,14 @@ function oxford(): KitPiece {
 function derby(): KitPiece {
   const l = last();
   // Open lacing: the quarters lie on the vamp as a flap whose front edge curls free.
-  const flap = path([84, 67], [C([100, 76], [118, 86], [130, 92]), Q([138, 93], [136, 84])]);
-  const laces = laceBars([88, 63], [124, 79], [88, 70], [124, 89], 5);
-  const quarter = path([84, 68], [C([84, 90], [86, 106], [88, GROUND])]);
+  const flap = path([86, 66], [C([102, 74], [118, 84], [130, 90]), Q([138, 92], [136, 83])]);
+  const stay = eyestay([88, 61], [126, 79], 9, 5, 0, 0.1, 0.9);
   return piece({
     base: [fill(l.upper)],
     lines: [
       l.s.fills,
       l.mouth,
-      ink(stroke(l.upper), stroke(flap), ...laces, seam(quarter), seam(l.counter)),
+      ink(stroke(l.upper), stroke(flap), ...stay.bars, seam(l.quarter), seam(l.counter)),
       l.s.lines,
     ],
     clip: l.upper,
@@ -77,17 +74,16 @@ function derby(): KitPiece {
 function monk(): KitPiece {
   const l = last();
   // The quarter runs forward as a flap over the instep; two straps buckle on the side.
-  const flapEdge = path([122, 77], [C([126, 90], [120, 106], [114, GROUND])]);
-  const strap = (x: number, y: number, len: number) => path([x, y], [L([x + len, y - 0.5]), L([x + len, y + 5]), L([x, y + 6.5])], true);
-  const b1 = buckle(142, 85.5, 7, 8);
-  const b2 = buckle(137, 99.5, 7, 8);
-  const quarter = path([84, 68], [C([84, 90], [86, 106], [88, GROUND])]);
+  const flapEdge = smooth([[122, 76], [126, 90], [120, 106], [114, GROUND]]);
+  const strap = (x: number, y: number, len: number) => path([x, y], [L([x + len, y - 0.5]), L([x + len, y + 5.5]), L([x, y + 7])], true);
+  const b1 = buckle(143, 85, 7.5, 9);
+  const b2 = buckle(138, 99.5, 7.5, 9);
   return piece({
     base: [fill(l.upper)],
     lines: [
       l.s.fills,
       l.mouth,
-      ink(stroke(l.upper), stroke(flapEdge), stroke(strap(123, 83, 16)), stroke(strap(119, 97, 15)), seam(quarter), seam(l.counter)),
+      ink(stroke(l.upper), stroke(flapEdge), stroke(strap(123, 82, 17)), stroke(strap(119, 96.5, 16)), seam(l.quarter), seam(l.counter)),
       b1.fills,
       b1.lines,
       b2.fills,

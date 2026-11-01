@@ -3,7 +3,8 @@
  * point collar, two buttoned chest pockets with flaps, buttoned cuffs.
  */
 import { button, CX, fill, ink, L, mirrored, path, piece, seam, stroke } from "../draw";
-import { placket, pocketFlap, vNeckUnder } from "../parts-tops";
+import { placket, pocketFlap, topFit, vNeckUnder } from "../parts-tops";
+import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
 import { torso, type TorsoSpec } from "../torso";
 import { pointCollar } from "./shirt";
@@ -25,15 +26,10 @@ const BASE: Omit<TorsoSpec, "neck"> = {
   sleeveAngle: 75,
 };
 
-const FITS: Record<string, Partial<TorsoSpec>> = {
-  regular: {},
-  relaxed: { shoulderW: 66, chestW: 65, hemW: 65, length: 164, armhole: 37, sleeveLen: 114, cuffW: 26 },
-  oversized: { shoulderW: 75, shoulderDrop: 13, chestW: 75, hemW: 74, length: 180, armhole: 44, sleeveLen: 120, cuffW: 30, sleeveAngle: 73 },
-  boxy: { shoulderW: 73, shoulderDrop: 11, chestW: 72, hemW: 72, length: 146, armhole: 42, sleeveLen: 112, cuffW: 28, sleeveAngle: 74 },
-};
+const FITS = ["regular", "relaxed", "oversized", "boxy"];
 
 function overshirt(fit: string): KitPiece {
-  const spec: TorsoSpec = { ...BASE, ...FITS[fit], neck: vNeckUnder(NECK_W, NECK_Y) };
+  const spec: TorsoSpec = { ...topFit(BASE, fit), neck: vNeckUnder(NECK_W, NECK_Y) };
   const t = torso(spec);
   const collar = pointCollar(NECK_W, NECK_Y);
   const p = placket(NECK_Y + 14, spec.length - 1, 3.5, 0, false);
@@ -78,7 +74,4 @@ function overshirt(fit: string): KitPiece {
   });
 }
 
-export const OVERSHIRT: Record<string, KitPiece> = Object.fromEntries(
-  Object.keys(FITS).map((fit) => [`overshirt@${fit}`, overshirt(fit)]),
-);
-OVERSHIRT["overshirt"] = OVERSHIRT["overshirt@regular"];
+export const OVERSHIRT: Record<string, KitPiece> = fitTable("overshirt", FITS, "regular", overshirt);

@@ -1,7 +1,7 @@
 /**
  * Harrington: the G9. Stand collar buttoned at the throat with its check
- * lining showing inside, raglan sleeves, a full zip, slanted button-through
- * flap pockets, rib cuffs and hem.
+ * lining showing inside, raglan sleeves, a full zip, slanted flap pockets,
+ * rib cuffs and hem.
  */
 import { button, CX, FILL2, fill, ink, mirrored, piece, seam, stroke, type Pt } from "../draw";
 import type { KitPiece } from "../types";
@@ -24,7 +24,6 @@ function harrington(fit: string): KitPiece {
   const b: Pt = [CX + dims.hemW - 9, py];
   const flapR = slantFlap(a, b, 7);
   const flapL = slantFlap(mirrorPt(b), mirrorPt(a), 7);
-  const btnR: Pt = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 4.5];
   return piece({
     base: [fill(j.outline)],
     lines: [
@@ -47,8 +46,6 @@ function harrington(fit: string): KitPiece {
       button(CX - 2.6, collar.holeY + 4.5, 1.4),
       button(CX + 2.6, collar.holeY + 4.5, 1.4),
       z.slider,
-      button(btnR[0], btnR[1], 1.4),
-      button(2 * CX - btnR[0], btnR[1], 1.4),
     ],
     clip: j.outline,
     stripe: "h",

@@ -3,7 +3,8 @@
  * button band, five buttons, two patch pockets at the hips, rib cuffs and hem.
  */
 import { button, CX, fill, ink, L, mirrored, path, piece, polyline, seam, stroke, type Pt } from "../draw";
-import { patchPocket, ribTrims } from "../parts-tops";
+import { chestAnchors, patchPocket, ribTrims, topFit } from "../parts-tops";
+import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
 import { torso, type TorsoSpec } from "../torso";
 
@@ -27,17 +28,11 @@ const BASE: Omit<TorsoSpec, "neck"> = {
   sleeveAngle: 75,
 };
 
-const FITS: Record<string, Partial<TorsoSpec>> = {
-  fitted: { shoulderW: 54, chestW: 51, waistW: 47, hemW: 48, length: 152, armhole: 29, sleeveLen: 108, cuffW: 19, sleeveAngle: 77 },
-  regular: {},
-  relaxed: { shoulderW: 62, chestW: 61, hemW: 59, length: 160, armhole: 35, sleeveLen: 114, cuffW: 24 },
-  oversized: { shoulderW: 72, shoulderDrop: 13, chestW: 71, hemW: 69, length: 176, armhole: 42, sleeveLen: 120, cuffW: 28, sleeveAngle: 73 },
-  boxy: { shoulderW: 70, shoulderDrop: 11, chestW: 69, hemW: 69, length: 142, armhole: 40, sleeveLen: 112, cuffW: 26, sleeveAngle: 74 },
-};
+const FITS = ["fitted", "regular", "relaxed", "oversized", "boxy"];
 
 function cardigan(fit: string): KitPiece {
   const vY = NECK_Y + V_DEPTH;
-  const spec: TorsoSpec = { ...BASE, ...FITS[fit], neck: { start: [CX, vY], segs: [L([CX + NECK_W, NECK_Y])] } };
+  const spec: TorsoSpec = { ...topFit(BASE, fit), neck: { start: [CX, vY], segs: [L([CX + NECK_W, NECK_Y])] } };
   const t = torso(spec);
   const trims = ribTrims(t, RIB, RIB);
   const hemTop = spec.length - RIB;
@@ -84,12 +79,9 @@ function cardigan(fit: string): KitPiece {
     ],
     clip: t.outline,
     stripe: "h",
-    logo: [CX + spec.chestW * 0.52, t.bodyY(0.16), 12],
+    logo: chestAnchors(t, { logoX: 0.56 }).logo,
     block: t.sleevePanel() + mirrored(t.sleevePanel()),
   });
 }
 
-export const CARDIGAN: Record<string, KitPiece> = Object.fromEntries(
-  Object.keys(FITS).map((fit) => [`cardigan@${fit}`, cardigan(fit)]),
-);
-CARDIGAN["cardigan"] = CARDIGAN["cardigan@regular"];
+export const CARDIGAN: Record<string, KitPiece> = fitTable("cardigan", FITS, "regular", cardigan);

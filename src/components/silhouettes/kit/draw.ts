@@ -227,22 +227,30 @@ export interface PieceParts {
 }
 
 /**
- * Frames a drawing in a square viewBox (its bounds plus `FRAME_PAD`, centered)
- * so every piece fills a square tile the same way, and assembles the
- * `KitPiece` contract from its parts.
- */
-/**
  * Drops the fallbacks from `var(--icon-*, #…)`: every renderer of kit
  * drawings sets all four variables, and the fallbacks are a large share of
  * the catalog payload. Pattern tiles keep theirs.
  */
 const compact = (markup: string) => markup.replace(/(var\(--icon-[a-z0-9-]+), ?#[0-9a-fA-F]{3,8}\)/g, "$1)");
 
-export function piece(parts: PieceParts): KitPiece {
-  const [x, y, w, h] = boundsOf(parts.extent ?? [parts.clip]);
+/** The design-space bounds each piece was framed around (its `extent`), by piece. */
+const EXTENTS = new WeakMap<KitPiece, Box>();
+
+/** A square viewBox around `box` plus `FRAME_PAD`, centered. */
+function squareFrame([x, y, w, h]: Box): string {
   const side = Math.max(w, h) * (1 + FRAME_PAD * 2);
   const vx = x + w / 2 - side / 2;
   const vy = y + h / 2 - side / 2;
+  return `${num(vx)} ${num(vy)} ${num(side)} ${num(side)}`;
+}
+
+/**
+ * Frames a drawing in a square viewBox (its bounds plus `FRAME_PAD`, centered)
+ * so every piece fills a square tile the same way, and assembles the
+ * `KitPiece` contract from its parts.
+ */
+export function piece(parts: PieceParts): KitPiece {
+  const extent = boundsOf(parts.extent ?? [parts.clip]);
   const base = compact(parts.base.join(""));
   const lines = compact(parts.lines.join(""));
   const layers: ArtLayers = {
@@ -255,9 +263,67 @@ export function piece(parts: PieceParts): KitPiece {
   if (parts.graphic) layers.graphic = parts.graphic;
   if (parts.logo) layers.logo = parts.logo;
   if (parts.block) layers.block = parts.block;
-  return {
-    viewBox: `${num(vx)} ${num(vy)} ${num(side)} ${num(side)}`,
+  const result: KitPiece = {
+    viewBox: squareFrame(extent),
     body: base + lines,
     layers,
   };
+  EXTENTS.set(result, extent);
+  return result;
+}
+
+/** The bounds a piece was framed around: its extent, or its viewBox for pieces not built here. */
+export function extentOf(p: KitPiece): Box {
+  const known = EXTENTS.get(p);
+  if (known) return known;
+  const [x, y, w, h] = p.viewBox.split(" ").map(Number);
+  return [x, y, w, h];
+}
+
+/** The same drawing framed around `box` instead of its own bounds. */
+export function reframe(p: KitPiece, box: Box): KitPiece {
+  const result: KitPiece = { ...p, viewBox: squareFrame(box) };
+  EXTENTS.set(result, box);
+  return result;
+}
+
+/**
+ * Gives every fit of a type one frame: the union of the fits' bounds. Fits
+ * are drawn in one coordinate space (the shoulder line and the waistband sit
+ * at the same y in every fit), so inside the shared frame a fitted tee is
+ * visibly smaller and an oversized one longer and wider, where a per-piece
+ * frame normalized them to the same size. Keys `type@fit` are grouped by
+ * type; variants and bare keys are untouched, and a bare default key keeps
+ * pointing at the same (reframed) drawing as its fit.
+ */
+export function framedByType<T extends Record<string, KitPiece>>(table: T): T {
+  const groups = new Map<string, KitPiece[]>();
+  for (const [key, p] of Object.entries(table)) {
+    const at = key.indexOf("@");
+    if (at < 0) continue;
+    const typeId = key.slice(0, at);
+    const group = groups.get(typeId) ?? [];
+    if (!group.includes(p)) group.push(p);
+    groups.set(typeId, group);
+  }
+  const replaced = new Map<KitPiece, KitPiece>();
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const p of group) {
+      const [x, y, w, h] = extentOf(p);
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + w);
+      maxY = Math.max(maxY, y + h);
+    }
+    const box: Box = [minX, minY, maxX - minX, maxY - minY];
+    for (const p of group) replaced.set(p, reframe(p, box));
+  }
+  const out: Record<string, KitPiece> = {};
+  for (const [key, p] of Object.entries(table)) out[key] = replaced.get(p) ?? p;
+  return out as T;
 }

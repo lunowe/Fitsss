@@ -2,17 +2,19 @@
  * Skirt: an A-line skirt with a waistband and two front panel seams. The fit
  * is its length: mini, midi, maxi; the hem widens with it.
  */
-import { C, CX, fill, ink, L, mirrored, path, piece, polyline, Q, seam, stroke, symmetric } from "../draw";
+import { C, CX, fill, framedByType, ink, L, mirrored, path, piece, polyline, Q, seam, stroke, symmetric } from "../draw";
+import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
 
 const WAIST_Y = 12;
 const WAIST_W = 33;
 const BAND = 8;
 
+/** Lengths share one frame, so mini, midi and maxi read by length: mid-thigh, mid-calf, ankle. */
 const FITS: Record<string, { length: number; hemW: number }> = {
-  mini: { length: 78, hemW: 50 },
-  midi: { length: 140, hemW: 64 },
-  maxi: { length: 192, hemW: 72 },
+  mini: { length: 74, hemW: 50 },
+  midi: { length: 138, hemW: 62 },
+  maxi: { length: 202, hemW: 70 },
 };
 
 function skirt(fit: string): KitPiece {
@@ -39,7 +41,4 @@ function skirt(fit: string): KitPiece {
   });
 }
 
-export const SKIRT: Record<string, KitPiece> = Object.fromEntries(
-  Object.keys(FITS).map((fit) => [`skirt@${fit}`, skirt(fit)]),
-);
-SKIRT["skirt"] = SKIRT["skirt@midi"];
+export const SKIRT: Record<string, KitPiece> = framedByType(fitTable("skirt", Object.keys(FITS), "midi", skirt));

@@ -4,7 +4,8 @@
  * yoke across the chest, shoulders and collar.
  */
 import { CX, FILL2, fill, ink, L, mirrored, path, piece, Q, seam, stroke } from "../draw";
-import { ribTrims, standCollar, standNeck, zip } from "../parts-tops";
+import { ribTrims, standCollar, standNeck, topFit, zip } from "../parts-tops";
+import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
 import { torso, type TorsoSpec } from "../torso";
 
@@ -27,14 +28,10 @@ const BASE: Omit<TorsoSpec, "neck"> = {
   sleeveAngle: 75,
 };
 
-const FITS: Record<string, Partial<TorsoSpec>> = {
-  regular: {},
-  relaxed: { shoulderW: 65, chestW: 65, hemW: 62, length: NECK_Y + 134, armhole: 37, sleeveLen: 116, cuffW: 27 },
-  oversized: { shoulderW: 75, shoulderDrop: 13, chestW: 75, hemW: 72, length: NECK_Y + 150, armhole: 44, sleeveLen: 124, cuffW: 31, sleeveAngle: 73 },
-};
+const FITS = ["regular", "relaxed", "oversized"];
 
 function fleece(fit: string): KitPiece {
-  const spec: TorsoSpec = { ...BASE, ...FITS[fit], neck: standNeck(NECK_W, NECK_Y) };
+  const spec: TorsoSpec = { ...topFit(BASE, fit), neck: standNeck(NECK_W, NECK_Y) };
   const t = torso(spec);
   const collar = standCollar(NECK_W, NECK_Y, COLLAR_H);
   const trims = ribTrims(t, TRIM, TRIM);
@@ -75,7 +72,4 @@ function fleece(fit: string): KitPiece {
   });
 }
 
-export const FLEECE: Record<string, KitPiece> = Object.fromEntries(
-  Object.keys(FITS).map((fit) => [`fleece@${fit}`, fleece(fit)]),
-);
-FLEECE["fleece"] = FLEECE["fleece@regular"];
+export const FLEECE: Record<string, KitPiece> = fitTable("fleece", FITS, "regular", fleece);

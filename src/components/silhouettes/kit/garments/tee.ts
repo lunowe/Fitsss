@@ -2,31 +2,30 @@
  * T-shirt: short sleeves, ribbed crew neck. Fits change the shoulders, body
  * width, length and sleeve; the neck rib stays the same so the family reads.
  */
-import { C, CX, FILL2, fill, ink, L, mirrored, path, piece, Q, seam, shade, stroke, symmetric, type Pt } from "../draw";
+import { C, CX, FILL2, fill, framedByType, ink, L, mirrored, path, piece, Q, seam, shade, stroke, symmetric, type Pt } from "../draw";
+import { chestAnchors, topFit } from "../parts-tops";
+import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
 import { torso, type TorsoSpec } from "../torso";
 
 const NECK_Y = 20;
 
-const BASE: Omit<TorsoSpec, "neckW" | "neckY"> = {
+/** The reference block: a regular tee, ~116 wide at the shoulders and ~120 from shoulder to hem. */
+const BASE: TorsoSpec = {
+  neckW: 15,
+  neckY: NECK_Y,
   shoulderW: 58,
   shoulderDrop: 9,
   chestW: 55,
   hemW: 54,
-  length: 140,
+  length: 147,
   armhole: 30,
   sleeveLen: 36,
   cuffW: 27,
   sleeveAngle: 28,
 };
 
-const FITS: Record<string, Partial<TorsoSpec>> = {
-  fitted: { shoulderW: 54, chestW: 50, waistW: 45, hemW: 47, length: 136, armhole: 27, sleeveLen: 32, cuffW: 23, sleeveAngle: 30 },
-  regular: {},
-  relaxed: { shoulderW: 62, chestW: 60, hemW: 59, length: 144, armhole: 33, sleeveLen: 39, cuffW: 30 },
-  oversized: { shoulderW: 72, shoulderDrop: 13, chestW: 71, hemW: 70, length: 158, armhole: 40, sleeveLen: 42, cuffW: 36, sleeveAngle: 34 },
-  boxy: { shoulderW: 70, shoulderDrop: 11, chestW: 69, hemW: 69, length: 126, armhole: 38, sleeveLen: 36, cuffW: 34, sleeveAngle: 30 },
-};
+export const TOP_FITS = ["fitted", "regular", "relaxed", "oversized", "boxy"] as const;
 
 /**
  * A ribbed crew neck: the back rib peeking over the shoulder line, the inside
@@ -53,22 +52,19 @@ export function crewRib(w: number, y: number, d: number, r: number): { fills: st
 }
 
 function tee(fit: string): KitPiece {
-  const spec: TorsoSpec = { ...BASE, ...FITS[fit], neckW: 15, neckY: NECK_Y };
+  const spec = topFit(BASE, fit);
   const t = torso(spec);
   const rib = crewRib(spec.neckW, NECK_Y, 15, 3.5);
-  const chestY = t.bodyY(0.26);
+  const anchors = chestAnchors(t);
   return piece({
     base: [fill(t.outline)],
     lines: [rib.fills, ink(stroke(t.outline), t.armSeams, t.cuffLines(4), seam(t.hemLine(4))), rib.lines],
     clip: t.outline,
     stripe: "h",
-    graphic: [CX, chestY + 10, Math.round(spec.chestW * 0.78)],
-    logo: [CX + spec.chestW * 0.42, t.bodyY(0.12), 13],
+    graphic: anchors.graphic,
+    logo: anchors.logo,
     block: t.sleevePanel() + mirrored(t.sleevePanel()),
   });
 }
 
-export const TEE: Record<string, KitPiece> = Object.fromEntries(
-  Object.keys(FITS).map((fit) => [`t-shirt@${fit}`, tee(fit)]),
-);
-TEE["t-shirt"] = TEE["t-shirt@regular"];
+export const TEE: Record<string, KitPiece> = framedByType(fitTable("t-shirt", TOP_FITS, "regular", tee));

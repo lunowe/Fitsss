@@ -1,11 +1,11 @@
 /**
- * Trench coat: double-breasted and knee length, with wide lapels, the storm
- * flap over the right chest, epaulettes, a buckled belt, slanted flap
- * pockets and sleeve straps. The skirt flares gently to the hem.
+ * Trench coat: double-breasted and knee length. Wide lapels, the gun flap
+ * over the right chest, a buckled belt, two columns of buttons and slanted
+ * flap pockets; the skirt flares gently to the hem.
  */
 import { button, CX, fill, ink, L, path, piece, Q, seam, stroke, type Pt } from "../draw";
 import type { KitPiece } from "../types";
-import { belt, cuffStraps, epaulettes, fitTable, jacket, JACKET_BASE, lapels, mirrorPt, outerFit, slantFlap, type JacketSpec } from "../parts-outer";
+import { belt, fitTable, jacket, JACKET_BASE, lapels, mirrorPt, outerFit, slantFlap, type JacketSpec } from "../parts-outer";
 
 const BASE = { ...JACKET_BASE, length: 240, chestW: 59, hemW: 68, sleeveLen: 122, cuffW: 24 };
 const FITS = ["fitted", "regular", "relaxed", "oversized"];
@@ -26,44 +26,28 @@ function trenchCoat(fit: string): KitPiece {
   // column and straight down to the hem.
   const edgeX = CX - 21;
   const frontEdge = path([CX, breakY], [Q([CX - 4, breakY + 14], [edgeX, breakY + 20]), L([edgeX, hemY - 0.3])]);
-  // Two columns of buttons, three rows.
+  // Two columns of buttons: two rows above the belt, one below.
   const buttons: string[] = [];
-  for (let i = 0; i < 3; i++) {
-    const y = breakY + 6 + i * 30;
-    if (i === 1 && Math.abs(y - beltY - 3.5) < 9) continue;
-    buttons.push(button(CX - 10.5, y, 2.1), button(CX + 10.5, y, 2.1));
-  }
-  // Gun flap over the right chest: it comes out from under the lapel, runs
-  // along the armhole and ends just above the top buttons.
-  const flapTop: Pt = [CX + 15, breakY - 21];
-  const stormFlap = path(flapTop, [L([j.armpit[0] - 0.5, neckY + 27]), L([j.armpit[0] - 0.5, breakY - 4]), Q([CX + 20, breakY + 1], [CX + 3.5, breakY - 1])]);
+  for (const y of [breakY + 8, beltY - 12, beltY + 26]) buttons.push(button(CX - 10.5, y, 2.1), button(CX + 10.5, y, 2.1));
+  // Gun flap over the right chest: it comes out from under the lapel and runs
+  // across to the armhole in one curve.
+  const flapTop: Pt = [CX + 14, breakY - 22];
+  const stormFlap = path(flapTop, [L([j.armpit[0] - 0.5, neckY + 27]), L([j.armpit[0] - 0.5, breakY - 6]), Q([CX + 22, breakY - 1], [CX + 3.5, breakY - 2])]);
   // Slanted flap pockets below the belt.
-  const py = j.bodyY(0.5);
-  const a: Pt = [CX + 12, py + 12];
+  const py = j.bodyY(0.52);
+  const a: Pt = [CX + 12, py + 11];
   const b: Pt = [CX + j.halfW(py) - 8, py];
   const pocketR = slantFlap(a, b, 8);
   const pocketL = slantFlap(mirrorPt(b), mirrorPt(a), 8);
-  const ep = epaulettes(j);
   return piece({
     base: [fill(j.outline)],
     lines: [
       lp.fills,
-      ep.fills,
       pocketR.fill,
       pocketL.fill,
       wb.fills,
-      ink(
-        stroke(j.edge),
-        j.armSeams,
-        stroke(frontEdge),
-        stroke(stormFlap),
-        pocketR.lines,
-        pocketL.lines,
-        seam(j.hemLine(4)),
-      ),
+      ink(stroke(j.edge), j.armSeams, stroke(frontEdge), stroke(stormFlap), pocketR.lines, pocketL.lines, seam(j.hemLine(4)), j.cuffLines(10)),
       ...buttons,
-      cuffStraps(j, 12),
-      ep.lines,
       wb.lines,
       lp.lines,
     ],

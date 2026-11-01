@@ -26,9 +26,9 @@ interface VestSpec {
 const BASE: VestSpec = { shoulderW: 42, chestW: 55, waistW: 53, hemW: 54, armhole: 40, length: NECK_Y + 124 };
 
 const FITS: Record<string, Partial<VestSpec>> = {
-  fitted: { shoulderW: 40, chestW: 50, waistW: 46, hemW: 48, armhole: 37, length: NECK_Y + 120 },
+  fitted: { shoulderW: 39, chestW: 48, waistW: 43, hemW: 46, armhole: 37, length: NECK_Y + 118 },
   regular: {},
-  relaxed: { shoulderW: 45, chestW: 60, waistW: 59, hemW: 59, armhole: 43, length: NECK_Y + 128 },
+  relaxed: { shoulderW: 46, chestW: 62, waistW: 61, hemW: 61, armhole: 44, length: NECK_Y + 132 },
 };
 
 function vest(fit: string): KitPiece {

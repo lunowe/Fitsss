@@ -1,99 +1,133 @@
 /**
- * Belts: a buckled strap lying in a lazy S, buckle at the top left, tip at
- * the bottom right, so it fills a square tile and still reads as a belt.
- * Leather: a prong buckle, a keeper, stitched edges and holes. Canvas: a
- * box slider with a metal tip, no holes. Web: a pair of D-rings and the
- * woven stripes.
+ * Belts: buckled into a loop and seen from slightly above, the way a belt
+ * is shown in a shop, so it fills a square tile and the buckle sits front
+ * and center at any size. The band's far side shows inside the loop; the
+ * tip passes through the buckle and a keeper and lies on the band.
+ * Leather: a prong buckle and holes. Canvas: a box buckle and a metal tip.
+ * Web: a pair of D-rings.
  */
-import { C, fill, ink, L, path, piece, polyline, Q, seam, stroke, type Pt } from "../draw";
+import { C, CX, fill, ink, L, path, piece, polyline, Q, seam, shade, stroke, type Pt } from "../draw";
 import type { KitPiece } from "../types";
-import { buckle, metal, ribbon, ring, roundRect, sampleCubic } from "../parts-feet";
+import { buckle, ellipseArc, metal, roundRect, smooth, splineSegs } from "../parts-feet";
 
-const W = 17;
-const START: Pt = [36, 50];
-const END: Pt = [176, 154];
+const RX = 88;
+const RY = 38;
+/** y of the band's top edge at the sides, and the band's height. */
+const TOP = 96;
+const H = 24;
+const BOT = TOP + H;
 
-/** The strap's spine: horizontal at both ends, sweeping through the middle. */
-const SPINE = sampleCubic(START, [116, 50], [84, 154], END, 44);
+/** A point on the band's top edge (E1) or bottom edge (E2) at angle `a` (degrees, 0 = right, 90 = front). */
+const e1 = (a: number): Pt => [CX + RX * Math.cos((a * Math.PI) / 180), TOP + RY * Math.sin((a * Math.PI) / 180)];
+const e2 = (a: number): Pt => [CX + RX * Math.cos((a * Math.PI) / 180), BOT + RY * Math.sin((a * Math.PI) / 180)];
+const mid = (a: number): Pt => [e1(a)[0], (e1(a)[1] + e2(a)[1]) / 2];
 
-/** The pointed tip of a strap at the end of a ribbon, continuing its direction. */
-function tip(r: ReturnType<typeof ribbon>, len: number, round = false): string {
-  const n = r.spine.length - 1;
-  const p = r.spine[n];
-  const q = r.spine[n - 1];
-  const d = Math.hypot(p[0] - q[0], p[1] - q[1]) || 1;
-  const u: Pt = [(p[0] - q[0]) / d, (p[1] - q[1]) / d];
-  const v: Pt = [-u[1], u[0]];
-  const a: Pt = [p[0] + v[0] * (W / 2), p[1] + v[1] * (W / 2)];
-  const b: Pt = [p[0] - v[0] * (W / 2), p[1] - v[1] * (W / 2)];
-  const t: Pt = [p[0] + u[0] * len, p[1] + u[1] * len];
-  if (round) return path(a, [C([a[0] + u[0] * len * 0.9, a[1] + u[1] * len * 0.9], [b[0] + u[0] * len * 0.9, b[1] + u[1] * len * 0.9], b), L(p)], true);
-  return path(a, [Q([a[0] + u[0] * len * 0.55, a[1] + u[1] * len * 0.55], t), Q([b[0] + u[0] * len * 0.55, b[1] + u[1] * len * 0.55], b), L(p)], true);
+function loop() {
+  const topBack = ellipseArc(CX, TOP, RX, RY, 180, 360, 20);
+  const topFront = ellipseArc(CX, TOP, RX, RY, 0, 180, 20);
+  const botBack = ellipseArc(CX, BOT, RX, RY, 341, 199, 18);
+  const botFront = ellipseArc(CX, BOT, RX, RY, 180, 0, 20);
+  // The inside of the loop: the band's far side, seen between its top edge and the front band.
+  const inside = path(topBack[0], [...splineSegs(topBack), L(e2(360)), ...splineSegs(ellipseArc(CX, BOT, RX, RY, 360, 180, 20))], true);
+  // The near side of the band, from one side round the front to the other.
+  const front = path(topFront[0], [...splineSegs(topFront), L(botFront[0]), ...splineSegs(botFront)], true);
+  const silhouette = path(topBack[0], [...splineSegs(topBack), L(e2(0)), ...splineSegs(ellipseArc(CX, BOT, RX, RY, 0, 180, 20))], true);
+  return {
+    inside,
+    front,
+    silhouette,
+    insideEdge: smooth(botBack),
+    frontEdge: smooth(topFront),
+  };
 }
 
+/** The pointed end of the strap lying on the band, from angle `a` back to its point at `tipA`. */
+function tip(a: number, tipA: number): string {
+  const p = mid(tipA);
+  return path(e1(a), [Q([p[0] - 2, e1(tipA)[1] + 2], p), Q([p[0] - 2, e2(tipA)[1] - 2], e2(a))]);
+}
+
+/** A keeper: a small loop across the band at angle `a`. */
+function keeper(a: number, w = 4): string {
+  const d = w / 2.1;
+  return path(e1(a + d), [...splineSegs([e1(a + d), e1(a - d)]), L(e2(a - d)), ...splineSegs([e2(a - d), e2(a + d)])], true);
+}
+
+/** A hole in the tip at angle `a`. */
+const hole = (a: number) => {
+  const [x, y] = mid(a);
+  return `<circle cx="${Math.round(x * 10) / 10}" cy="${Math.round(y * 10) / 10}" r="1.6" fill="none" stroke="var(--icon-stroke, #000)" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+};
+
 function leather(): KitPiece {
-  const r = ribbon(SPINE, W);
-  const end = tip(r, 9);
-  const bk = buckle(START[0] - 8, START[1], 18, W + 9, 3.4);
-  const keeper = roundRect(START[0] + 12, START[1] - W / 2 - 1.5, 6, W + 3, 1);
-  const holes = [30, 32, 34, 36, 38].map((i) => ring(r.spine[i][0], r.spine[i][1], 1.4));
+  const l = loop();
+  const bk = buckle(CX, (TOP + BOT) / 2 + RY, 26, H + 7, 3.4);
+  const kp = keeper(78);
+  const stitchTop = smooth(ellipseArc(CX, TOP + 3, RX, RY, 8, 172, 20));
+  const stitchBot = smooth(ellipseArc(CX, BOT - 3, RX, RY, 8, 172, 20));
   return piece({
-    base: [fill(r.outline), fill(end)],
+    base: [fill(l.inside), fill(l.front)],
     lines: [
-      fill(keeper),
-      ink(stroke(r.outline), stroke(end), seam(r.along(-0.68, 2)), seam(r.along(0.68, 2)), stroke(keeper)),
+      shade(l.inside, 0.16),
+      ink(stroke(l.silhouette), stroke(l.insideEdge), stroke(l.frontEdge), seam(stitchTop), seam(stitchBot), stroke(tip(58, 50))),
+      fill(kp),
+      ink(stroke(kp)),
+      hole(72), hole(65),
       bk.fills,
       bk.lines,
-      ...holes,
     ],
-    clip: r.outline + end,
-    extent: [r.outline, end, bk.frame],
+    clip: l.inside + l.front,
+    extent: [l.silhouette, bk.frame],
   });
 }
 
 function canvas(): KitPiece {
-  const r = ribbon(SPINE, W);
-  // Box slider at the start, a folded metal tip at the end.
-  const box = roundRect(START[0] - 14, START[1] - W / 2 - 3.5, 24, W + 7, 2);
-  const boxBar = polyline([START[0] - 3, START[1] - W / 2 - 1.5], [START[0] - 3, START[1] + W / 2 + 1.5]);
-  const n = r.spine.length - 1;
-  const tipSeam = path(r.spine[n - 2], [L(r.spine[n])]);
-  const cap = tip(r, 4, true);
-  const capBand = ribbon(r.spine.slice(n - 3), W + 1.5);
+  const l = loop();
+  // Box buckle at the front, a folded metal tip.
+  const cy = (TOP + BOT) / 2 + RY;
+  const box = roundRect(CX - 14, cy - H / 2 - 3, 28, H + 6, 2);
+  const boxBar = polyline([CX + 2, cy - H / 2 - 1.5], [CX + 2, cy + H / 2 + 1.5]);
+  const capA = 62;
+  const cap = path(e1(capA + 4), [...splineSegs([e1(capA + 4), e1(capA)]), Q([e1(capA)[0] + 3, mid(capA)[1]], e2(capA)), ...splineSegs([e2(capA), e2(capA + 4)])], true);
   return piece({
-    base: [fill(r.outline)],
+    base: [fill(l.inside), fill(l.front)],
     lines: [
-      ink(stroke(r.outline), seam(r.along(-0.5, 3)), seam(r.along(0.5, 3))),
+      shade(l.inside, 0.16),
+      ink(stroke(l.silhouette), stroke(l.insideEdge), stroke(l.frontEdge), seam(smooth(ellipseArc(CX, TOP + 4, RX, RY, 8, 172, 20))), seam(smooth(ellipseArc(CX, BOT - 4, RX, RY, 8, 172, 20)))),
+      metal(cap),
+      ink(stroke(cap)),
       metal(box),
-      metal(capBand.outline + cap),
-      ink(stroke(box), stroke(boxBar), stroke(capBand.outline), stroke(cap), seam(tipSeam)),
+      ink(stroke(box), stroke(boxBar)),
     ],
-    clip: r.outline,
-    extent: [r.outline, box, cap],
+    clip: l.inside + l.front,
+    extent: [l.silhouette, box],
   });
 }
 
-/** A D-ring: a metal annulus. */
+/** A D-ring standing on the band: a metal annulus. */
 function dRing(cx: number, cy: number, r: number): string {
   const circle = (rad: number) => path([cx - rad, cy], [C([cx - rad, cy - rad * 1.33], [cx + rad, cy - rad * 1.33], [cx + rad, cy]), C([cx + rad, cy + rad * 1.33], [cx - rad, cy + rad * 1.33], [cx - rad, cy])], true);
-  return metal(circle(r) + circle(r - 2.2)) + ring(cx, cy, r) + ring(cx, cy, r - 2.2);
+  const ringStroke = (rad: number) => `<circle cx="${cx}" cy="${cy}" r="${rad}" fill="none" stroke="var(--icon-stroke, #000)" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+  return metal(circle(r) + circle(r - 2.4)) + ringStroke(r) + ringStroke(r - 2.4);
 }
 
 function web(): KitPiece {
-  const r = ribbon(SPINE, W);
-  const cap = tip(r, 4, true);
-  const capBand = ribbon(r.spine.slice(r.spine.length - 4), W + 1.5);
+  const l = loop();
+  const cy = (TOP + BOT) / 2 + RY;
+  const capA = 62;
+  const cap = path(e1(capA + 4), [...splineSegs([e1(capA + 4), e1(capA)]), Q([e1(capA)[0] + 3, mid(capA)[1]], e2(capA)), ...splineSegs([e2(capA), e2(capA + 4)])], true);
   return piece({
-    base: [fill(r.outline)],
+    base: [fill(l.inside), fill(l.front)],
     lines: [
-      ink(stroke(r.outline), stroke(r.along(-0.32, 1)), stroke(r.along(0.32, 1))),
-      metal(capBand.outline + cap),
-      ink(stroke(capBand.outline), stroke(cap)),
-      dRing(START[0] - 5, START[1], W / 2 + 3.5),
-      dRing(START[0] + 4, START[1], W / 2 + 3.5),
+      shade(l.inside, 0.16),
+      ink(stroke(l.silhouette), stroke(l.insideEdge), stroke(l.frontEdge), stroke(smooth(ellipseArc(CX, TOP + 8, RX, RY, 8, 172, 20))), stroke(smooth(ellipseArc(CX, BOT - 8, RX, RY, 8, 172, 20)))),
+      metal(cap),
+      ink(stroke(cap)),
+      dRing(CX - 6, cy, H / 2 + 3.5),
+      dRing(CX + 5, cy, H / 2 + 3.5),
     ],
-    clip: r.outline,
-    extent: [r.outline, cap, roundRect(START[0] - 16, START[1] - W / 2 - 4, 28, W + 8, 1)],
+    clip: l.inside + l.front,
+    extent: [l.silhouette, roundRect(CX - 22, cy - H / 2 - 4, 44, H + 8, 1)],
   });
 }
 

@@ -4,7 +4,8 @@
  * the casual shirt.
  */
 import { button, CX, fill, ink, piece, seam, stroke } from "../draw";
-import { foldCollar, placket, vNeckUnder } from "../parts-tops";
+import { foldCollar, placket, topFit, vNeckUnder } from "../parts-tops";
+import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
 import { torso, type TorsoSpec } from "../torso";
 
@@ -27,14 +28,10 @@ const BASE: Omit<TorsoSpec, "neck"> = {
   sleeveAngle: 76,
 };
 
-const FITS: Record<string, Partial<TorsoSpec>> = {
-  fitted: { shoulderW: 53, chestW: 49, waistW: 43, hemW: 46, length: 166, armhole: 28, sleeveLen: 112, cuffW: 19, sleeveAngle: 78 },
-  regular: {},
-  relaxed: { shoulderW: 60, chestW: 57, waistW: 55, hemW: 56, length: 174, armhole: 34, cuffW: 23, sleeveAngle: 75 },
-};
+const FITS = ["fitted", "regular", "relaxed"];
 
 function dressShirt(fit: string): KitPiece {
-  const spec: TorsoSpec = { ...BASE, ...FITS[fit], neck: vNeckUnder(NECK_W, NECK_Y) };
+  const spec: TorsoSpec = { ...topFit(BASE, fit), neck: vNeckUnder(NECK_W, NECK_Y) };
   const t = torso(spec);
   // Spread collar: wide-set, shorter points.
   const collar = foldCollar(NECK_W, NECK_Y, {
@@ -70,7 +67,4 @@ function dressShirt(fit: string): KitPiece {
   });
 }
 
-export const DRESS_SHIRT: Record<string, KitPiece> = Object.fromEntries(
-  Object.keys(FITS).map((fit) => [`dress-shirt@${fit}`, dressShirt(fit)]),
-);
-DRESS_SHIRT["dress-shirt"] = DRESS_SHIRT["dress-shirt@regular"];
+export const DRESS_SHIRT: Record<string, KitPiece> = fitTable("dress-shirt", FITS, "regular", dressShirt);

@@ -3,7 +3,8 @@
  * neck and the classic V-stitch insert below it.
  */
 import { CX, FILL2, fill, ink, L, mirrored, path, piece, polyline, stroke } from "../draw";
-import { ribTrims } from "../parts-tops";
+import { chestAnchors, ribTrims, topFit } from "../parts-tops";
+import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
 import { torso, type TorsoSpec } from "../torso";
 import { crewRib } from "./tee";
@@ -13,7 +14,9 @@ const NECK_W = 16;
 const NECK_D = 15;
 const RIB = 10;
 
-const BASE: Omit<TorsoSpec, "neckW" | "neckY"> = {
+const BASE: TorsoSpec = {
+  neckW: NECK_W,
+  neckY: NECK_Y,
   shoulderW: 61,
   shoulderDrop: 9,
   chestW: 60,
@@ -25,25 +28,17 @@ const BASE: Omit<TorsoSpec, "neckW" | "neckY"> = {
   sleeveAngle: 75,
 };
 
-const FITS: Record<string, Partial<TorsoSpec>> = {
-  fitted: { shoulderW: 56, chestW: 54, waistW: 50, hemW: 50, length: 152, armhole: 31, sleeveLen: 108, cuffW: 22, sleeveAngle: 77 },
-  regular: {},
-  relaxed: { shoulderW: 65, chestW: 65, hemW: 61, length: 162, armhole: 37, sleeveLen: 114, cuffW: 27 },
-  oversized: { shoulderW: 75, shoulderDrop: 13, chestW: 75, hemW: 72, length: 178, armhole: 44, sleeveLen: 122, cuffW: 31, sleeveAngle: 73 },
-  boxy: { shoulderW: 73, shoulderDrop: 11, chestW: 72, hemW: 72, length: 142, armhole: 42, sleeveLen: 112, cuffW: 30, sleeveAngle: 74 },
-};
+const FITS = ["fitted", "regular", "relaxed", "oversized", "boxy"];
 
 function sweatshirt(fit: string): KitPiece {
-  const spec: TorsoSpec = { ...BASE, ...FITS[fit], neckW: NECK_W, neckY: NECK_Y };
+  const spec = topFit(BASE, fit);
   const t = torso(spec);
   const rib = crewRib(NECK_W, NECK_Y, NECK_D, 4);
   const trims = ribTrims(t, RIB, RIB);
   // The V insert: a rib triangle hanging from the neck band.
   const vTop = NECK_Y + NECK_D;
   const notch = path([CX - 6, vTop - 0.5], [L([CX + 6, vTop - 0.5]), L([CX, vTop + 9])], true);
-  const graphicTop = vTop + 14;
-  const graphicBottom = spec.length - RIB - 10;
-  const graphicSize = Math.min(Math.round(spec.chestW * 0.78), Math.round(graphicBottom - graphicTop));
+  const anchors = chestAnchors(t, { top: vTop + 12, bottom: spec.length - RIB - 6 });
   return piece({
     base: [fill(t.outline)],
     lines: [
@@ -55,13 +50,10 @@ function sweatshirt(fit: string): KitPiece {
     ],
     clip: t.outline,
     stripe: "h",
-    graphic: [CX, (graphicTop + graphicBottom) / 2, graphicSize],
-    logo: [CX + spec.chestW * 0.42, t.bodyY(0.1), 13],
+    graphic: anchors.graphic,
+    logo: anchors.logo,
     block: t.sleevePanel() + mirrored(t.sleevePanel()),
   });
 }
 
-export const SWEATSHIRT: Record<string, KitPiece> = Object.fromEntries(
-  Object.keys(FITS).map((fit) => [`sweatshirt@${fit}`, sweatshirt(fit)]),
-);
-SWEATSHIRT["sweatshirt"] = SWEATSHIRT["sweatshirt@regular"];
+export const SWEATSHIRT: Record<string, KitPiece> = fitTable("sweatshirt", FITS, "regular", sweatshirt);

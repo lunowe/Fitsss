@@ -22,14 +22,19 @@ anything the kit does not cover yet.
   ink, `--icon-pattern` for patterns. Depth comes from `shade()`, the ink at 10–30% opacity:
   it darkens light pieces and lifts dark ones, so one drawing works in white, black and every
   mid color.
-- **Square framing.** `piece()` frames every drawing in a square viewBox around its bounds
-  plus 5% padding, so every piece fills a square tile the same way. Tops fill the width,
-  bottoms the height, shoes sit centered.
+- **Square framing, shared per type.** `piece()` frames a drawing in a square viewBox around
+  its bounds plus 5% padding. `framedByType()` then reframes every `type@fit` drawing of a
+  table to the union of that type's fits, so the largest fit fills the tile and the others
+  draw smaller, shorter or narrower in the same frame (a mini is visibly shorter than a maxi).
+  Wrap every fit table in it where it is registered.
 - **Proportions.** Design space is 200 units wide, centered on x = 100. A regular tee is
-  ~116 wide and ~120 tall (shoulder to hem); a shirt ~150 tall; trousers ~225 tall; a shoe
+  ~116 wide and ~147 tall (shoulder to hem); a shirt ~150 tall; trousers ~225 tall; a shoe
   ~170 long and ~70 tall. Keep new pieces on this scale so the family reads together.
-- **Fits are numbers.** Each garment module has a base spec and a per-fit override table;
-  fits change widths, lengths, shoulder drop and sleeve size, never the detailing.
+- **Fits are numbers.** Each garment module has a base spec and a per-fit override table
+  (tops share `topFit()` in `parts-tops.ts`, bottoms `PANT_FITS`/`SHORT_FITS` in
+  `parts-bottoms.ts`); fits change widths, lengths, shoulder drop, sleeve size and hem pooling,
+  never the detailing. Oversized is roomier and longer, boxy wide and cropped, wide a straight
+  A column, baggy wide with a pooled hem.
 
 ## Layers and patterns
 
@@ -46,7 +51,25 @@ always equals `layers.base + layers.lines`.
 
 Pattern tiles live in `patterns.ts`; they are 100×100 and painted with `--icon-pattern`.
 Field tiles are scaled to the longer side of `layers.box`, so density is relative to the
-garment.
+garment. Motif tiles are scaled to the anchor, so a logo anchor should be about a sixth of
+the chest width and a graphic anchor about half: the tiles are drawn for those sizes.
+
+- `stripe`: Breton bands across knits and tees, fine candy stripes down wovens (`markupV`).
+- `check`: a gingham from two translucent band sets.
+- `print`: a ditsy of five-petal blossoms with a dot between; motifs are ~6 units so a
+  sleeve or hem cuts through several instead of beheading one, and at closet size the print
+  is a speckle rather than fragments.
+- `textured`: a fine twill (3-unit pitch) of pattern-color ridges with faint ink grooves. A
+  texture, not a print: crisp weave at 240 px, soft hatch at 56 px, and the ink grooves keep
+  it visible when the pattern color is close to the garment's.
+- `graphic`: a framed landscape print (sun on the horizon over two bars) cut from a solid
+  block, so it reads as a screen print on any ground at any size.
+- `logo`: two solid peaks, a bold embroidered-style mark that is nothing like the graphic.
+- `colorblock`: paints `layers.block`; a garment with no panel gets the lower half.
+
+Motifs cut their negative space with `--icon-fill` (the garment's own color); tiles use no
+other paint. Check a new tile at 56, 96 and 240 px in a contrasting pair, in a light-on-light
+pair and in a dark-on-dark pair before shipping it.
 
 ## Building a new garment (phase 2)
 

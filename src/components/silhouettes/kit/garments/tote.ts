@@ -64,7 +64,7 @@ function canvasTote(): KitPiece {
     clip: body,
     extent: [body, front, back],
     graphic: [CX, 146, 54],
-    logo: [CX, 142, 20],
+    logo: [CX, 142, 22],
   });
 }
 

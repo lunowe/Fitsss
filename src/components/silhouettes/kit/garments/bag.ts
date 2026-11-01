@@ -93,7 +93,7 @@ function crossbody(): KitPiece {
     ],
     clip: body,
     extent: [body, strap],
-    logo: [CX, bottom - 20, 14],
+    logo: [CX, bottom - 20, 15],
   });
 }
 
@@ -124,7 +124,7 @@ function messenger(): KitPiece {
     ],
     clip: body,
     extent: [body, strap],
-    logo: [CX, flapBottom + 24, 14],
+    logo: [CX, flapBottom + 24, 22],
   });
 }
 
@@ -160,7 +160,7 @@ function duffel(): KitPiece {
     ],
     clip: body,
     extent: [body, handleBack, handleFront],
-    logo: [CX, cy + 12, 16],
+    logo: [CX, cy + 12, 26],
   });
 }
 

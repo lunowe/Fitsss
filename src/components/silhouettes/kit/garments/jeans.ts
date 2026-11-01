@@ -2,33 +2,14 @@
  * Jeans: five-pocket denim. Waistband with belt loops and a button, a fly
  * with its J-stitch, curved front pockets with a coin pocket, topstitched hems.
  */
-import { button, C, CX, fill, ink, mirrored, path, piece, polyline, Q, seam, stroke } from "../draw";
+import { button, C, CX, fill, framedByType, ink, mirrored, path, piece, polyline, Q, seam, stroke } from "../draw";
 import type { KitPiece } from "../types";
 import { frontPocket, legs, type LegsSpec } from "../legs";
-
-const BASE: LegsSpec = {
-  waistY: 12,
-  waistW: 35,
-  hipW: 42,
-  kneeW: 33,
-  hemW: 31,
-  rise: 62,
-  length: 236,
-  gap: 7,
-  band: 9,
-};
-
-const FITS: Record<string, Partial<LegsSpec>> = {
-  skinny: { hipW: 40, kneeW: 24, hemW: 17, gap: 6 },
-  slim: { hipW: 41, kneeW: 28, hemW: 22, gap: 6 },
-  straight: {},
-  relaxed: { hipW: 44, kneeW: 38, hemW: 35 },
-  baggy: { hipW: 47, kneeW: 46, hemW: 46 },
-  wide: { hipW: 45, kneeW: 43, hemW: 54 },
-};
+import { PANT_BASE, PANT_FITS } from "../parts-bottoms";
+import { fitTable } from "../parts-outer";
 
 function jeans(fit: string): KitPiece {
-  const spec: LegsSpec = { ...BASE, ...FITS[fit] };
+  const spec: LegsSpec = { ...PANT_BASE, ...PANT_FITS[fit] };
   const l = legs(spec);
   const { waistY, waistW } = spec;
   const band = spec.band ?? 9;
@@ -63,7 +44,4 @@ function jeans(fit: string): KitPiece {
   });
 }
 
-export const JEANS: Record<string, KitPiece> = Object.fromEntries(
-  Object.keys(FITS).map((fit) => [`jeans@${fit}`, jeans(fit)]),
-);
-JEANS["jeans"] = JEANS["jeans@straight"];
+export const JEANS: Record<string, KitPiece> = framedByType(fitTable("jeans", Object.keys(PANT_FITS), "straight", jeans));

@@ -19,23 +19,34 @@ export const PANT_BASE: LegsSpec = {
   band: 9,
 };
 
-/** Leg widths per fit, the same numbers as `jeans` so fits match across bottoms. */
+/**
+ * Leg widths per fit, shared by every trouser (`jeans` included) so fits
+ * match across bottoms. Fits share one frame, so each step is a real change
+ * at the knee and hem: skinny hugs the leg; slim tapers; straight falls
+ * plumb from the knee; relaxed is fuller; baggy is wide through the thigh
+ * and hem and pools on the shoe; wide is a straight column from the hip,
+ * a touch wider at the hem (never a flare).
+ */
 export const PANT_FITS: Record<string, Partial<LegsSpec>> = {
-  skinny: { hipW: 40, kneeW: 24, hemW: 17, gap: 6 },
-  slim: { hipW: 41, kneeW: 28, hemW: 22, gap: 6 },
-  straight: {},
-  relaxed: { hipW: 44, kneeW: 38, hemW: 35 },
-  baggy: { hipW: 47, kneeW: 46, hemW: 46 },
-  wide: { hipW: 45, kneeW: 43, hemW: 54 },
+  skinny: { hipW: 40, kneeW: 21, hemW: 15, gap: 6 },
+  slim: { hipW: 41, kneeW: 26, hemW: 21, gap: 6 },
+  straight: { kneeW: 32, hemW: 30 },
+  relaxed: { hipW: 45, kneeW: 40, hemW: 37 },
+  baggy: { hipW: 48, kneeW: 47, hemW: 44, length: 240, pool: 4.5 },
+  wide: { hipW: 44, kneeW: 48, hemW: 54, gap: 8 },
 };
 
-/** Shorts: the same block cut above the knee; widths and length per fit. */
+/**
+ * Shorts: the same block cut above the knee; widths and length per fit. The
+ * leg stays close to the hip width so the seat does not balloon over a
+ * narrower thigh; fits grow in width and in length together.
+ */
 export const SHORT_BASE: LegsSpec = { ...PANT_BASE, length: 122, gap: 6 };
 export const SHORT_FITS: Record<string, Partial<LegsSpec>> = {
-  slim: { hipW: 40, kneeW: 29, hemW: 27, length: 118 },
-  regular: { hipW: 42, kneeW: 33, hemW: 31 },
-  relaxed: { hipW: 44, kneeW: 37, hemW: 36, length: 126 },
-  baggy: { hipW: 47, kneeW: 43, hemW: 43, length: 132 },
+  slim: { hipW: 39, kneeW: 34, hemW: 32, length: 116 },
+  regular: { hipW: 42, kneeW: 38, hemW: 37 },
+  relaxed: { hipW: 45, kneeW: 43, hemW: 43, length: 128 },
+  baggy: { hipW: 49, kneeW: 50, hemW: 51, length: 136, gap: 7 },
 };
 
 /** Belt loops across the waistband: fabric tabs with a stitch outline. */

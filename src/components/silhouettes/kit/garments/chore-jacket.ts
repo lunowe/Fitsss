@@ -21,7 +21,7 @@ function choreJacket(fit: string): KitPiece {
   // The overlapping front's edge, just left of the buttons.
   const frontEdge = polyline([CX - 3, neckY + 17], [CX - 3, hemY - 0.3]);
   const buttons: string[] = [];
-  for (let y = neckY + 26; y < hemY - 10; y += 26) buttons.push(button(CX, y, 1.9));
+  for (let y = neckY + 28; y < hemY - 12; y += 30) buttons.push(button(CX, y, 1.9));
   // Pockets: a chest pocket on the wearer's left, two large ones at the hips.
   const cw = Math.round(dims.chestW * 0.3);
   const chest = patchPocket(CX + 11, j.bodyY(0.06), cw, cw + 2);

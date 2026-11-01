@@ -1,3 +1,4 @@
+import { framedByType } from "../draw";
 import type { KitPiece } from "../types";
 import { BLAZER } from "../garments/blazer";
 import { BOMBER } from "../garments/bomber";
@@ -17,8 +18,8 @@ import { TRENCH_COAT } from "../garments/trench-coat";
 import { TROUSERS } from "../garments/trousers";
 import { WOOL_COAT } from "../garments/wool-coat";
 
-/** Phase-2 drawings for this group; each garment module's table is spread in here. */
-export const GROUP: Record<string, KitPiece> = {
+/** Phase-2 drawings for this group; each garment module's table is spread in here, and every type's fits share one frame. */
+export const GROUP: Record<string, KitPiece> = framedByType({
   ...DENIM_JACKET,
   ...BOMBER,
   ...LEATHER_JACKET,
@@ -36,4 +37,4 @@ export const GROUP: Record<string, KitPiece> = {
   ...SWEATPANTS,
   ...SHORTS,
   ...DENIM_SHORTS,
-};
+});

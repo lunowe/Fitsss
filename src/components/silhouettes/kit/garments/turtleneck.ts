@@ -3,7 +3,8 @@
  * long sleeves and narrow rib cuffs and hem.
  */
 import { CX, FILL2, fill, ink, L, piece, polyline, Q, seam, shade, stroke, symmetric } from "../draw";
-import { ribTrims } from "../parts-tops";
+import { ribTrims, topFit } from "../parts-tops";
+import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
 import { torso, type TorsoSpec } from "../torso";
 
@@ -28,11 +29,7 @@ const BASE: TorsoSpec = {
   sleeveAngle: 76,
 };
 
-const FITS: Record<string, Partial<TorsoSpec>> = {
-  fitted: { shoulderW: 52, chestW: 48, waistW: 43, hemW: 45, length: NECK_Y + 126, armhole: 27, sleeveLen: 106, cuffW: 18, sleeveAngle: 78 },
-  regular: {},
-  relaxed: { shoulderW: 60, chestW: 57, waistW: 55, hemW: 55, length: NECK_Y + 134, armhole: 33, sleeveLen: 112, cuffW: 23, sleeveAngle: 75 },
-};
+const FITS = ["fitted", "regular", "relaxed"];
 
 /** The roll neck: a tall rib band above the shoulder line with a fold across it. */
 function rollNeck(): { shape: string; fold: string; top: string; roll: string } {
@@ -55,7 +52,7 @@ function rollNeck(): { shape: string; fold: string; top: string; roll: string } 
 }
 
 function turtleneck(fit: string): KitPiece {
-  const spec: TorsoSpec = { ...BASE, ...FITS[fit] };
+  const spec = topFit(BASE, fit);
   const t = torso(spec);
   const trims = ribTrims(t, RIB, RIB);
   const neck = rollNeck();
@@ -74,7 +71,4 @@ function turtleneck(fit: string): KitPiece {
   });
 }
 
-export const TURTLENECK: Record<string, KitPiece> = Object.fromEntries(
-  Object.keys(FITS).map((fit) => [`turtleneck@${fit}`, turtleneck(fit)]),
-);
-TURTLENECK["turtleneck"] = TURTLENECK["turtleneck@regular"];
+export const TURTLENECK: Record<string, KitPiece> = fitTable("turtleneck", FITS, "regular", turtleneck);

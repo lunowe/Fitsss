@@ -1,18 +1,20 @@
 /**
- * Blazer: single-breasted, two buttons, notched lapels, a welt chest pocket
- * and two flap pockets, front darts, cutaway front corners, cuff buttons.
+ * Blazer: single-breasted and tailored. Clean notch lapels, two buttons, a
+ * welt chest pocket and two flap pockets, cutaway front corners, a little
+ * waist suppression in every fit.
  */
-import { add, button, CX, fill, ink, L, lerp, mirrored, path, piece, Q, seam, stroke } from "../draw";
+import { button, CX, fill, ink, L, path, piece, Q, stroke } from "../draw";
 import type { KitPiece } from "../types";
 import { fitTable, flap, jacket, JACKET_BASE, lapels, outerFit, weltPocket, type JacketSpec } from "../parts-outer";
 
-const BASE = { ...JACKET_BASE, length: 186, chestW: 57, hemW: 55, sleeveLen: 120, cuffW: 23 };
+const BASE = { ...JACKET_BASE, length: 186, chestW: 57, hemW: 56, sleeveLen: 120, cuffW: 23, shoulderDrop: 7 };
 const FITS = ["fitted", "regular", "relaxed", "oversized"];
 
 function blazer(fit: string): KitPiece {
   const dims = outerFit(BASE, fit);
-  // Tailored: a little waist suppression in every fit.
-  dims.waistW = Math.min(dims.waistW ?? dims.chestW, dims.chestW - 3);
+  // Tailored: the waist pulls in and the skirt eases out again to the hem.
+  dims.waistW = Math.min(dims.waistW ?? dims.chestW, dims.chestW - 4);
+  dims.hemW = dims.chestW;
   const { neckW, neckY } = dims;
   const breakY = neckY + 82 + (dims.length - 186) * 0.4;
   const lp = lapels({ neckW, neckY, breakY, lapelW: 22, pointY: neckY + 22, notch: 8 });
@@ -30,34 +32,15 @@ function blazer(fit: string): KitPiece {
   const fx = CX + 9;
   const flapR = flap(fx, flapY, fw, 7);
   const flapL = flap(2 * CX - fx - fw, flapY, fw, 7);
-  // Front darts from under the chest down into the hip pockets.
-  const dart = path([CX + 12, chestY + 10], [Q([CX + 11, j.bodyY(0.4)], [CX + 12, flapY - 1])]);
-  // Two cuff buttons along the sleeve's outer edge.
-  const u = j.sleeveDir;
-  const cuffBtn = (k: number) => {
-    const p = add(lerp(j.cuffOuter, j.cuffInner, 0.3), u, -4 - k * 4.4);
-    return button(p[0], p[1], 1.3) + button(2 * CX - p[0], p[1], 1.3);
-  };
   return piece({
     base: [fill(j.outline)],
     lines: [
       lp.fills,
       flapR.fill,
       flapL.fill,
-      ink(
-        stroke(j.edge),
-        j.armSeams,
-        stroke(frontEdge),
-        welt,
-        seam(dart),
-        seam(mirrored(dart)),
-        flapR.lines,
-        flapL.lines,
-      ),
+      ink(stroke(j.edge), j.armSeams, stroke(frontEdge), welt, flapR.lines, flapL.lines),
       button(CX, breakY + 1, 2.1),
       button(CX, breakY + 19, 2.1),
-      cuffBtn(0),
-      cuffBtn(1),
       lp.lines,
     ],
     clip: j.outline,

@@ -8,6 +8,10 @@
  * tee or a whole pair of trousers. The counts below are tuned so each pattern
  * is still recognisable in a 56 px tile and not coarse at 240 px.
  *
+ * Motif tiles are scaled to the garment's `graphic` or `logo` anchor. Logo
+ * anchors are about a sixth of the chest width, graphic anchors about half,
+ * so a logo is a bold solid mark and a graphic is a composed print.
+ *
  * This table is shipped to the iOS app as-is, so tiles stay within the SVG
  * subset GarmentArt draws: g, path, rect, circle, ellipse, line, polyline,
  * polygon, transforms, opacity, fill-opacity, stroke-dasharray.
@@ -22,7 +26,9 @@ export interface PatternTile {
 }
 
 const INK = `fill="var(--icon-pattern, #000)"`;
-const n = (v: number) => String(Math.round(v * 100) / 100);
+/** The garment's own color, for the negative space inside a motif. */
+const GROUND = `fill="var(--icon-fill, #b3b3b3)"`;
+const n = (v: number) => String(Math.round(v * 10) / 10);
 
 /** `count` bands of `width` across the tile, horizontal or vertical. */
 function bands(vertical: boolean, count: number, width: number, offset = 0): string {
@@ -37,43 +43,58 @@ function bands(vertical: boolean, count: number, width: number, offset = 0): str
   return out;
 }
 
-/** A ditsy print: small four-petal flowers on a staggered grid, a dot between. */
-function ditsy(): string {
-  const flower = (cx: number, cy: number) =>
-    `<ellipse cx="${n(cx)}" cy="${n(cy - 1.9)}" rx="1.6" ry="2.4"/><ellipse cx="${n(cx)}" cy="${n(cy + 1.9)}" rx="1.6" ry="2.4"/>` +
-    `<ellipse cx="${n(cx - 1.9)}" cy="${n(cy)}" rx="2.4" ry="1.6"/><ellipse cx="${n(cx + 1.9)}" cy="${n(cy)}" rx="2.4" ry="1.6"/>`;
-  let out = "";
-  const step = 100 / 6;
-  for (let row = 0; row < 6; row++) {
-    for (let col = 0; col < 6; col++) {
-      let cx = col * step + step / 2 + (row % 2 ? step / 2 : 0);
-      if (cx > 100) cx -= 100;
+/**
+ * A ditsy print: small five-petal blossoms on a staggered grid, a dot in
+ * every gap. Blossoms are ~6 units across, so a sleeve or hem cuts through
+ * several of them instead of beheading one big motif; at closet size the
+ * print reads as a fine speckle, at 240 px as flowers.
+ */
+function blossoms(): string {
+  const cols = 8;
+  const step = 100 / cols;
+  const r = 1.55;
+  const petal = r * 0.95;
+  let petals = "";
+  let holes = "";
+  let dots = "";
+  for (let row = 0; row < cols; row++) {
+    for (let col = 0; col <= cols; col++) {
+      const cx = col * step + (row % 2 ? step / 2 : 0);
       const cy = row * step + step / 2;
-      out += flower(cx, cy) + `<circle cx="${n(cx)}" cy="${n(cy + step / 2)}" r="1.2"/>`;
+      if (cx > 100 + r * 2) continue;
+      for (let i = 0; i < 5; i++) {
+        const a = ((i * 72 - 90) * Math.PI) / 180;
+        petals += `<circle cx="${n(cx + Math.cos(a) * r)}" cy="${n(cy + Math.sin(a) * r)}" r="${n(petal)}"/>`;
+      }
+      holes += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r * 0.5)}"/>`;
+      dots += `<circle cx="${n(cx + step / 2)}" cy="${n(cy + step / 2)}" r="0.8"/>`;
     }
   }
-  return `<g ${INK}>${out}</g>`;
+  return `<g ${INK}>${petals}${dots}</g><g ${GROUND}>${holes}</g>`;
 }
 
-/** Herringbone: columns of diagonal bands, alternating direction. */
-function herringbone(): string {
-  const cols = 10;
-  const colW = 100 / cols;
-  const pitch = 6;
-  const w = 2;
-  let out = "";
-  for (let c = 0; c < cols; c++) {
-    const x0 = c * colW;
-    const x1 = x0 + colW;
-    const dirn = c % 2 ? -1 : 1;
-    for (let y = -colW - pitch; y < 100 + pitch; y += pitch) {
-      // A parallelogram band at 45°, running from (x0, y) to (x1, y ± colW).
-      const yA = y;
-      const yB = y + dirn * colW;
-      out += `<polygon points="${n(x0)},${n(yA)} ${n(x1)},${n(yB)} ${n(x1)},${n(yB + w)} ${n(x0)},${n(yA + w)}"/>`;
-    }
+/**
+ * A fabric texture: a fine twill, diagonal ridges in the pattern color with a
+ * faint ink groove between them. The pitch is 3 units, so at 240 px it is a
+ * crisp weave and at 56 px a soft hatch; the ink grooves keep it visible even
+ * when the pattern color is close to the garment's (cream on cream).
+ */
+function twill(): string {
+  const pitch = 3;
+  const w = 1;
+  let ridges = "";
+  let grooves = "";
+  // Cover the tile's diagonal so the rotated bands leave no corner bare.
+  for (let x = -24; x < 124; x += pitch) {
+    ridges += `<rect x="${n(x)}" y="-24" width="${n(w)}" height="148"/>`;
+    grooves += `<rect x="${n(x + pitch / 2)}" y="-24" width="${n(w)}" height="148"/>`;
   }
-  return `<g ${INK} fill-opacity="0.3">${out}</g>`;
+  return (
+    `<g transform="rotate(30 50 50)">` +
+    `<g ${INK} fill-opacity="0.5">${ridges}</g>` +
+    `<g fill="var(--icon-stroke, #000)" fill-opacity="0.14">${grooves}</g>` +
+    `</g>`
+  );
 }
 
 export const PATTERN_TILES: Record<string, PatternTile> = {
@@ -84,21 +105,23 @@ export const PATTERN_TILES: Record<string, PatternTile> = {
     kind: "field",
     markup: `<g ${INK} fill-opacity="0.42">${bands(false, 7, 7.2)}${bands(true, 7, 7.2)}</g>`,
   },
-  print: { kind: "field", markup: ditsy() },
-  textured: { kind: "field", markup: herringbone() },
-  // A chest graphic: a retro sunset disc, its lower half cut by bars in the
-  // garment color.
+  print: { kind: "field", markup: blossoms() },
+  textured: { kind: "field", markup: twill() },
+  // A chest print: a framed landscape, the sun on the horizon over two bars
+  // of sea, cut out of a solid block in the garment color.
   graphic: {
     kind: "motif",
     markup:
-      `<circle cx="50" cy="50" r="40" ${INK}/>` +
-      `<g fill="var(--icon-fill, #b3b3b3)"><rect x="8" y="54" width="84" height="4.5"/><rect x="8" y="65" width="84" height="5.5"/><rect x="8" y="77.5" width="84" height="6.5"/></g>`,
+      `<rect x="8" y="16" width="84" height="64" ${INK}/>` +
+      `<g ${GROUND}><path d="M30 58L30 56C30 44 39 36 50 36C61 36 70 44 70 56L70 58Z"/>` +
+      `<rect x="8" y="60" width="84" height="3"/><rect x="8" y="67" width="84" height="4"/></g>`,
   },
-  // A small round badge.
+  // A small embroidered mark: two solid peaks. Bold enough to read at a sixth
+  // of the chest width, and nothing like the graphic.
   logo: {
     kind: "motif",
     anchor: "logo",
-    markup: `<circle cx="50" cy="50" r="40" fill="none" stroke="var(--icon-pattern, #000)" stroke-width="13"/><circle cx="50" cy="50" r="15" ${INK}/>`,
+    markup: `<polygon points="6,80 36,26 52,52 66,18 94,80" ${INK}/>`,
   },
   // The garment supplies its own panel; the fallback splits the field in two.
   colorblock: { kind: "block", markup: `<rect x="-2" y="50" width="104" height="52" ${INK}/>` },

@@ -14,8 +14,9 @@ const CUFF = 11;
 
 function sweatpants(fit: string): KitPiece {
   const spec: LegsSpec = { ...PANT_BASE, ...PANT_FITS[fit], band: BAND, waistW: 36 };
-  // Cuffed hems gather the leg: a narrower hem than the knee.
+  // Cuffed hems gather the leg: a narrower hem than the knee, and no pooling over a rib.
   if (fit !== "wide") spec.hemW = Math.round(Math.min(spec.hemW, spec.kneeW * 0.8));
+  spec.pool = 0;
   const l = legs(spec);
   const { waistY } = spec;
   const band = elasticBand(l, BAND);

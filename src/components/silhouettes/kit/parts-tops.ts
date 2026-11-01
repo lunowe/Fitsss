@@ -5,7 +5,115 @@
  * kit's one-line language: trims in FILL2, seams at SEAM, hardware as buttons.
  */
 import { add, button, C, CX, dir, FILL2, fill, L, lerp, mirrored, path, perp, polyline, Q, seam, shade, stroke, symmetric, type Pt, type Seg } from "./draw";
-import type { Torso } from "./torso";
+import type { Torso, TorsoSpec } from "./torso";
+
+/* ------------------------------------------------------------------ */
+/* Fits                                                                 */
+/* ------------------------------------------------------------------ */
+
+type TorsoDims = Omit<TorsoSpec, "neck">;
+
+/**
+ * One fit table for every top, applied as deltas to a garment's regular
+ * block, so a tee, a sweater and an overshirt grow the same way and every
+ * neighbouring step still reads at 96 px once the fits share one frame:
+ *
+ *   fitted     narrower shoulders and body, a pulled-in waist, a touch shorter
+ *   relaxed    wider body, a little longer, fuller sleeves
+ *   oversized  dropped shoulder, much wider, longer in the body and the sleeves
+ *   boxy       as wide as oversized through the body, cropped short
+ *
+ * Sleeve deltas scale with the sleeve, so short and long sleeves grow alike.
+ */
+export function topFit<T extends TorsoDims>(base: T, fit: string): T {
+  const short = base.sleeveAngle < 50;
+  const r = Math.round;
+  switch (fit) {
+    case "fitted":
+      return {
+        ...base,
+        shoulderW: base.shoulderW - 5,
+        chestW: base.chestW - 7,
+        waistW: base.chestW - 13,
+        hemW: base.hemW - 8,
+        length: base.length - 6,
+        armhole: base.armhole - 3,
+        sleeveLen: r(base.sleeveLen * 0.93),
+        cuffW: r(base.cuffW * 0.86),
+        sleeveAngle: base.sleeveAngle + 2,
+      };
+    case "relaxed":
+      return {
+        ...base,
+        shoulderW: base.shoulderW + 6,
+        chestW: base.chestW + 7,
+        waistW: base.waistW === undefined ? undefined : base.waistW + 7,
+        hemW: base.hemW + 7,
+        length: base.length + 8,
+        armhole: base.armhole + 4,
+        sleeveLen: r(base.sleeveLen * 1.06),
+        cuffW: r(base.cuffW * 1.14),
+      };
+    case "oversized":
+      return {
+        ...base,
+        shoulderW: base.shoulderW + 19,
+        shoulderDrop: base.shoulderDrop + 6,
+        chestW: base.chestW + 21,
+        waistW: undefined,
+        hemW: base.hemW + 20,
+        length: base.length + 20,
+        armhole: base.armhole + 12,
+        sleeveLen: r(base.sleeveLen * (short ? 1.2 : 1.12)),
+        cuffW: r(base.cuffW * 1.4),
+        sleeveAngle: base.sleeveAngle + (short ? 6 : -2),
+      };
+    case "boxy":
+      return {
+        ...base,
+        shoulderW: base.shoulderW + 16,
+        shoulderDrop: base.shoulderDrop + 3,
+        chestW: base.chestW + 18,
+        waistW: undefined,
+        hemW: base.chestW + 18,
+        length: base.length - 14,
+        armhole: base.armhole + 10,
+        sleeveLen: r(base.sleeveLen * (short ? 1.08 : 1.02)),
+        cuffW: r(base.cuffW * 1.3),
+        sleeveAngle: base.sleeveAngle + (short ? 3 : -1),
+      };
+    default:
+      return { ...base };
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Print anchors                                                        */
+/* ------------------------------------------------------------------ */
+
+export type Anchor = readonly [number, number, number];
+
+/**
+ * Where a chest logo and a front print sit on a top. The logo is on the
+ * wearer's left chest, just below the armpit line, about 17% of the chest
+ * width across; the print is centered below the neckline, about half the
+ * chest width, shrunk when the body is too short for it (a boxy crop).
+ * `top`/`bottom` bound the print area (default: the armpit line to just
+ * above the hem); `logoX` moves the logo as a fraction of the half chest.
+ */
+export function chestAnchors(t: Torso, opts: { top?: number; bottom?: number; logoX?: number } = {}): { logo: Anchor; graphic: Anchor } {
+  const { chestW, length } = t.spec;
+  const chest = chestW * 2;
+  const armpitY = t.armpit[1];
+  const top = opts.top ?? armpitY - 4;
+  const bottom = opts.bottom ?? length - 10;
+  const logoSize = Math.round(chest * 0.17);
+  const graphicSize = Math.min(Math.round(chest * 0.5), Math.round((bottom - top) * 0.72));
+  return {
+    logo: [Math.round(CX + chestW * (opts.logoX ?? 0.5)), Math.round(armpitY + 4), logoSize],
+    graphic: [CX, Math.round((top + 6 + graphicSize / 2) * 10) / 10, graphicSize],
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /* Trims                                                                */

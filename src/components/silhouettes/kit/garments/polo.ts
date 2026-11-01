@@ -3,7 +3,8 @@
  * and ribbed sleeve bands.
  */
 import { CX, FILL2, fill, ink, mirrored, piece, seam, stroke } from "../draw";
-import { foldCollar, placket, vNeckUnder } from "../parts-tops";
+import { chestAnchors, foldCollar, placket, topFit, vNeckUnder } from "../parts-tops";
+import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
 import { torso, type TorsoSpec } from "../torso";
 
@@ -18,23 +19,17 @@ const BASE: Omit<TorsoSpec, "neck"> = {
   shoulderDrop: 9,
   chestW: 55,
   hemW: 54,
-  length: 144,
+  length: 150,
   armhole: 30,
   sleeveLen: 36,
   cuffW: 27,
   sleeveAngle: 28,
 };
 
-const FITS: Record<string, Partial<TorsoSpec>> = {
-  fitted: { shoulderW: 54, chestW: 50, waistW: 45, hemW: 47, length: 140, armhole: 27, sleeveLen: 32, cuffW: 23, sleeveAngle: 30 },
-  regular: {},
-  relaxed: { shoulderW: 62, chestW: 60, hemW: 59, length: 148, armhole: 33, sleeveLen: 39, cuffW: 30 },
-  oversized: { shoulderW: 72, shoulderDrop: 13, chestW: 71, hemW: 70, length: 162, armhole: 40, sleeveLen: 42, cuffW: 36, sleeveAngle: 34 },
-  boxy: { shoulderW: 70, shoulderDrop: 11, chestW: 69, hemW: 69, length: 130, armhole: 38, sleeveLen: 36, cuffW: 34, sleeveAngle: 30 },
-};
+const FITS = ["fitted", "regular", "relaxed", "oversized", "boxy"];
 
 function polo(fit: string): KitPiece {
-  const spec: TorsoSpec = { ...BASE, ...FITS[fit], neck: vNeckUnder(NECK_W, NECK_Y) };
+  const spec: TorsoSpec = { ...topFit(BASE, fit), neck: vNeckUnder(NECK_W, NECK_Y) };
   const t = torso(spec);
   // A soft knit collar: shorter, wider-set points than a shirt's.
   const collar = foldCollar(NECK_W, NECK_Y, {
@@ -58,11 +53,8 @@ function polo(fit: string): KitPiece {
     ],
     clip: t.outline,
     stripe: "h",
-    logo: [CX + spec.chestW * 0.45, t.bodyY(0.14), 12],
+    logo: chestAnchors(t).logo,
   });
 }
 
-export const POLO: Record<string, KitPiece> = Object.fromEntries(
-  Object.keys(FITS).map((fit) => [`polo@${fit}`, polo(fit)]),
-);
-POLO["polo"] = POLO["polo@regular"];
+export const POLO: Record<string, KitPiece> = fitTable("polo", FITS, "regular", polo);

@@ -4,7 +4,7 @@
  * straps and scarves. Every shoe is a side view with the toe to the right;
  * the upper meets the sole at `GROUND` and the toe lifts off it by `spring`.
  */
-import { C, FILL2, fill, ink, INK, L, lerp, num, path, polyline, Q, seam, shade, stroke, type Pt, type Seg } from "./draw";
+import { add, C, FILL2, fill, ink, INK, L, lerp, num, path, polyline, Q, seam, shade, stroke, type Pt, type Seg } from "./draw";
 
 /** y where an upper meets its sole. */
 export const GROUND = 118;
@@ -221,8 +221,12 @@ export function sampleCubic(p0: Pt, p1: Pt, p2: Pt, p3: Pt, n: number): Pt[] {
   return pts;
 }
 
-/** Path data through sampled points as a smooth Catmull-Rom spline (cubic segments). */
-export function smooth(pts: readonly Pt[], close = false): string {
+/**
+ * Catmull-Rom segments through `pts`, starting from `pts[0]` (which is not
+ * emitted: pass it to `path()` as the start, or chain after other segments).
+ * Repeat a point to make a corner. `close` wraps around to `pts[0]`.
+ */
+export function splineSegs(pts: readonly Pt[], close = false): Seg[] {
   const n = pts.length;
   const at = (i: number): Pt => pts[close ? ((i % n) + n) % n : Math.max(0, Math.min(n - 1, i))];
   const segs: Seg[] = [];
@@ -238,7 +242,12 @@ export function smooth(pts: readonly Pt[], close = false): string {
       p2,
     ));
   }
-  return path(pts[0], segs, close);
+  return segs;
+}
+
+/** Path data through sampled points as a smooth Catmull-Rom spline (cubic segments). */
+export function smooth(pts: readonly Pt[], close = false): string {
+  return path(pts[0], splineSegs(pts, close), close);
 }
 
 /** Offsets of a spine: the points `w` to its right (+) or left (−) by the local normal. */
@@ -315,3 +324,143 @@ function joinLoop(a: readonly Pt[], b: readonly Pt[]): string {
 
 /** A seam line parallel to an edge, `k` of the way across (for topstitching a strap). */
 export const stitch = (r: Ribbon, k: number, trim = 1): string => seam(r.along(k, trim));
+
+/* ------------------------------------------------------------------ */
+/* Shoe anatomy                                                         */
+/* ------------------------------------------------------------------ */
+
+export interface Eyestay {
+  /** The top edge a→b (where the tongue emerges), full ink. */
+  top: string;
+  /** The stitched lower edge of the stay, a seam. */
+  bottom: string;
+  /** Lace bars across the stay. */
+  bars: string[];
+  /** The stay as a closed panel (for a colorblock). */
+  panel: string;
+  /** Ends of the bottom edge. */
+  a2: Pt;
+  b2: Pt;
+}
+
+/**
+ * A laced eyestay: the strip `w` deep under the edge from the throat `a` to
+ * the vamp `b`, with `count` lace bars leaning across it. `bow` lifts the
+ * middle of the top edge (a sneaker's lace line is slightly convex).
+ */
+export function eyestay(a: Pt, b: Pt, w: number, count: number, bow = 0, t0 = 0.1, t1 = 0.9): Eyestay {
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  const n: Pt = [-(b[1] - a[1]) / len, (b[0] - a[0]) / len];
+  const a2 = add(a, n, w);
+  const b2 = add(b, n, w);
+  const mid = (p: Pt, q: Pt, lift: number): Pt => add(lerp(p, q, 0.5), n, -lift);
+  const top = path(a, [Q(mid(a, b, bow * 2), b)]);
+  const bottom = path(a2, [Q(mid(a2, b2, bow * 1.4), b2)]);
+  const panel = path(a, [Q(mid(a, b, bow * 2), b), L(b2), Q(mid(a2, b2, bow * 1.4), a2)], true);
+  // A point on a bowed edge p→q at `t`, `inset` into the stay: the Q curve
+  // deviates from the chord by 4·lift·t(1−t) along the normal.
+  const on = (p: Pt, q: Pt, lift: number, t: number, inset: number): Pt =>
+    add(lerp(p, q, t), n, inset - 4 * lift * t * (1 - t));
+  const bars: string[] = [];
+  const lean = 0.05;
+  for (let i = 0; i < count; i++) {
+    const t = count === 1 ? 0.5 : t0 + ((t1 - t0) * i) / (count - 1);
+    bars.push(stroke(polyline(on(a, b, bow, t + lean, 1.4), on(a2, b2, bow * 0.7, t - lean, -1.4))));
+  }
+  return { top, bottom, bars, panel, a2, b2 };
+}
+
+/**
+ * A sandal strap seen from the side: a band of thickness `w` rising from
+ * the footbed at x = a and x = b, `h` high, with slanted sides and a
+ * flat-ish top (`shoulder` is the run of each side). Returns the near edge,
+ * the inner edge (through which the far side shows) and the band itself.
+ */
+export function strapArch(a: number, b: number, h: number, w: number, shoulder = 12): { outer: string; inner: string; band: string; inset: (k: number) => string } {
+  const Y = GROUND;
+  const edge = (x0: number, x1: number, top: number, s: number): Seg[] => {
+    const r = Math.min(8, (x1 - x0) / 4);
+    return [
+      C([x0 + s * 0.45, top + (Y - top) * 0.5], [x0 + s * 0.8, top], [x0 + s + r, top]),
+      L([x1 - s - r, top]),
+      C([x1 - s * 0.8, top], [x1 - s * 0.45, top + (Y - top) * 0.5], [x1, Y]),
+    ];
+  };
+  const outerSegs = edge(a, b, Y - h, shoulder);
+  const slant = w * (shoulder / h) * 0.9;
+  const ia = a + w + slant;
+  const ib = b - w - slant;
+  const ih = h - w;
+  const innerSegs = edge(ia, ib, Y - ih, shoulder * (ih / h));
+  const outer = path([a, Y], outerSegs);
+  const inner = path([ia, Y], innerSegs);
+  const band = path([a, Y], [...outerSegs, L([ib, Y]), ...reversed(innerSegs, [ia, Y])], true);
+  const inset = (k: number) => {
+    const ka = a + k * (1 + slant / w);
+    return path([ka, Y], edge(ka, b - k * (1 + slant / w), Y - h + k, shoulder * ((h - k) / h)));
+  };
+  return { outer, inner, band, inset };
+}
+
+/** Segments reversed: walks `segs` (which started at `start`) backwards. */
+export function reversed(segs: readonly Seg[], start: Pt): Seg[] {
+  const out: Seg[] = [];
+  let from = start;
+  const ends: Pt[] = [];
+  for (const s of segs) {
+    ends.push(from);
+    from = s[s.length - 1] as Pt;
+  }
+  for (let i = segs.length - 1; i >= 0; i--) {
+    const s = segs[i];
+    if (s[0] === "L") out.push(L(ends[i]));
+    else if (s[0] === "Q") out.push(Q(s[1], ends[i]));
+    else out.push(C(s[2], s[1], ends[i]));
+  }
+  return out;
+}
+
+/** Points along an ellipse arc from angle a0 to a1 (degrees, clockwise on screen). */
+export function ellipseArc(cx: number, cy: number, rx: number, ry: number, a0: number, a1: number, n = 16): Pt[] {
+  const pts: Pt[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = ((a0 + ((a1 - a0) * i) / n) * Math.PI) / 180;
+    pts.push([cx + rx * Math.cos(t), cy + ry * Math.sin(t)]);
+  }
+  return pts;
+}
+
+/** Path data rotated by `deg` about (cx, cy). Absolute M/L/Q/C/Z only. */
+export function rotated(d: string, deg: number, cx: number, cy: number): string {
+  const r = (deg * Math.PI) / 180;
+  const cos = Math.cos(r);
+  const sin = Math.sin(r);
+  return d.replace(/([MLQC])([^MLQCZ]+)/g, (_, cmd: string, nums: string) => {
+    const v = nums.trim().split(/[\s,]+/).map(Number);
+    const out: string[] = [];
+    for (let i = 0; i < v.length; i += 2) {
+      const x = v[i] - cx;
+      const y = v[i + 1] - cy;
+      out.push(`${num(cx + x * cos - y * sin)} ${num(cy + x * sin + y * cos)}`);
+    }
+    return cmd + out.join(" ");
+  });
+}
+
+/** A point rotated by `deg` about (cx, cy). */
+export function rotatePt([x, y]: Pt, deg: number, cx: number, cy: number): Pt {
+  const r = (deg * Math.PI) / 180;
+  const dx = x - cx;
+  const dy = y - cy;
+  return [cx + dx * Math.cos(r) - dy * Math.sin(r), cy + dx * Math.sin(r) + dy * Math.cos(r)];
+}
+
+/** Markup rotated by `deg` about (cx, cy): every path's data and every circle's center. */
+export function rotateMarkup(markup: string, deg: number, cx: number, cy: number): string {
+  return markup
+    .replace(/ d="([^"]+)"/g, (_, d: string) => ` d="${rotated(d, deg, cx, cy)}"`)
+    .replace(/<circle cx="([-\d.]+)" cy="([-\d.]+)"/g, (_, x: string, y: string) => {
+      const [rx, ry] = rotatePt([Number(x), Number(y)], deg, cx, cy);
+      return `<circle cx="${num(rx)}" cy="${num(ry)}"`;
+    });
+}

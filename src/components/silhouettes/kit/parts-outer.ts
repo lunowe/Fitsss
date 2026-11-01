@@ -43,8 +43,8 @@ export interface JacketSpec extends Omit<TorsoSpec, "neck" | "neckDepth"> {
   neck: Neckline;
   /** Radius of the rounded front corners at the hem (a blazer's cutaway). */
   cutaway?: number;
-  /** Quilted sides: the body side bulges out between baffles `pitch` apart, by `depth`. */
-  scallop?: { pitch: number; depth: number };
+  /** Quilted sides: the body side bulges out between baffles `pitch` apart, by `depth`; `sleeves` quilts the sleeve edges too. */
+  scallop?: { pitch: number; depth: number; sleeves?: boolean };
 }
 
 export interface Jacket {
@@ -79,6 +79,8 @@ export interface Jacket {
   sleeveLine(d: number): string;
   /** y of each baffle boundary on the body when `scallop` is set (armpit to hem). */
   baffles: number[];
+  /** Distance along the sleeve of each baffle boundary when `scallop.sleeves` is set. */
+  sleeveBaffles: number[];
 }
 
 /** The mirror image of a point about the center line. */
@@ -142,11 +144,27 @@ export function jacket(spec: JacketSpec): Jacket {
     : hemCurve
       ? [Q([CX + hemW * 0.5, length + hemCurve], hemMid)]
       : [L(hemMid)];
+  // Sleeve edges: one bowed segment each, or a run of bulges for a quilted sleeve.
+  const sleeveBaffles: number[] = [];
+  let sleeveTop: Seg[] = [Q(add(lerp(S, Co, 0.5), v, -1.5), Co)];
+  const underarm: Seg[] = [Q(add(lerp(Ci, A, 0.5), v, 1.5), A)];
+  if (spec.scallop?.sleeves) {
+    const { pitch, depth } = spec.scallop;
+    const n = Math.max(1, Math.round(sleeveLen / pitch));
+    sleeveTop = [];
+    for (let i = 1; i <= n; i++) {
+      const p0 = lerp(S, Co, (i - 1) / n);
+      const p1 = lerp(S, Co, i / n);
+      sleeveTop.push(Q(add(lerp(p0, p1, 0.5), v, -depth * 2), p1));
+      if (i < n) sleeveBaffles.push((sleeveLen * i) / n);
+    }
+    // The underarm stays smooth so the sleeve and body bulges do not meet in a zigzag.
+  }
   const segs: Seg[] = [
     Q([CX + neckW + (shoulderW - neckW) * 0.55, neckY + shoulderDrop * 0.25], S),
-    Q(add(lerp(S, Co, 0.5), v, -1.5), Co),
+    ...sleeveTop,
     L(Ci),
-    Q(add(lerp(Ci, A, 0.5), v, 1.5), A),
+    ...underarm,
     ...bodySide,
     ...hem,
   ];
@@ -212,6 +230,7 @@ export function jacket(spec: JacketSpec): Jacket {
     neckPoint: K,
     sleeveLine,
     baffles,
+    sleeveBaffles,
     shoulder: S,
     armpit: A,
     cuffOuter: Co,
@@ -324,19 +343,20 @@ export function roundNeck(neckW: number, neckY: number, depth: number): Neckline
  * stitching either side, and a slider at the top. Returns the stroke items
  * (for an `ink()` group) and the slider markup (drawn after the ink).
  */
-export function zip(x: number, y0: number, y1: number, opts: { tape?: number; slider?: boolean } = {}): { strokes: string; slider: string } {
+export function zip(x: number, y0: number, y1: number, opts: { tape?: number; slider?: boolean; single?: boolean } = {}): { strokes: string; slider: string } {
   return zipBetween([x, y0], [x, y1], opts);
 }
 
 /** A zip from `a` (the slider end) to `b`, at any angle. */
-export function zipBetween(a: Pt, b: Pt, opts: { tape?: number; slider?: boolean } = {}): { strokes: string; slider: string } {
+export function zipBetween(a: Pt, b: Pt, opts: { tape?: number; slider?: boolean; single?: boolean } = {}): { strokes: string; slider: string } {
   const tape = opts.tape ?? 3.2;
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
   const u: Pt = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
   const n = perp(u);
+  // `single` keeps only the lower tape: a pocket zip reads with two lines.
   const strokes =
     stroke(polyline(a, b)) +
-    seam(polyline(add(add(a, u, 1), n, -tape), add(add(b, u, -1), n, -tape))) +
+    (opts.single ? "" : seam(polyline(add(add(a, u, 1), n, -tape), add(add(b, u, -1), n, -tape)))) +
     seam(polyline(add(add(a, u, 1), n, tape), add(add(b, u, -1), n, tape)));
   const angle = (Math.atan2(u[1], u[0]) * 180) / Math.PI;
   const at = add(a, u, 2);
@@ -535,8 +555,8 @@ export function lapels(s: LapelSpec): { neck: Neckline; fills: string; lines: st
     lines: ink(
       stroke(lapelEdge),
       stroke(mirrored(lapelEdge)),
-      stroke(roll),
-      stroke(mirrored(roll)),
+      seam(roll),
+      seam(mirrored(roll)),
       stroke(collarTop),
       stroke(fold),
       stroke(leafEdge),
@@ -550,20 +570,33 @@ export function lapels(s: LapelSpec): { neck: Neckline; fills: string; lines: st
 /* ------------------------------------------------------------------ */
 
 /**
- * A hood lying flat behind the shoulders (as on the hoodie), plus the inside
- * seen through the opening. `w` is the neck half width, `y` the shoulder
- * line, `wide` how far the hood spreads past the neck, `depth` the front
- * opening's depth and `arch` how high the inside rises above the shoulders.
+ * A hood lying flat behind the shoulders, its opening facing the viewer. The
+ * back of the hood is a dome rising from just behind the shoulder line; the
+ * opening is one tall arch, continuous with the body's neckline, through
+ * which the lining shows. `w` is the neck half width, `y` the shoulder line,
+ * `wide` how far the hood spreads past the neck on each side, `depth` the
+ * neckline's depth below the shoulder line. Returns the back (a fabric fill,
+ * drawn under the body), the lining (drawn above it), the center seam of the
+ * two-panel back, and the apex y.
  */
-export function hood(w: number, y: number, wide: number, depth: number, arch: number): { back: string; lining: string; seam: string; apex: number } {
+export function hood(w: number, y: number, wide: number, depth: number): { back: string; lining: string; seam: string; apex: number } {
   const foot = w + wide;
-  const apex = y - 30 - wide * 0.3;
-  const back = symmetric([CX, apex], [C([CX + foot * 0.7, apex], [CX + foot, apex + (y - apex) * 0.45], [CX + foot, y + 6]), L([CX, y + 6])]);
-  const lining = symmetric([CX, y + depth], [
-    C([CX + w * 0.55, y + depth], [CX + w, y + depth * 0.55], [CX + w, y + depth * 0.15]),
-    C([CX + w, y - arch * 0.85], [CX + w * 0.55, y - arch], [CX, y - arch]),
+  const h = 30 + foot * 0.4; // height of the dome above the shoulder line
+  const apex = y - h;
+  const back = symmetric([CX, apex], [
+    C([CX + foot * 0.66, apex], [CX + foot, apex + h * 0.42], [CX + foot, y + 6]),
+    L([CX, y + 6]),
   ]);
-  return { back, lining, seam: polyline([CX, apex + 0.5], [CX, y - arch - 0.5]), apex };
+  // The opening: the neckline, then the hood's front edges swelling out past
+  // the neck and closing in a rounded top, a tulip gathered at the drawstring.
+  const a = h * 0.68;
+  const aw = w * 1.2;
+  const lining = symmetric([CX, y + depth], [
+    C([CX + w * 0.55, y + depth], [CX + w, y + depth * 0.55], [CX + w, y]),
+    C([CX + w, y - a * 0.32], [CX + aw, y - a * 0.3], [CX + aw, y - a * 0.6]),
+    C([CX + aw, y - a * 0.86], [CX + aw * 0.55, y - a], [CX, y - a]),
+  ]);
+  return { back, lining, seam: polyline([CX, apex + 0.5], [CX, y - a - 0.5]), apex };
 }
 
 /* ------------------------------------------------------------------ */
@@ -571,18 +604,18 @@ export function hood(w: number, y: number, wide: number, depth: number, arch: nu
 /* ------------------------------------------------------------------ */
 
 /**
- * A fabric belt across the body at `y`, `halfW` wide, with a buckle right of
- * center and the tail hanging from it. Returns fills and ink.
+ * A fabric belt across the body at `y`, `halfW` wide: the band, a buckle a
+ * little right of center and a short tail through it. Returns fills and ink.
  */
 export function belt(y: number, halfW: number, h = 7): { fills: string; lines: string } {
   const band = path([CX - halfW - 0.5, y], [L([CX + halfW + 0.5, y]), L([CX + halfW + 0.5, y + h]), L([CX - halfW - 0.5, y + h])], true);
-  // Buckle: a frame right of center with the tail going through and hanging down-left.
-  const bx = CX + 6;
-  const frame = path([bx - 2.5, y - 1.5], [L([bx + 2.5, y - 1.5]), L([bx + 2.5, y + h + 1.5]), L([bx - 2.5, y + h + 1.5])], true);
-  const tail = path([bx + 2.5, y + 1], [L([bx + 19, y + 1]), Q([bx + 23, y + 1.5], [bx + 22.5, y + 5]), C([bx + 20.5, y + 11], [bx + 17, y + 14], [bx + 13.5, y + 15.5]), L([bx + 9.5, y + 13]), C([bx + 12, y + 11], [bx + 14, y + 9], [bx + 14, y + h - 1]), L([bx + 2.5, y + h - 1])], true);
+  const bx = CX + 5;
+  const frame = path([bx - 2.4, y - 1.4], [L([bx + 2.4, y - 1.4]), L([bx + 2.4, y + h + 1.4]), L([bx - 2.4, y + h + 1.4])], true);
+  const tailEnd = bx + 17;
+  const tail = path([bx + 2.4, y + 1.2], [L([tailEnd - 2, y + 1.2]), Q([tailEnd, y + 1.2], [tailEnd, y + 3.2]), L([tailEnd, y + h - 3.2]), Q([tailEnd, y + h - 1.2], [tailEnd - 2, y + h - 1.2]), L([bx + 2.4, y + h - 1.2])], true);
   return {
     fills: fill(band) + fill(tail) + shade(tail, 0.08),
-    lines: ink(stroke(band), stroke(tail), seam(polyline([bx + 3.5, y + h / 2], [bx + 18, y + h / 2])), stroke(frame), seam(polyline([bx, y - 1.5], [bx, y + h + 1.5]))),
+    lines: ink(stroke(band), stroke(tail), stroke(frame), seam(polyline([bx, y - 1.4], [bx, y + h + 1.4]))),
   };
 }
 
@@ -618,9 +651,9 @@ export function cuffStraps(j: Jacket, inset: number): string {
 /* Drawcords                                                            */
 /* ------------------------------------------------------------------ */
 
-/** A drawcord channel across the body at `y` with the cord ends hanging at the center. */
+/** A drawcord channel across the body at `y` (one seam) with the cord ends hanging at the center. */
 export function drawcord(y: number, halfW: number, hang = 12, at = 4): string {
-  const channel = seam(polyline([CX - halfW + 2, y - 2.5], [CX + halfW - 2, y - 2.5])) + seam(polyline([CX - halfW + 2, y + 2.5], [CX + halfW - 2, y + 2.5]));
-  const cord = (k: number) => stroke(path([CX + at * k, y + 2.5], [C([CX + (at + 0.5) * k, y + hang * 0.5], [CX + (at + 2) * k, y + hang * 0.7], [CX + (at + 3) * k, y + hang])]));
+  const channel = seam(polyline([CX - halfW + 2, y], [CX + halfW - 2, y]));
+  const cord = (k: number) => stroke(path([CX + at * k, y + 1], [C([CX + (at + 0.5) * k, y + hang * 0.5], [CX + (at + 2) * k, y + hang * 0.7], [CX + (at + 3) * k, y + hang])]));
   return channel + cord(1) + cord(-1);
 }

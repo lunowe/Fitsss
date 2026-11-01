@@ -2,7 +2,9 @@
  * Shirt: a casual button-up with a point collar, front placket, one chest
  * pocket, long sleeves with buttoned cuffs and a shirt-tail hem.
  */
-import { button, C, CX, fill, ink, L, mirrored, path, piece, polyline, Q, seam, shade, stroke, symmetric, type Pt } from "../draw";
+import { button, C, CX, fill, framedByType, ink, L, mirrored, path, piece, polyline, Q, seam, shade, stroke, symmetric, type Pt } from "../draw";
+import { topFit } from "../parts-tops";
+import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
 import { torso, type Neckline, type TorsoSpec } from "../torso";
 
@@ -24,13 +26,7 @@ const BASE: Omit<TorsoSpec, "neck"> = {
   sleeveAngle: 75,
 };
 
-const FITS: Record<string, Partial<TorsoSpec>> = {
-  fitted: { shoulderW: 54, chestW: 50, waistW: 44, hemW: 48, length: 166, armhole: 29, sleeveLen: 112, cuffW: 20, sleeveAngle: 77 },
-  regular: {},
-  relaxed: { shoulderW: 62, chestW: 59, hemW: 58, length: 174, armhole: 35, cuffW: 24 },
-  oversized: { shoulderW: 72, shoulderDrop: 13, chestW: 71, hemW: 70, length: 188, armhole: 42, sleeveLen: 120, cuffW: 28, sleeveAngle: 73 },
-  boxy: { shoulderW: 70, shoulderDrop: 11, chestW: 69, hemW: 69, length: 154, armhole: 40, sleeveLen: 112, cuffW: 27, sleeveAngle: 74 },
-};
+const FITS = ["fitted", "regular", "relaxed", "oversized", "boxy"];
 
 /** Under a collar the body's neckline is a plain V; the collar covers it. */
 const vNeck: Neckline = { start: [CX, NECK_Y + 14], segs: [L([CX + NECK_W, NECK_Y])] };
@@ -68,7 +64,7 @@ export function pointCollar(w: number, y: number): { fills: string; lines: strin
 }
 
 function shirt(fit: string): KitPiece {
-  const spec: TorsoSpec = { ...BASE, ...FITS[fit], neck: vNeck };
+  const spec: TorsoSpec = { ...topFit(BASE, fit), neck: vNeck };
   const t = torso(spec);
   const collar = pointCollar(NECK_W, NECK_Y);
   const placketTop = NECK_Y + 13;
@@ -110,7 +106,4 @@ function shirt(fit: string): KitPiece {
   });
 }
 
-export const SHIRT: Record<string, KitPiece> = Object.fromEntries(
-  Object.keys(FITS).map((fit) => [`shirt@${fit}`, shirt(fit)]),
-);
-SHIRT["shirt"] = SHIRT["shirt@regular"];
+export const SHIRT: Record<string, KitPiece> = framedByType(fitTable("shirt", FITS, "regular", shirt));
