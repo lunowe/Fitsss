@@ -1,31 +1,32 @@
 /**
  * Belts, the way a product flat shows them: folded in half and laid flat,
- * the fold on the left, two straps lying one above the other, the buckle on
- * the end of the top strap and the tip of the bottom strap relaxing a little
- * downwards just short of it. The two parallel bands, the U of the fold and
- * the square buckle read as "belt" at 56 px, and the buckle is the biggest
- * piece of hardware in the set. Leather: a prong buckle, a keeper, holes in
- * the tip and edge stitching. Canvas: a box buckle and a metal tip. Web: a
- * pair of D-rings on a woven strap.
+ * the fold on the left, two straps lying one on the other, the buckle on the
+ * end of the top strap and the tip of the bottom strap relaxing a little
+ * downwards just short of it. A leather fold is a tight hairpin, so the two
+ * straps touch (a wide U is a bike lock); the buckle is the biggest piece of
+ * hardware in the set, with its prong and a keeper beside it; the tail
+ * carries a row of holes. Leather: a prong buckle, a keeper, holes in the
+ * tip and edge stitching. Canvas: a box buckle and a metal tip. Web: a pair
+ * of D-rings on a woven strap.
  */
-import { C, fill, ink, L, path, piece, polyline, seam, stroke, type Pt, type Seg } from "../draw";
+import { C, fill, ink, L, path, piece, polyline, seam, shade, stroke, type Pt, type Seg } from "../draw";
 import type { KitPiece } from "../types";
 import { buckle, metal, roundRect, splineSegs } from "../parts-feet";
 
 /** Strap width. */
-const W = 24;
-/** Gap between the two straps at the fold. */
-const GAP = 12;
+const W = 25;
+/** Gap between the two straps at the fold: a leather fold is nearly closed. */
+const GAP = 3;
 /** x of the fold's outer edge and of the buckle end of the top strap. */
 const X0 = 10;
-const X1 = 172;
+const X1 = 166;
 /** y of the top strap's upper edge; the bottom strap starts GAP under it. */
-const Y0 = 62;
+const Y0 = 60;
 const Y1 = Y0 + W + GAP;
 /** Where the bottom strap ends (its tip or metal end). */
-const TIP_X = 162;
+const TIP_X = 148;
 /** The bottom strap relaxes this far down from the fold to its tip. */
-const DROOP = 9;
+const DROOP = 7;
 /** x where the fold's curve meets the straight straps. */
 const XF = X0 + (Y1 + W - Y0) / 2;
 
@@ -93,32 +94,45 @@ const leatherTip = (top: Pt, bot: Pt): Seg[] => {
 /** A square-cut strap end. */
 const squareTip = (top: Pt, bot: Pt): Seg[] => [L([TIP_X, top[1] + 0.3]), L([TIP_X, bot[1] - 0.3]), L(bot)];
 
-/** Edge stitching along both straps and round the fold, `k` in from each edge. */
+/** The fold's edge: the leather's thickness seen at the hairpin, a shade along the outside curve. */
+function foldEdge(): string {
+  const r = (Y1 + W - Y0) / 2;
+  const cy = Y0 + r;
+  const ri = r - 3.5;
+  return path([XF, Y0], [
+    C([XF - r * K, Y0], [X0, cy - r * K], [X0, cy]),
+    C([X0, cy + r * K], [XF - r * K, Y1 + W], [XF, Y1 + W]),
+    L([XF, Y1 + W - 3.5]),
+    C([XF - ri * K, Y1 + W - 3.5], [X0 + 3.5, cy + ri * K], [X0 + 3.5, cy]),
+    C([X0 + 3.5, cy - ri * K], [XF - ri * K, Y0 + 3.5], [XF, Y0 + 3.5]),
+  ], true);
+}
+
+/**
+ * Edge stitching along both straps and round the outside of the fold, `k` in
+ * from each edge. The inner edges meet at the fold, so their stitches stop
+ * just short of it.
+ */
 function stitching(k: number, x0: number, x1: number): string[] {
-  const rIn = GAP / 2 - k;
   const rOut = (Y1 + W - Y0) / 2 - k;
   const cy = Y0 + (Y1 + W - Y0) / 2;
-  const inner = path([x1, Y0 + W - k], [
-    L([XF, Y0 + W - k]),
-    C([XF - rIn * K, Y0 + W - k], [XF - rIn, cy - rIn * K], [XF - rIn, cy]),
-    C([XF - rIn, cy + rIn * K], [XF - rIn * K, Y1 + k], [XF, Y1 + k]),
-    ...splineSegs(lower(k, XF, x0)),
-  ]);
   const outer = path([x1, Y0 + k], [
     L([XF, Y0 + k]),
     C([XF - rOut * K, Y0 + k], [X0 + k, cy - rOut * K], [X0 + k, cy]),
     C([X0 + k, cy + rOut * K], [XF - rOut * K, Y1 + W - k], [XF, Y1 + W - k]),
     ...splineSegs(lower(W - k, XF, x0)),
   ]);
-  return [seam(inner), seam(outer)];
+  const innerTop = polyline([x1, Y0 + W - k], [XF + 2, Y0 + W - k]);
+  const innerBottom = path([XF + 2, Y1 + k], splineSegs(lower(k, XF + 2, x0)));
+  return [seam(outer), seam(innerTop), seam(innerBottom)];
 }
 
 /** A hole in the bottom strap at x. */
 const hole = (x: number) =>
-  `<circle cx="${x}" cy="${(sag(x) + W / 2).toFixed(1)}" r="2" fill="none" stroke="var(--icon-stroke, #000)" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+  `<circle cx="${x}" cy="${(sag(x) + W / 2).toFixed(1)}" r="2.3" fill="none" stroke="var(--icon-stroke, #000)" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
 
 /** A keeper loop across the top strap at x. */
-const keeper = (x: number, w = 6) => roundRect(x - w / 2, Y0 - 1.5, w, W + 3, 1.2);
+const keeper = (x: number, w = 7) => roundRect(x - w / 2, Y0 - 2, w, W + 4, 1.4);
 
 /** A folded metal tip on the end of the bottom strap, following its slope. */
 function metalTip(): string {
@@ -128,16 +142,18 @@ function metalTip(): string {
 
 function leather(): KitPiece {
   const d = band(leatherTip);
-  const bk = buckle(TOP[0] - 1, TOP[1], 30, W + 12, 4.6);
-  const kp = keeper(TOP[0] - 27);
+  const bk = buckle(TOP[0] - 1, TOP[1], 32, W + 14, 5);
+  const kp = keeper(TOP[0] - 29);
   return piece({
     base: [fill(d)],
     lines: [
-      ink(stroke(d), ...stitching(3.2, TIP_X - 14, TOP[0] - 14)),
-      hole(112),
-      hole(126),
-      hole(140),
+      shade(foldEdge(), 0.1),
+      ink(stroke(d), ...stitching(3.4, TIP_X - 14, TOP[0] - 16)),
+      hole(104),
+      hole(118),
+      hole(132),
       fill(kp),
+      shade(kp, 0.06),
       ink(stroke(kp)),
       bk.fills,
       bk.lines,
@@ -150,13 +166,14 @@ function leather(): KitPiece {
 function canvas(): KitPiece {
   const d = band(squareTip);
   // Box buckle: a flat plate with a slide bar, on the end of the top strap.
-  const box = roundRect(TOP[0] - 22, Y0 - 5, 36, W + 10, 2.5);
-  const bar = polyline([TOP[0] + 2, Y0 - 2.5], [TOP[0] + 2, Y0 + W + 2.5]);
+  const box = roundRect(TOP[0] - 22, Y0 - 5.5, 36, W + 11, 2.5);
+  const bar = polyline([TOP[0] + 2, Y0 - 3], [TOP[0] + 2, Y0 + W + 3]);
   const cap = metalTip();
   return piece({
     base: [fill(d)],
     lines: [
-      ink(stroke(d), ...stitching(3.8, TIP_X - 10, TOP[0] - 24)),
+      shade(foldEdge(), 0.1),
+      ink(stroke(d), ...stitching(4, TIP_X - 10, TOP[0] - 24)),
       metal(cap),
       ink(stroke(cap)),
       metal(box),
@@ -197,6 +214,7 @@ function web(): KitPiece {
   return piece({
     base: [fill(d)],
     lines: [
+      shade(foldEdge(), 0.1),
       ink(stroke(d), ...weave),
       metal(cap),
       ink(stroke(cap)),

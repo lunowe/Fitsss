@@ -264,7 +264,12 @@ export function torso(input: TorsoSpec): Torso {
     ? C([S[0] - 0.5, S[1] + (U[1] - S[1]) * 0.6], [U[0] + (S[0] - U[0]) * 0.45, U[1] + 0.5], U)
     : C([S[0] - 1, lerp(S, A, 0.4)[1]], [A[0] + 3, A[1] - armhole * 0.22], A);
   const armSeam = path(S0, [capSeam]);
-  const sleeveClosed = path(S0, [...tip, sleeveTop, L(Ci), underarm, capSeam], true);
+  // The sleeve as a closed panel: around its edges to the underarm, then back
+  // up the armhole seam to the shoulder.
+  const capBack: Seg = over
+    ? C([U[0] + (S[0] - U[0]) * 0.45, U[1] + 0.5], [S[0] - 0.5, S[1] + (U[1] - S[1]) * 0.6], S0)
+    : C([A[0] + 3, A[1] - armhole * 0.22], [S[0] - 1, lerp(S, A, 0.4)[1]], S0);
+  const sleeveClosed = path(S0, [...tip, sleeveTop, L(Ci), underarm, capBack], true);
   const sleeveOpen = path(S0, [...tip, sleeveTop, L(Ci), underarm]);
 
   let outline: string;

@@ -9,6 +9,33 @@ import { add, C, FILL2, fill, ink, INK, L, lerp, num, path, polyline, Q, seam, s
 /** y where an upper meets its sole. */
 export const GROUND = 118;
 
+/** Tone of an outsole under its midsole: a split you can see, not a second shoe underneath. */
+export const OUTSOLE = 0.08;
+
+/**
+ * Every shoe is seen a touch from above, so its opening shows as a dark lens
+ * along the topline: the inside of a collar behind the tongue, the mouth of a
+ * loafer, the far wall of a sandal strap. One depth, one tone for the family.
+ */
+export const MOUTH = 0.3;
+
+/**
+ * The opening of a shoe as a lens: `top` runs along the topline from the heel
+ * towards the throat; the lens is `depth` deep at its middle and tapers to
+ * nothing at both ends. Returns the shade only; the topline's ink is the
+ * upper's own outline.
+ */
+export function mouthLens(top: readonly Pt[], depth: number, opacity = MOUTH): string {
+  const n = top.length - 1;
+  const lower: Pt[] = [];
+  for (let i = n; i >= 0; i--) {
+    const t = i / n;
+    lower.push([top[i][0], top[i][1] + depth * Math.sin(Math.PI * t) ** 0.8]);
+  }
+  const d = path(top[0], [...splineSegs(top), ...splineSegs(lower)], true);
+  return shade(d, opacity);
+}
+
 /* ------------------------------------------------------------------ */
 /* Soles                                                                */
 /* ------------------------------------------------------------------ */
@@ -122,7 +149,8 @@ export function footSole(s: SoleSpec): Sole {
       ...(lift > 0 ? [C([xb - 30, yBot + lift * 0.3], [x0 + 30, heelBottom], [x0 + 7, heelBottom])] : [L([x0 + 7, yBot])]),
       C([x0 - 1.2, heelBottom], [x0 - 2.4, heelBottom - 2], [x0 - 2.4, heelBottom - 3]),
     ], true);
-    fills.push(shade(out, 0.18));
+    // A whisper of tone, no more: a sole must not weigh more than a garment's hem band.
+    fills.push(shade(out, OUTSOLE));
     lines.push(seam(splitLine));
   }
   if (s.welt) {
@@ -219,13 +247,18 @@ export function roundRect(x: number, y: number, w: number, h: number, r: number)
   ], true);
 }
 
-/** A frame buckle `w`×`h` with its prong, centered at (cx, cy); the strap runs left to right. */
+/**
+ * A frame buckle `w`×`h` with its prong, centered at (cx, cy); the strap runs
+ * left to right and shows through the open frame, the prong lying across it
+ * from the left bar to the right one.
+ */
 export function buckle(cx: number, cy: number, w: number, h: number, bar = 2.6): { fills: string; lines: string; frame: string } {
   const outer = roundRect(cx - w / 2, cy - h / 2, w, h, 2.2);
   const inner = roundRect(cx - w / 2 + bar, cy - h / 2 + bar, w - 2 * bar, h - 2 * bar, 1);
-  const prong = polyline([cx - w / 2 + bar * 0.5, cy], [cx + w / 2 - bar * 0.4, cy]);
+  const pw = Math.max(1.4, bar * 0.45);
+  const prong = roundRect(cx - w / 2 + bar * 0.5, cy - pw / 2, w - bar * 0.9, pw, pw / 2);
   return {
-    fills: fill(outer, FILL2) + shade(outer, METAL),
+    fills: fill(outer, FILL2) + shade(outer, METAL) + fill(inner) + fill(prong, FILL2) + shade(prong, METAL),
     lines: ink(stroke(outer), stroke(inner), stroke(prong)),
     frame: outer,
   };

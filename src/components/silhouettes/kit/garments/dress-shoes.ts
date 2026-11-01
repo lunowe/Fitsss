@@ -7,7 +7,7 @@
  */
 import { C, fill, ink, L, path, piece, Q, seam, shade, stroke, type Pt } from "../draw";
 import type { KitPiece } from "../types";
-import { buckle, eyestay, footSole, GROUND, smooth, splineSegs } from "../parts-feet";
+import { buckle, eyestay, footSole, GROUND, mouthLens, smooth, splineSegs } from "../parts-feet";
 
 const X0 = 22;
 const X1 = 186;
@@ -24,9 +24,8 @@ function last() {
   ];
   const upper = path(outline[0], [...splineSegs(outline), ...s.topBack], true);
   const counter = smooth([[42, 61.5], [38, 80], [37, 100], [38, GROUND]]);
-  // The mouth: the inside of the shoe seen over the low topline.
-  const mouthPts = outline.slice(5, 9);
-  const mouth = shade(path(mouthPts[0], [...splineSegs(mouthPts), C([58, 67], [46, 64], mouthPts[0])], true), 0.28);
+  // The mouth: the opening seen a touch from above, the family's lens.
+  const mouth = mouthLens([[29, 63], heelTop, [48, 64], dip, [72, 66], throat], 5);
   // The quarter's front edge, from the throat down to the welt.
   const quarter = smooth([[86, 68], [85, 88], [87, 106], [89, GROUND]]);
   return { s, upper, counter, mouth, quarter, throat, vamp };

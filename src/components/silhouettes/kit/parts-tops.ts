@@ -18,15 +18,16 @@ type TorsoDims = Omit<TorsoSpec, "neck">;
 /**
  * One fit table for every top, applied as deltas to a garment's regular
  * block, so a tee, a sweater and an overshirt grow the same way and every
- * step reads on its own at 96 px without its caption. Each step changes the
- * construction, not only the width:
+ * step reads on its own at 96 px without its caption. Width alone does not
+ * separate neighbours at that size (a step of 8 units is 3 px), so each step
+ * also changes the construction:
  *
- *   fitted     close to the body: the seam at the shoulder point, a high and
- *              narrow armhole, a waist pulled in and a hem that eases back
- *              out, sleeves short and narrow and held near the body
+ *   fitted     cut close: the seam on the shoulder point, a high and narrow
+ *              armhole, a waist pulled in and a hem that eases back out,
+ *              short narrow sleeves hugging the arm, a touch shorter
  *   regular    a straight body with a standard set-in sleeve
- *   relaxed    a wider straight body, the shoulder seam dropped a little, a
- *              fuller sleeve, a touch longer
+ *   relaxed    the shoulder seam dropped off the shoulder, a fuller and
+ *              longer sleeve that droops, a wider straight body, longer
  *   oversized  the shoulder seam well down the arm, a wide body, long wide
  *              sleeves, long
  *   boxy       as wide as oversized with a dropped shoulder, cropped square
@@ -47,53 +48,53 @@ export function topFit<T extends TorsoDims>(base: T, fit: string): T {
   });
   switch (fit) {
     case "fitted": {
-      const chestW = base.chestW - 8;
+      const chestW = base.chestW - 10;
       return {
         ...base,
-        shoulderW: base.shoulderW - 7,
+        shoulderW: base.shoulderW - 9,
         chestW,
-        waistW: chestW - 7,
+        waistW: chestW - 8,
         hemW: chestW - 4,
-        length: base.length - 7,
-        armhole: base.armhole - 6,
-        ...sleeve(short ? 0.88 : 0.96, short ? 0.74 : 0.8, 0.78, short ? 7 : 0, 1.5),
+        length: base.length - 10,
+        armhole: base.armhole - 7,
+        ...sleeve(short ? 0.8 : 0.97, short ? 0.66 : 0.74, 0.72, short ? 12 : 0, 1),
       };
     }
     case "relaxed":
       return {
         ...base,
-        shoulderW: base.shoulderW + 9,
-        shoulderDrop: base.shoulderDrop + 3,
-        chestW: base.chestW + 9,
-        waistW: base.waistW === undefined ? undefined : base.waistW + 9,
-        hemW: base.hemW + 9,
-        length: base.length + 10,
-        armhole: base.armhole + 6,
-        ...sleeve(short ? 1.14 : 1.07, 1.24, 1.2, short ? 5 : 0, 3),
+        shoulderW: base.shoulderW + 12,
+        shoulderDrop: base.shoulderDrop + 4,
+        chestW: base.chestW + 11,
+        waistW: base.waistW === undefined ? undefined : base.waistW + 11,
+        hemW: base.hemW + 11,
+        length: base.length + 14,
+        armhole: base.armhole + 8,
+        ...sleeve(short ? 1.25 : 1.08, 1.3, 1.26, short ? 6 : 0, 3.5),
       };
     case "oversized":
       return {
         ...base,
-        shoulderW: base.shoulderW + 22,
-        shoulderDrop: base.shoulderDrop + 11,
-        chestW: base.chestW + 22,
+        shoulderW: base.shoulderW + 24,
+        shoulderDrop: base.shoulderDrop + 12,
+        chestW: base.chestW + 23,
         waistW: undefined,
-        hemW: base.hemW + 21,
-        length: base.length + 24,
-        armhole: base.armhole + 15,
-        ...sleeve(short ? 1.32 : 1.15, 1.55, 1.48, short ? 12 : -2, 4),
+        hemW: base.hemW + 22,
+        length: base.length + 30,
+        armhole: base.armhole + 16,
+        ...sleeve(short ? 1.4 : 1.17, 1.6, 1.52, short ? 14 : -2, 4.5),
       };
     case "boxy":
       return {
         ...base,
-        shoulderW: base.shoulderW + 18,
+        shoulderW: base.shoulderW + 20,
         shoulderDrop: base.shoulderDrop + 7,
-        chestW: base.chestW + 19,
+        chestW: base.chestW + 20,
         waistW: undefined,
-        hemW: base.chestW + 19,
-        length: base.length - 16,
-        armhole: base.armhole + 12,
-        ...sleeve(short ? 1.16 : 1.03, 1.4, 1.36, short ? 6 : -1, 3.5),
+        hemW: base.chestW + 20,
+        length: base.length - 18,
+        armhole: base.armhole + 13,
+        ...sleeve(short ? 1.2 : 1.03, 1.45, 1.4, short ? 4 : -1, 3.5),
       };
     default:
       return { ...base };

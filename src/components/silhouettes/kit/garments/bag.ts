@@ -50,9 +50,11 @@ function backpack(): KitPiece {
   ], true);
   const strapEdgeR = path([CX + w - 14, top + 10], [C([CX + w, top + 12], [CX + w + 6, top + 44], [CX + w + 5, top + 80]), C([CX + w + 4, top + 100], [CX + w + 1, top + 116], [CX + w - 6, bottom - 24])]);
   return piece({
-    base: [fill(strapR, FILL2), fill(mirrored(strapR), FILL2), fill(body)],
+    base: [fill(strapR), fill(mirrored(strapR)), fill(body)],
     lines: [
-      fill(handle, FILL2),
+      shade(strapR, 0.12),
+      shade(mirrored(strapR), 0.12),
+      fill(handle),
       ink(
         stroke(strapEdgeR),
         stroke(mirrored(strapEdgeR)),
@@ -85,7 +87,7 @@ function crossbody(): KitPiece {
   return piece({
     base: [fill(body)],
     lines: [
-      fill(strap, FILL2),
+      fill(strap),
       shade(flap, 0.08),
       ink(stroke(strap), stroke(body), stroke(path([CX - w, flapBottom - 10], [Q([CX - w, flapBottom], [CX - w + 10, flapBottom]), L([CX + w - 10, flapBottom]), Q([CX + w, flapBottom], [CX + w, flapBottom - 10])])), stroke(slider)),
       shade(slider, 0.28),
@@ -115,7 +117,7 @@ function messenger(): KitPiece {
   return piece({
     base: [fill(body)],
     lines: [
-      fill(strap, FILL2),
+      fill(strap),
       shade(flap, 0.08),
       fill(tab(CX - 30)),
       fill(tab(CX + 30)),
@@ -151,9 +153,9 @@ function duffel(): KitPiece {
   return piece({
     base: [fill(body)],
     lines: [
-      fill(handleBack, FILL2),
-      shade(handleBack, 0.14),
-      fill(handleFront, FILL2),
+      fill(handleBack),
+      shade(handleBack, 0.16),
+      fill(handleFront),
       ink(stroke(handleBack), stroke(handleFront), stroke(body), seam(endSeam), seam(mirrored(endSeam)), stroke(zip), seam(zipTeeth), stroke(pull)),
       strapRing,
       ring(CX - w + r + 6, cy - 6, 3.5),

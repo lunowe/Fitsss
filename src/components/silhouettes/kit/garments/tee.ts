@@ -56,6 +56,11 @@ function tee(fit: string): KitPiece {
   const t = torso(spec);
   const rib = crewRib(spec.neckW, NECK_Y, 15, 3.5);
   const anchors = chestAnchors(t);
+  // Colorblock: a two-tone tee, the sleeves and the shoulders above the
+  // armpit line in the second color. Short sleeves alone read as trim at
+  // closet size; the yoke makes the split unmistakable.
+  const yokeY = t.armpit[1];
+  const yoke = path([-40, -40], [L([240, -40]), L([240, yokeY]), L([-40, yokeY])], true);
   return piece({
     base: [fill(t.outline)],
     lines: [rib.fills, ink(stroke(t.edges), t.armSeams, t.cuffLines(4), seam(t.hemLine(4))), rib.lines],
@@ -64,7 +69,7 @@ function tee(fit: string): KitPiece {
     stripe: "h",
     graphic: anchors.graphic,
     logo: anchors.logo,
-    block: t.sleevePanel() + mirrored(t.sleevePanel()),
+    block: yoke + t.sleevePanel() + mirrored(t.sleevePanel()),
   });
 }
 

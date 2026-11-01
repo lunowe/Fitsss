@@ -44,8 +44,8 @@ function cap(spec: CapSpec): KitPiece {
   return piece({
     base: [fill(crown)],
     lines: [
-      fill(brim, FILL2),
-      shade(brim, 0.08),
+      fill(brim),
+      shade(brim, 0.1),
       ...(spec.trims ?? []),
       ink(stroke(crown), stroke(brim), seam(sweatband), ...spec.details),
     ],
@@ -91,7 +91,7 @@ function dad(): KitPiece {
     crown: [C([38, 82], [48, 60], [66, 56]), C([76, 52], [84, 51], apex), C([108, 52], [126, 56], [132, 68]), C([136, 78], [137, 88], [FRONT, BOTTOM - 4])],
     brimTip: [184, 104],
     brimCurve: 10,
-    trims: [fill(strap, FILL2), p.fills],
+    trims: [fill(strap), shade(strap, 0.1), p.fills],
     details: [...p.lines, eyelet([96, 70], 1.5), stroke(strap), stroke(slider)],
     logo: [100, 80, 18],
     graphic: [100, 79, 28],

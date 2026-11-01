@@ -1,8 +1,8 @@
 /**
- * Tote: the canvas tote, front view. A slightly tapered body, two handles in
- * the second color sewn onto the face, a bottom seam.
+ * Tote: the canvas tote, front view. A slightly tapered body, two handles of
+ * the same canvas sewn onto the face (the far one a shade darker), a bottom seam.
  */
-import { C, CX, FILL2, fill, ink, L, path, piece, polyline, seam, shade, stroke, symmetric } from "../draw";
+import { C, CX, fill, ink, L, path, piece, polyline, seam, shade, stroke, symmetric } from "../draw";
 import type { KitPiece } from "../types";
 
 const TOP = 76;
@@ -44,11 +44,11 @@ function canvasTote(): KitPiece {
   return piece({
     base: [fill(body)],
     lines: [
-      fill(back, FILL2),
-      shade(back, 0.14),
-      fill(front, FILL2),
-      fill(tail, FILL2),
-      fill(tailL, FILL2),
+      fill(back),
+      shade(back, 0.16),
+      fill(front),
+      fill(tail),
+      fill(tailL),
       ink(
         stroke(back),
         stroke(front),

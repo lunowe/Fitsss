@@ -1,14 +1,15 @@
 /**
- * Sandals, the lowest shoes in the family, seen from the side and a little
- * above, toe right: the footbed shows as a surface (a lens of the second
- * color over the sole's edge) and each variant's straps rise from its near
- * edge and land on its far edge, so a band over a footbed reads as a shoe
- * and not as a bridge. The straps are the garment: they carry the color and
- * the pattern clip.
+ * Sandals, the lowest shoes in the family, seen from the side and the same
+ * touch from above as every other shoe, toe right: the footbed shows as a
+ * narrow lens over the sole's edge (the way a collar shows its inside), and
+ * each variant's straps rise from the near edge and land on the far edge.
+ * Through a strap's arch shows its far wall in shadow, so a band over a
+ * footbed is a loop a foot goes through and not a solid dome. The straps are
+ * the garment: they carry the color and the pattern clip.
  */
 import { C, fill, FILL2, ink, L, path, piece, polyline, seam, shade, stroke, type Pt, type Seg } from "../draw";
 import type { KitPiece } from "../types";
-import { buckle, footSole, GROUND, reversed, sampleCubic, smooth, splineSegs, type Sole } from "../parts-feet";
+import { buckle, footSole, GROUND, MOUTH, reversed, sampleCubic, smooth, splineSegs, type Sole } from "../parts-feet";
 
 const X0 = 22;
 const X1 = 184;
@@ -51,24 +52,28 @@ function footbedTop(s: Sole, rise: number) {
       return stroke(smooth(run));
     });
   };
-  // The liner: a seam inset from the far edge.
-  const liner = smooth(pts.slice(2, n - 3).map(([x, y]): Pt => [x, y + 3.2]));
   return {
     far,
-    fills: fill(d, FILL2),
+    // The surface in the second color, toned like every opening in the family.
+    fills: fill(d, FILL2) + shade(d, 0.14),
     edge,
-    liner: seam(liner),
     path: d,
   };
 }
 
-/** The segments of an arch from (x0, y0) up to a flat top at `top` and down to (x1, y1); `s` is the run of each side. */
-function arch(x0: number, x1: number, top: number, s: number, y0: number, y1: number): Seg[] {
+/**
+ * The segments of an arch from (x0, y0) up to a flat top at `top` and down to
+ * (x1, y1); `s` is the run of each side, and `lean` moves run from the front
+ * side to the back one (a strap over an instep slopes more behind the foot).
+ */
+function arch(x0: number, x1: number, top: number, s: number, y0: number, y1: number, lean = 0): Seg[] {
   const r = Math.min(8, (x1 - x0) / 4);
+  const sb = s * (1 + lean);
+  const sf = s * (1 - lean);
   return [
-    C([x0 + s * 0.45, top + (y0 - top) * 0.5], [x0 + s * 0.8, top], [x0 + s + r, top]),
-    L([x1 - s - r, top]),
-    C([x1 - s * 0.8, top], [x1 - s * 0.45, top + (y1 - top) * 0.5], [x1, y1]),
+    C([x0 + sb * 0.45, top + (y0 - top) * 0.5], [x0 + sb * 0.8, top], [x0 + sb + r, top]),
+    L([x1 - sf - r, top]),
+    C([x1 - sf * 0.8, top], [x1 - sf * 0.45, top + (y1 - top) * 0.5], [x1, y1]),
   ];
 }
 
@@ -81,20 +86,20 @@ function legCross(x0: number, top: number, s: number, y0: number, y: number): nu
 }
 
 /**
- * A strap over the footbed, seen a little from above: its near edge is an
+ * A strap over the footbed, seen a touch from above: its near edge is an
  * arch rising from the ground line at x = a and x = b, `h` high; its far
  * edge is a second arch `d` higher on screen whose feet stand on the
  * footbed's far edge, `inset` in from the near feet and `shift` to the right.
  * The band (the strap's top surface) lies between the two arches; through
- * the near arch show the strap's underside and the footbed. `hidden` are the
+ * the near arch show the strap's far wall and the footbed. `hidden` are the
  * spans of the footbed's far edge the band covers.
  */
-function strap(far: (x: number) => number, a: number, b: number, h: number, d: number, shoulder = 12, farShoulder = shoulder * 1.4, inset = 8, shift = 5) {
+function strap(far: (x: number) => number, a: number, b: number, h: number, d: number, shoulder = 12, farShoulder = shoulder * 1.4, inset = 8, shift = 5, lean = 0) {
   const Y = GROUND;
   const ia = a + inset + shift;
   const ib = b - inset + shift;
-  const nearSegs = arch(a, b, Y - h, shoulder, Y, Y);
-  const farSegs = arch(ia, ib, Y - h - d, farShoulder, far(ia), far(ib));
+  const nearSegs = arch(a, b, Y - h, shoulder, Y, Y, lean);
+  const farSegs = arch(ia, ib, Y - h - d, farShoulder, far(ia), far(ib), lean);
   const near = path([a, Y], nearSegs);
   const farArch = path([ia, far(ia)], farSegs);
   const band = path([ia, far(ia)], [...farSegs, L([b, Y]), ...reversed(nearSegs, [a, Y])], true);
@@ -105,54 +110,55 @@ function strap(far: (x: number) => number, a: number, b: number, h: number, d: n
     farPts.push([x, far(x)]);
   }
   const underside = path([ia, far(ia)], [...farSegs, ...splineSegs(farPts)], true);
-  const crossA = legCross(a, Y - h, shoulder, Y, far(a + 2));
-  const crossB = 2 * b - legCross(b, Y - h, shoulder, Y, far(b - 2));
+  const crossA = legCross(a, Y - h, shoulder * (1 + lean), Y, far(a + 2));
+  const crossB = 2 * b - legCross(b, Y - h, shoulder * (1 - lean), Y, far(b - 2));
   // A stitch line inset from the far (top) edge of the band.
-  const edge = (k: number) => path([ia + k * 0.6, far(ia) - 1], arch(ia + k * 0.6, ib - k * 0.6, Y - h - d + k, farShoulder * 0.9, far(ia) - 1, far(ib) - 1));
+  const edge = (k: number) => path([ia + k * 0.6, far(ia) - 1], arch(ia + k * 0.6, ib - k * 0.6, Y - h - d + k, farShoulder * 0.9, far(ia) - 1, far(ib) - 1, lean));
   return { band, underside, near, farArch, edge, hidden: [[Math.min(crossA, ia), ia], [ib, Math.max(crossB, ib)]] as [number, number][] };
 }
 
-/** The strap's underside, seen through the arch: the garment color in shadow. */
-const through = (underside: string) => fill(underside) + shade(underside, 0.24);
+/** The strap's far wall, seen through the arch: the garment color in the family's opening tone. */
+const through = (underside: string) => fill(underside) + shade(underside, MOUTH + 0.06);
 
 type Strap = ReturnType<typeof strap>;
 type Bed = ReturnType<typeof footbedTop>;
 
-/** The fabric layer of a sandal: undersides, then the footbed, then the bands over both. */
+/** The fabric layer of a sandal: far walls, then the footbed, then the bands over both. */
 const sandalBase = (bed: Bed, straps: Strap[]) => [...straps.map((t) => through(t.underside)), bed.fills, ...straps.map((t) => fill(t.band))];
 
 /** The ink of the straps and the footbed's far edge around them. */
 const sandalInk = (bed: Bed, straps: Strap[], ...extra: string[]) =>
-  ink(...bed.edge(straps.flatMap((t) => t.hidden)), bed.liner, ...straps.flatMap((t) => [stroke(t.farArch), stroke(t.band)]), ...extra);
+  ink(...bed.edge(straps.flatMap((t) => t.hidden)), ...straps.flatMap((t) => [stroke(t.farArch), stroke(t.band)]), ...extra);
 
 function slide(): KitPiece {
   // A thick molded footbed, higher at the heel, and one broad band over the
-  // instep: the band is most of the drawing, so it reads at grid size.
-  const s = footSole({ x0: X0, x1: X1, depth: 15, spring: 3, heelLift: 4, midsole: true });
-  const bed = footbedTop(s, 19);
-  const a = strap(bed.far, 44, 138, 22, 26, 9, 20, 6, 7);
+  // instep with steep sides: the band is most of the drawing, so it reads at
+  // grid size, and the dark far wall through it says "loop".
+  const s = footSole({ x0: X0, x1: X1, depth: 12, spring: 4, heelLift: 8, midsole: true });
+  const bed = footbedTop(s, 6.5);
+  const a = strap(bed.far, 74, 144, 23, 7, 16, 17, 6, 4, 0.25);
   return piece({
     base: sandalBase(bed, [a]),
-    lines: [s.fills, sandalInk(bed, [a], seam(a.edge(4.5))), s.lines],
+    lines: [s.fills, sandalInk(bed, [a], seam(a.edge(3.5))), s.lines],
     clip: a.band,
     extent: [a.band, s.path, bed.path],
   });
 }
 
 function strappy(): KitPiece {
-  const s = footSole({ x0: X0, x1: X1, depth: 10, spring: 3, midsole: true });
-  const bed = footbedTop(s, 17);
-  const toe = strap(bed.far, 138, 172, 10, 9, 5, 7, 4, 3);
-  const instep = strap(bed.far, 82, 128, 17, 14, 7, 12, 5, 5);
+  const s = footSole({ x0: X0, x1: X1, depth: 9, spring: 3, midsole: true });
+  const bed = footbedTop(s, 6);
+  const toe = strap(bed.far, 138, 172, 11, 4, 5, 6, 4, 3);
+  const instep = strap(bed.far, 82, 128, 18, 5.5, 7, 9, 5, 4);
   // Ankle strap: runs back from the instep strap and wraps the heel, buckled on the side.
-  const ankle = path([96, 90], [
-    C([80, 90], [52, 90], [36, 88]),
-    C([27, 87], [23, 95], [22, GROUND - 8]),
+  const ankle = path([96, 91], [
+    C([80, 91], [52, 91], [36, 89]),
+    C([27, 88], [23, 96], [22, GROUND - 8]),
     L([28, GROUND - 8]),
-    C([29, 99], [32, 94], [38, 94]),
-    C([54, 95], [80, 96.5], [96, 96.5]),
+    C([29, 100], [32, 95], [38, 95]),
+    C([54, 96], [80, 97.5], [96, 97.5]),
   ], true);
-  const b = buckle(60, 92.5, 7, 9, 2.4);
+  const b = buckle(60, 93.5, 7, 9, 2.4);
   return piece({
     base: [...sandalBase(bed, [toe, instep]), fill(ankle)],
     lines: [
@@ -168,42 +174,41 @@ function strappy(): KitPiece {
 }
 
 function flipFlop(): KitPiece {
-  const s = footSole({ x0: X0, x1: X1, depth: 9, spring: 3, midsole: true });
-  const bed = footbedTop(s, 17);
+  const s = footSole({ x0: X0, x1: X1, depth: 8, spring: 3, midsole: true });
+  const bed = footbedTop(s, 6);
   // The thong: a post standing on the footbed near the toe, a strap running
   // back over the foot to the near edge and another to the far edge.
-  const post: Pt = [146, 103];
-  const knot: Pt = [142, 93];
+  const post: Pt = [146, 109];
+  const knot: Pt = [142, 97];
   const near = path([knot[0] - 4, knot[1] - 4], [
-    C([120, 78], [96, 84], [78, 100]),
-    C([74, 104], [72, 110], [71, GROUND]),
+    C([120, 82], [96, 88], [78, 104]),
+    C([74, 108], [72, 113], [71, GROUND]),
     L([82, GROUND]),
-    C([83, 108], [86, 102], [92, 98]),
-    C([108, 90], [126, 92], [knot[0] + 2, knot[1] + 4]),
+    C([83, 112], [86, 106], [92, 102]),
+    C([108, 94], [126, 96], [knot[0] + 2, knot[1] + 4]),
   ], true);
   const farY = bed.far(96);
   const farStrap = path([knot[0] - 3, knot[1] - 2], [
-    C([126, 84], [108, 86], [96, farY - 4],
-    ),
+    C([126, 88], [108, 90], [96, farY - 4]),
     L([104, farY + 1]),
-    C([114, 92], [128, 90], [knot[0] + 1, knot[1] + 5]),
+    C([114, 96], [128, 94], [knot[0] + 1, knot[1] + 5]),
   ], true);
   const postD = path([knot[0] - 3.5, knot[1]], [L([knot[0] + 3.5, knot[1]]), L([post[0] + 2.5, post[1]]), L([post[0] - 2.5, post[1]])], true);
   return piece({
-    base: [shade(farStrap, 0.2), bed.fills, fill(farStrap), fill(postD), fill(near)],
-    lines: [s.fills, ink(...bed.edge([[92, 106]]), bed.liner, stroke(farStrap), stroke(postD), stroke(near)), s.lines],
+    base: [fill(farStrap), shade(farStrap, MOUTH + 0.06), bed.fills, fill(postD), fill(near)],
+    lines: [s.fills, ink(...bed.edge([[92, 106]]), stroke(farStrap), stroke(postD), stroke(near)), s.lines],
     clip: near + farStrap + postD,
     extent: [near, s.path, bed.path],
   });
 }
 
 function cork(): KitPiece {
-  const s = footSole({ x0: X0, x1: X1, depth: 14, spring: 3, midsole: true });
-  const bed = footbedTop(s, 18);
-  const back = strap(bed.far, 70, 132, 19, 17, 8, 14, 6, 5);
-  const front = strap(bed.far, 138, 180, 13, 12, 6, 9, 5, 3);
-  const b1 = buckle(84, 97, 7, 9, 2.4);
-  const b2 = buckle(145, 104, 7, 9, 2.4);
+  const s = footSole({ x0: X0, x1: X1, depth: 14, spring: 3, heelLift: 3, midsole: true });
+  const bed = footbedTop(s, 6.5);
+  const back = strap(bed.far, 68, 132, 20, 6.5, 8, 10, 6, 4);
+  const front = strap(bed.far, 138, 180, 14, 5, 6, 7, 5, 3);
+  const b1 = buckle(84, 100, 7, 9, 2.4);
+  const b2 = buckle(146, 106, 7, 9, 2.4);
   // The cork's edge: a second line just under the ground line.
   const corkLine = polyline([X0 + 2, GROUND + 4], [X1 - 2, GROUND + 3]);
   return piece({

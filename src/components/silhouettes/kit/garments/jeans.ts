@@ -5,6 +5,10 @@
  * stitching, so it is drawn where a pair of trousers stays plain.
  */
 import { button, C, CX, fill, framedByType, ink, mirrored, path, piece, polyline, Q, seam, stroke } from "../draw";
+
+/** Denim topstitching is a contrast thread: a shade heavier than a plain seam. */
+const STITCH = 0.72;
+const stitch = (d: string) => stroke(d, STITCH);
 import type { KitPiece } from "../types";
 import { frontPocket, legs, type LegsSpec } from "../legs";
 import { PANT_BASE, PANT_FITS } from "../parts-bottoms";
@@ -38,13 +42,13 @@ function jeans(fit: string): KitPiece {
         stroke(l.outline),
         seam(l.bandLine),
         seam(centerSeam),
-        seam(fly(0)),
-        seam(fly(2)),
-        seam(pocket),
-        seam(mirrored(pocket)),
-        seam(pocket2),
-        seam(mirrored(pocket2)),
-        seam(coin),
+        stitch(fly(0)),
+        stitch(fly(2)),
+        stitch(pocket),
+        stitch(mirrored(pocket)),
+        stitch(pocket2),
+        stitch(mirrored(pocket2)),
+        stitch(coin),
         l.inseamLines(2.2),
         l.hemLines(4),
       ),

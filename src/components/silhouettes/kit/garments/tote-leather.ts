@@ -3,7 +3,7 @@
  * base, slim rolled handles on stitched tabs, a top zip. Sits next to the
  * canvas tote (`tote.ts`) at the same scale.
  */
-import { C, CX, FILL2, fill, ink, L, path, piece, polyline, Q, seam, shade, stroke, symmetric } from "../draw";
+import { C, CX, fill, ink, L, path, piece, polyline, Q, seam, shade, stroke, symmetric } from "../draw";
 import type { KitPiece } from "../types";
 import { roundRect } from "../parts-feet";
 
@@ -47,9 +47,9 @@ function leatherTote(): KitPiece {
   return piece({
     base: [fill(body)],
     lines: [
-      fill(back, FILL2),
-      shade(back, 0.14),
-      fill(front, FILL2),
+      fill(back),
+      shade(back, 0.16),
+      fill(front),
       fill(tab(CX - HANDLE_X)),
       fill(tab(CX + HANDLE_X)),
       ink(

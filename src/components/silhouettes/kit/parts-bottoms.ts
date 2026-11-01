@@ -23,35 +23,42 @@ export const PANT_BASE: LegsSpec = {
  * Leg widths per fit, shared by every trouser (`jeans` included) so fits
  * match across bottoms. Fits share one frame and the grid shows them at
  * ~100 px, so the steps are caricatures the eye reads from the silhouette
- * alone: skinny is one straight taper from the hip to a tight ankle, the
- * legs close together and a touch shorter; slim tapers but keeps a leg;
- * straight falls plumb from the knee; relaxed is fuller; baggy balloons
- * through the thigh over a low crotch and stacks on the shoe, narrower at
- * the hem than the knee; wide is a straight column from the hip, a touch
- * wider at the hem (never a flare).
+ * alone, and neighbours differ in construction, not only in width:
+ *
+ *   skinny    one straight taper from the hip to a tight ankle, the legs
+ *             touching, cropped at the ankle bone
+ *   slim      tapers but keeps a leg, full length
+ *   straight  falls plumb from the knee, a clean hem
+ *   relaxed   fuller through the seat and thigh, a lower rise, the hem a
+ *             touch narrower than the knee and breaking once on the shoe
+ *   baggy     roomy all the way down from a low crotch, the hem as wide as
+ *             the knee, pooling on the shoe; never a balloon that narrows
+ *   wide      a straight column from the hip to a clean hem, the hem exactly
+ *             the knee width (never a flare)
  */
 export const PANT_FITS: Record<string, Partial<LegsSpec>> = {
-  skinny: { hipW: 38, kneeW: 17, hemW: 11, gap: 5, length: 230, taper: 1 },
-  slim: { hipW: 41, kneeW: 26, hemW: 20, gap: 6, taper: 0.6 },
-  straight: { kneeW: 33, hemW: 32 },
-  relaxed: { hipW: 46, kneeW: 41, hemW: 39 },
-  baggy: { hipW: 52, kneeW: 54, hemW: 51, rise: 70, length: 242, gap: 8, pool: 7, thigh: 7 },
-  wide: { hipW: 45, kneeW: 51, hemW: 59, gap: 8 },
+  skinny: { hipW: 38, kneeW: 15, hemW: 10, gap: 4, rise: 60, length: 228, taper: 1 },
+  slim: { hipW: 41, kneeW: 27, hemW: 21, gap: 6, taper: 0.6 },
+  straight: { kneeW: 32, hemW: 32 },
+  relaxed: { hipW: 47, kneeW: 42, hemW: 40, rise: 64, pool: 2 },
+  baggy: { hipW: 53, kneeW: 56, hemW: 57, rise: 72, length: 244, gap: 8, pool: 5 },
+  wide: { hipW: 46, kneeW: 49, hemW: 49, gap: 8 },
 };
 
 /**
  * Shorts: the same block cut above the knee; widths and length per fit. The
  * leg stays close to the hip width so the seat does not balloon over a
- * narrower thigh; fits grow in width and in length together: slim is a
- * tapered mid-thigh short, regular sits above the knee, relaxed at it, baggy
- * below it with real volume through the thigh.
+ * narrower thigh; fits grow in width and in length together, and the length
+ * is the step the eye reads: slim is a tapered mid-thigh short, regular sits
+ * above the knee, relaxed at it, baggy below it with real volume through
+ * the thigh.
  */
 export const SHORT_BASE: LegsSpec = { ...PANT_BASE, length: 122, gap: 6 };
 export const SHORT_FITS: Record<string, Partial<LegsSpec>> = {
-  slim: { hipW: 38, kneeW: 27, hemW: 24, length: 106, gap: 5, taper: 0.7 },
-  regular: { hipW: 42, kneeW: 38, hemW: 37 },
-  relaxed: { hipW: 46, kneeW: 46, hemW: 46, length: 130 },
-  baggy: { hipW: 52, kneeW: 57, hemW: 56, length: 140, gap: 8, thigh: 3 },
+  slim: { hipW: 38, kneeW: 26, hemW: 23, length: 100, gap: 5, taper: 0.7 },
+  regular: { hipW: 42, kneeW: 37, hemW: 36, length: 118 },
+  relaxed: { hipW: 47, kneeW: 47, hemW: 47, length: 134 },
+  baggy: { hipW: 53, kneeW: 58, hemW: 58, length: 148, gap: 8, thigh: 2 },
 };
 
 /** Belt loops across the waistband: fabric tabs with a stitch outline. */

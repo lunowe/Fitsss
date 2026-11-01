@@ -7,7 +7,7 @@
  */
 import { C, FILL2, fill, ink, L, path, piece, polyline, Q, seam, shade, stroke, type Pt, type Seg } from "../draw";
 import type { KitPiece } from "../types";
-import { eyelet, footSole, GROUND, laceBars, roundRect } from "../parts-feet";
+import { eyelet, footSole, GROUND, laceBars, MOUTH, mouthLens, roundRect } from "../parts-feet";
 
 /**
  * The boot toe: from the instep the vamp falls in one long, easy line to a
@@ -45,11 +45,14 @@ function chelsea(): KitPiece {
   const ribs = [47.5, 51, 54.5, 58, 61.5, 65].map((x, i) => seam(polyline([x + (i - 2.5) * 0.2, 35], [x - (i - 2.5) * 0.7, 72.5 - Math.abs(i - 2.5) * 1.6])));
   const tab = roundRect(21, 24, 8, 14, 3.2);
   const vampSeam = path([62, 72], [C([72, 84], [80, 100], [84, GROUND])]);
+  const mouth = mouthLens([topBack, [38.4, 32.4], [49.8, 31.8], [60.9, 31.9], topFront], 4.5);
   return piece({
     base: [fill(upper)],
     lines: [
-      fill(tab, FILL2),
+      fill(tab),
+      shade(tab, 0.1),
       s.fills,
+      mouth,
       shade(gusset, 0.16),
       ink(stroke(tab), stroke(upper), stroke(gusset), ...ribs, seam(vampSeam), seam(backSeam(26, 40, GROUND))),
       s.lines,
@@ -80,11 +83,13 @@ function laceUp(): KitPiece {
   const stayBottom = path([68, 40], [C([74, 56], [84, 74], [104, 86])]);
   const laces = laceBars([89, 36], [112, 79], [69, 41], [104, 86], 6);
   const quarter = path([108, 86], [C([112, 98], [114, 108], [114, GROUND])]);
-  const tongueShade = shade(path(topFront, [C([63, 26], [72, 24], tongueBack), Q([74, 34], topFront)], true), 0.3);
+  const tongueShade = shade(path(topFront, [C([63, 26], [72, 24], tongueBack), Q([74, 34], topFront)], true), MOUTH);
+  const mouth = mouthLens([topBack, [34.9, 34], [43.5, 33], [51.9, 33], topFront], 4);
   return piece({
     base: [fill(upper)],
     lines: [
       s.fills,
+      mouth,
       tongueShade,
       laces.fills,
       ink(stroke(upper), stroke(stayBottom), ...laces.lines, seam(quarter), seam(backSeam(25, 42, GROUND))),
@@ -117,15 +122,16 @@ function work(): KitPiece {
   // Moc toe: the apron seam runs forward along the toe's crown and curls down at the tip.
   const moc = path([110, 88], [C([132, 86], [156, 88], [170, 96]), C([176, 100], [179, 105], [178, 110])]);
   const moc2 = path([112, 92], [C([134, 90], [156, 92], [168, 99])]);
-  const collar = path([30, 46], [Q([44, 41], [58, 44])]);
-  const tongueShade = shade(path(topFront, [C([63, 32], [72, 30], tongueBack), Q([74, 40], topFront)], true), 0.3);
+  const tongueShade = shade(path(topFront, [C([63, 32], [72, 30], tongueBack), Q([74, 40], topFront)], true), MOUTH);
+  const mouth = mouthLens([topBack, [34.9, 40], [43.5, 39], [51.9, 39], topFront], 4);
   return piece({
     base: [fill(upper)],
     lines: [
       s.fills,
+      mouth,
       tongueShade,
       laces.fills,
-      ink(stroke(upper), stroke(stayBottom), ...laces.lines, seam(moc), seam(moc2), seam(collar), seam(backSeam(25, 48, GROUND))),
+      ink(stroke(upper), stroke(stayBottom), ...laces.lines, seam(moc), seam(moc2), seam(backSeam(25, 48, GROUND))),
       s.lines,
     ],
     clip: upper,
@@ -167,11 +173,13 @@ function hiking(): KitPiece {
     Q([176, GROUND], [140, GROUND]),
   ], true);
   const quarter = path([110, 88], [C([116, 98], [120, 106], [122, GROUND])]);
-  const tongueShade = shade(path(topFront, [C([65, 30], [72, 28], tongueBack), Q([74, 40], topFront)], true), 0.3);
+  const tongueShade = shade(path(topFront, [C([65, 30], [72, 28], tongueBack), Q([74, 40], topFront)], true), MOUTH);
+  const mouth = mouthLens([heelTop, [36, 40], [44, 43.5], dip, [56, 43.5], topFront], 3.5);
   return piece({
     base: [fill(upper)],
     lines: [
       s.fills,
+      mouth,
       tongueShade,
       fill(rand, FILL2),
       laces.fills,
@@ -204,11 +212,14 @@ function western(): KitPiece {
   const arch = (dx: number, dy: number) => path([38 + dx, 74 - dy], [C([38 + dx, 48 - dy * 0.4], [46 + dx * 0.4, 30 + dy], [50, 24 + dy]), C([54 - dx * 0.4, 30 + dy], [62 - dx, 48 - dy * 0.4], [62 - dx, 74 - dy])]);
   // The vamp seam: a V across the instep, then down to the welt.
   const vampSeam = path([70, 60], [C([78, 68], [86, 76], [94, 82]), C([98, 96], [100, 108], [101, GROUND])]);
+  const mouth = mouthLens([topBack, [40.4, 10.4], [49.3, 10], [58.4, 11.2], topFront], 4.5);
   return piece({
     base: [fill(upper)],
     lines: [
-      fill(strap, FILL2),
+      fill(strap),
+      shade(strap, 0.1),
       s.fills,
+      mouth,
       ink(stroke(strap), stroke(upper), seam(arch(0, 0)), seam(arch(4, 4)), seam(vampSeam), seam(backSeam(32, 18, GROUND))),
       s.lines,
     ],

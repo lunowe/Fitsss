@@ -28,22 +28,22 @@ function temple(x: number, y: number, len: number, w: number, dirn: 1 | -1): str
 
 
 function wayfarer(): KitPiece {
-  const fw = 8; // frame width
+  const fw = 10; // frame width: thick acetate
   // Right lens outer frame (trapezoid, outer corner higher), as a right-side half piece.
   const outer = (inset: number) =>
-    path([CX + 4 + inset, CY - 22 + inset * 0.6], [
-      L([CX + 86 - inset, CY - 27 + inset * 1.4]),
-      C([CX + 90 - inset, CY - 27 + inset], [CX + 91 - inset, CY - 22 + inset], [CX + 90 - inset, CY - 17 + inset]),
-      C([CX + 87 - inset, CY + 2], [CX + 83 - inset, CY + 23 - inset], [CX + 70 - inset, CY + 27 - inset]),
-      L([CX + 26 + inset, CY + 29 - inset]),
-      C([CX + 10 + inset, CY + 29 - inset], [CX + 4 + inset, CY + 17 - inset], [CX + 4 + inset, CY + 6 - inset * 0.4]),
+    path([CX + 4 + inset, CY - 24 + inset * 0.6], [
+      L([CX + 84 - inset, CY - 30 + inset * 1.4]),
+      C([CX + 89 - inset, CY - 30 + inset], [CX + 90.5 - inset, CY - 24 + inset], [CX + 89.5 - inset, CY - 18 + inset]),
+      C([CX + 86 - inset, CY + 4], [CX + 82 - inset, CY + 27 - inset], [CX + 68 - inset, CY + 31 - inset]),
+      L([CX + 26 + inset, CY + 33 - inset]),
+      C([CX + 10 + inset, CY + 33 - inset], [CX + 4 + inset, CY + 19 - inset], [CX + 4 + inset, CY + 6 - inset * 0.4]),
     ], true);
   const frameR = outer(0);
   const lensR = outer(fw);
-  const bridge = path([CX - 4, CY - 20], [L([CX + 4, CY - 20]), L([CX + 4, CY - 9]), Q([CX, CY - 5], [CX - 4, CY - 9])], true);
-  const brow = polyline([CX - 86, CY - 27], [CX + 86, CY - 27]);
-  const tR = temple(CX + 90, CY - 17, 9, 7, 1);
-  const glint = path([CX + 14, CY - 10], [L([CX + 22, CY - 14])]);
+  const bridge = path([CX - 4, CY - 21.5], [L([CX + 4, CY - 21.5]), L([CX + 4, CY - 9]), Q([CX, CY - 4], [CX - 4, CY - 9])], true);
+  const brow = polyline([CX - 84, CY - 30], [CX + 84, CY - 30]);
+  const tR = temple(CX + 89.5, CY - 19, 10, 8, 1);
+  const glint = path([CX + 16, CY - 8], [L([CX + 26, CY - 14])]);
   const frame = frameR + mirrored(frameR) + bridge;
   return piece({
     base: [fill(frameR), fill(mirrored(frameR)), fill(bridge)],
@@ -51,8 +51,10 @@ function wayfarer(): KitPiece {
       fill(tR), fill(mirrored(tR)),
       lens(lensR), lens(mirrored(lensR)),
       ink(stroke(tR), stroke(mirrored(tR)), stroke(frameR), stroke(mirrored(frameR)), stroke(bridge), seam(brow), stroke(lensR), stroke(mirrored(lensR)), seam(glint), seam(mirrored(glint))),
-      button(CX + 84, CY - 19, 1.4),
-      button(CX - 84, CY - 19, 1.4),
+      button(CX + 82.5, CY - 22, 1.5),
+      button(CX + 82.5, CY - 16, 1.5),
+      button(CX - 82.5, CY - 22, 1.5),
+      button(CX - 82.5, CY - 16, 1.5),
     ],
     clip: frame,
     extent: [frame, tR, mirrored(tR)],

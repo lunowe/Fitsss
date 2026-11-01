@@ -43,9 +43,11 @@ function hoodie(fit: string): KitPiece {
   const string = (x: number, k: number) => path([x, grommetY + 2], [C([x + 2 * k, grommetY + 16], [x + 0.5 * k, grommetY + 30], [x + 3 * k, grommetY + 42])]);
   // Kangaroo pocket: all of it at seam weight, so it sits in the cloth
   // instead of weighing on a dark piece.
+  // A cropped body keeps a real pocket: it starts below the drawstring ends
+  // rather than at a fraction of a short body.
   const pw = spec.chestW - 15;
   const pBot = spec.length - RIB - 3;
-  const pTop = Math.max(spec.length - RIB - 44, t.bodyY(0.47));
+  const pTop = Math.max(spec.length - RIB - 44, t.armpit[1] + 16);
   const pocket = symmetric([CX, pTop], [L([CX + pw - 13, pTop]), L([CX + pw, pTop + 12]), L([CX + pw, pBot]), L([CX, pBot])]);
   // Print anchors: the graphic sits in the band between the drawstring ends
   // and the pocket, the logo on the left chest, about a fifth of the chest.
@@ -53,7 +55,7 @@ function hoodie(fit: string): KitPiece {
   const bandBottom = pTop - 5;
   const graphicSize = Math.min(Math.round(spec.chestW), Math.round((bandBottom - bandTop) * 0.8));
   const graphicY = Math.round(((bandTop + bandBottom) / 2) * 10) / 10;
-  const logoSize = Math.round(spec.chestW * 2 * 0.19);
+  const logoSize = Math.round(spec.chestW * 2 * 0.17);
   const block = h.back + t.sleevePanel() + mirrored(t.sleevePanel());
   return piece({
     base: [fill(h.back), fill(t.outline)],
@@ -87,7 +89,7 @@ function hoodie(fit: string): KitPiece {
     extent: [h.back, t.outline],
     panels: t.panels,
     graphic: [CX, graphicY, graphicSize],
-    logo: [Math.round(CX + spec.chestW * 0.36), t.armpit[1] + 6, logoSize],
+    logo: [Math.round(CX + spec.chestW * 0.38), t.armpit[1] + 9, logoSize],
     block,
   });
 }
