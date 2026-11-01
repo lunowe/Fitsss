@@ -84,6 +84,26 @@ import Testing
         #expect(catalog.art(typeId: "jeans", variant: "raw", fit: "baggy")?.key == "kit:jeans~raw:c3")
     }
 
+    /// What the server sends today: `split` cuts `body` into base and lines,
+    /// and a malformed layers object drops only the pattern support.
+    @Test func decodesSplitLayersAndPanels() throws {
+        let art = """
+        {"kit:jeans:a1":{"viewBox":"0 0 100 100","body":"<g a=\\"é\\"/><path/>",
+          "layers":{"split":10,"clip":"M0 0h10v10H0Z","box":[0,0,10,10],
+            "panels":[{"clip":"M0 0h2v2H0Z","box":[0,0,2,2],"angle":-20}]}},
+         "kit:jeans@baggy:b2":{"viewBox":"0 0 100 100","body":"<g/>","layers":{"split":99,"clip":"","box":[]}}}
+        """
+        let ref = #"{"default":"kit:jeans:a1","fits":{"baggy":"kit:jeans@baggy:b2"}}"#
+        let catalog = try APIClient.decoder.decode(Catalog.self, from: catalogJSON(art: art, ref: ref))
+
+        let layers = try #require(catalog.art["kit:jeans:a1"]?.layers)
+        #expect(layers.base == #"<g a="é"/>"#)
+        #expect(layers.lines == "<path/>")
+        #expect(layers.panels?.first?.angle == -20)
+        #expect(catalog.art["kit:jeans@baggy:b2"]?.layers == nil)
+        #expect(catalog.art["kit:jeans@baggy:b2"]?.body == "<g/>")
+    }
+
     @Test func decodesCatalogWithoutKitFields() throws {
         let catalog = try APIClient.decoder.decode(Catalog.self, from: catalogJSON(
             art: #"{"jeans":{"viewBox":"0 0 64 64","body":"<g/>"}}"#,

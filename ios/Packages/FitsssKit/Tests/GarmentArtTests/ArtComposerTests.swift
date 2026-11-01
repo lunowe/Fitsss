@@ -48,6 +48,22 @@ import Testing
         #expect(ArtComposer.compose(layers, tile: nil, id: "pc") == nil)
     }
 
+    /// A sleeve panel: refilled, then the stripe at body density turned about
+    /// the panel's center. Expected string from `composeLayers` under tsx.
+    @Test func turnsFieldPatternsOnPanels() {
+        var sleeve = layers
+        sleeve.stripe = nil
+        sleeve.panels = [ArtComposer.Panel(clip: "M40 12h8v20h-8Z", box: [40, 12, 8.25, 20], angle: -22.5)]
+        #expect(ArtComposer.compose(sleeve, tile: stripe, id: "pc")
+            == head + #"<g transform="translate(7.075 0) scale(0.46)"><rect x="0" y="10" width="100" height="4"/></g>"#
+            + #"<clipPath id="pc-0"><path d="M40 12h8v20h-8Z"/></clipPath><g clip-path="url(#pc-0)"><path d="M40 12h8v20h-8Z" fill="var(--icon-fill)"/>"#
+            + #"<g transform="rotate(-22.5 44.125 22) translate(21.125 -1) scale(0.46)"><rect x="0" y="10" width="100" height="4"/></g></g>"#
+            + tail)
+        // Motifs and blocks ignore panels.
+        #expect(ArtComposer.compose(sleeve, tile: graphic, id: "pc")
+            == head + #"<g transform="translate(21.333 21.833) scale(0.173)"><circle cx="50" cy="50" r="40"/></g>"# + tail)
+    }
+
     @Test func numbersPrintLikeJavaScript() {
         // `String(Math.round(n * 1000) / 1000)` in node.
         #expect(ArtComposer.num(-0.0005) == "0")

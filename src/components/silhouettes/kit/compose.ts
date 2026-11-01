@@ -22,6 +22,16 @@ import { PATTERN_TILES, type PatternTile } from "./patterns";
  *   block  a path of `layers.block` filled with the pattern color; without a
  *          block panel, the tile's field markup (if any) instead.
  *
+ * Field tiles then repeat on every `layers.panels` entry i, inside the same
+ * clipped group, after the main overlay:
+ *   <clipPath id=…-i><path d=panel.clip/></clipPath>
+ *   <g clip-path=url(#…-i)>
+ *     <path d=panel.clip fill=var(--icon-fill)/>
+ *     <g transform="rotate(angle cx cy) translate(cx-side/2 cy-side/2) scale(side/100)"> markup </g>
+ *   </g>
+ * with (cx, cy) the center of panel.box and side the main box's max(w, h), so
+ * the density matches the body.
+ *
  * `id` must be unique in the document: inline SVGs share one id space on the web.
  */
 export function composeLayers(layers: ArtLayers, pattern: string, id: string): string | undefined {
@@ -32,9 +42,32 @@ export function composeLayers(layers: ArtLayers, pattern: string, id: string): s
   return (
     layers.base +
     `<clipPath id="${id}"><path d="${layers.clip}"/></clipPath>` +
-    `<g clip-path="url(#${id})">${overlay}</g>` +
+    `<g clip-path="url(#${id})">${overlay}${tile.kind === "field" ? panelsFor(layers, tile, id) : ""}</g>` +
     layers.lines
   );
+}
+
+function fieldMarkup(layers: ArtLayers, tile: PatternTile): string {
+  return layers.stripe === "v" && tile.markupV ? tile.markupV : tile.markup;
+}
+
+function panelsFor(layers: ArtLayers, tile: PatternTile, id: string): string {
+  const side = Math.max(layers.box[2], layers.box[3]);
+  return (layers.panels ?? [])
+    .map((panel, i) => {
+      const [x, y, w, h] = panel.box;
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const transform =
+        `rotate(${num(panel.angle)} ${num(cx)} ${num(cy)}) ` +
+        `translate(${num(cx - side / 2)} ${num(cy - side / 2)}) scale(${num(side / 100)})`;
+      return (
+        `<clipPath id="${id}-${i}"><path d="${panel.clip}"/></clipPath>` +
+        `<g clip-path="url(#${id}-${i})"><path d="${panel.clip}" fill="var(--icon-fill)"/>` +
+        `<g transform="${transform}">${fieldMarkup(layers, tile)}</g></g>`
+      );
+    })
+    .join("");
 }
 
 const num = (n: number) => String(Math.round(n * 1000) / 1000);
@@ -54,10 +87,8 @@ export function anchorTransform([cx, cy, size]: readonly [number, number, number
 
 function overlayFor(layers: ArtLayers, tile: PatternTile): string | undefined {
   switch (tile.kind) {
-    case "field": {
-      const markup = layers.stripe === "v" && tile.markupV ? tile.markupV : tile.markup;
-      return `<g transform="${coverTransform(layers.box)}">${markup}</g>`;
-    }
+    case "field":
+      return `<g transform="${coverTransform(layers.box)}">${fieldMarkup(layers, tile)}</g>`;
     case "motif": {
       const anchor = tile.anchor === "logo" ? layers.logo : layers.graphic;
       return anchor ? `<g transform="${anchorTransform(anchor)}">${tile.markup}</g>` : undefined;

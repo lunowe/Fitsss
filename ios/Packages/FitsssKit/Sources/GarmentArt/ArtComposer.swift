@@ -32,10 +32,13 @@ nonisolated public enum ArtComposer {
         public var graphic: [Double]?
         public var logo: [Double]?
         public var block: String?
+        /// Areas where a field pattern turns to follow the garment (sleeves).
+        public var panels: [Panel]
 
         public init(
             base: String, lines: String, clip: String, box: [Double],
-            stripe: String? = nil, graphic: [Double]? = nil, logo: [Double]? = nil, block: String? = nil
+            stripe: String? = nil, graphic: [Double]? = nil, logo: [Double]? = nil, block: String? = nil,
+            panels: [Panel] = []
         ) {
             self.base = base
             self.lines = lines
@@ -45,6 +48,22 @@ nonisolated public enum ArtComposer {
             self.graphic = graphic
             self.logo = logo
             self.block = block
+            self.panels = panels
+        }
+    }
+
+    /// `ArtPanel` on the web: a panel's outline, its bounds and the angle (in
+    /// degrees, clockwise) its pattern turns by.
+    public struct Panel: Sendable, Hashable {
+        public var clip: String
+        /// `[x, y, width, height]`.
+        public var box: [Double]
+        public var angle: Double
+
+        public init(clip: String, box: [Double], angle: Double) {
+            self.clip = clip
+            self.box = box
+            self.angle = angle
         }
     }
 
@@ -70,19 +89,41 @@ nonisolated public enum ArtComposer {
     /// `id` names the clip path; it only has to be unique within the body.
     public static func compose(_ layers: Layers, tile: Tile?, id: String) -> String? {
         guard let tile, let overlay = overlay(layers, tile) else { return nil }
+        let panels = tile.kind == "field" ? panelsMarkup(layers, tile, id: id) : ""
         return layers.base
             + "<clipPath id=\"\(id)\"><path d=\"\(layers.clip)\"/></clipPath>"
-            + "<g clip-path=\"url(#\(id))\">\(overlay)</g>"
+            + "<g clip-path=\"url(#\(id))\">\(overlay)\(panels)</g>"
             + layers.lines
+    }
+
+    private static func fieldMarkup(_ layers: Layers, _ tile: Tile) -> String {
+        let vertical = layers.stripe == "v" ? tile.markupV.flatMap { $0.isEmpty ? nil : $0 } : nil
+        return vertical ?? tile.markup
+    }
+
+    /// Each panel refilled with the garment color, then the field tile at the
+    /// body's density turned by the panel's angle about the panel's center.
+    private static func panelsMarkup(_ layers: Layers, _ tile: Tile, id: String) -> String {
+        guard layers.box.count >= 4 else { return "" }
+        let side = max(layers.box[2], layers.box[3])
+        var out = ""
+        for (i, panel) in layers.panels.enumerated() where panel.box.count >= 4 {
+            let cx = panel.box[0] + panel.box[2] / 2
+            let cy = panel.box[1] + panel.box[3] / 2
+            let transform = "rotate(\(num(panel.angle)) \(num(cx)) \(num(cy))) "
+                + "translate(\(num(cx - side / 2)) \(num(cy - side / 2))) scale(\(num(side / 100)))"
+            out += "<clipPath id=\"\(id)-\(i)\"><path d=\"\(panel.clip)\"/></clipPath>"
+                + "<g clip-path=\"url(#\(id)-\(i))\"><path d=\"\(panel.clip)\" fill=\"var(--icon-fill)\"/>"
+                + "<g transform=\"\(transform)\">\(fieldMarkup(layers, tile))</g></g>"
+        }
+        return out
     }
 
     private static func overlay(_ layers: Layers, _ tile: Tile) -> String? {
         switch tile.kind {
         case "field":
             guard let cover = coverTransform(layers.box) else { return nil }
-            let vertical = layers.stripe == "v" ? tile.markupV.flatMap { $0.isEmpty ? nil : $0 } : nil
-            let markup = vertical ?? tile.markup
-            return "<g transform=\"\(cover)\">\(markup)</g>"
+            return "<g transform=\"\(cover)\">\(fieldMarkup(layers, tile))</g>"
         case "motif":
             let anchor = tile.anchor == "logo" ? layers.logo : layers.graphic
             guard let anchor, let transform = anchorTransform(anchor) else { return nil }

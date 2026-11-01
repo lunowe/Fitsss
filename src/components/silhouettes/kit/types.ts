@@ -35,6 +35,23 @@ export interface ArtLayers {
   logo?: readonly [number, number, number];
   /** Path data of the colorblock panel (yoke, sleeves, toe cap...). */
   block?: string;
+  /**
+   * Areas where a field pattern runs at its own angle, so stripes and checks
+   * follow a sleeve instead of cutting straight across it. Each is laid over
+   * the main pattern: the panel is refilled with the garment color, then the
+   * field tile (same density as the body) is drawn rotated by `angle` degrees
+   * about the panel's center.
+   */
+  panels?: readonly ArtPanel[];
+}
+
+export interface ArtPanel {
+  /** Path data of the panel, in viewBox units (inside `clip`). */
+  clip: string;
+  /** Bounds of the panel. */
+  box: Box;
+  /** Degrees, clockwise, that the pattern turns on this panel. */
+  angle: number;
 }
 
 export interface KitPiece {

@@ -133,6 +133,12 @@ nonisolated public struct ArtPiece: Codable, Hashable, Sendable {
     /// `src/components/silhouettes/kit/types.ts`.
     public var layers: Layers?
 
+    public init(viewBox: String, body: String, layers: Layers? = nil) {
+        self.viewBox = viewBox
+        self.body = body
+        self.layers = layers
+    }
+
     public struct Layers: Codable, Hashable, Sendable {
         /// Fills of every garment area, drawn first.
         public var base: String
@@ -150,6 +156,58 @@ nonisolated public struct ArtPiece: Codable, Hashable, Sendable {
         public var logo: [Double]?
         /// Path data of the colorblock panel.
         public var block: String?
+        /// Areas where a field pattern turns to follow the garment (sleeves).
+        public var panels: [Panel]?
+    }
+
+    /// `ArtPanel` on the web.
+    public struct Panel: Codable, Hashable, Sendable {
+        public var clip: String
+        /// `[x, y, width, height]`.
+        public var box: [Double]
+        /// Degrees, clockwise.
+        public var angle: Double
+    }
+
+    private enum CodingKeys: String, CodingKey { case viewBox, body, layers }
+
+    /// The server sends layers without repeating the markup: `body` is always
+    /// `base + lines`, and `split` is the UTF-16 offset where `lines` begins.
+    /// Explicit `base`/`lines` (an older server, or our own cache) also decode.
+    private struct WireLayers: Decodable {
+        var split: Int?
+        var base: String?
+        var lines: String?
+        var clip: String
+        var box: [Double]
+        var stripe: String?
+        var graphic: [Double]?
+        var logo: [Double]?
+        var block: String?
+        var panels: [Panel]?
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        viewBox = try container.decode(String.self, forKey: .viewBox)
+        body = try container.decode(String.self, forKey: .body)
+        layers = nil
+        // A malformed layers object costs the pattern, never the drawing.
+        guard let wire = try? container.decodeIfPresent(WireLayers.self, forKey: .layers) else { return }
+        let parts: (base: String, lines: String)?
+        if let base = wire.base, let lines = wire.lines {
+            parts = (base, lines)
+        } else if let split = wire.split, split >= 0, split <= body.utf16.count {
+            let index = String.Index(utf16Offset: split, in: body)
+            parts = (String(body[..<index]), String(body[index...]))
+        } else {
+            parts = nil
+        }
+        guard let parts else { return }
+        layers = Layers(
+            base: parts.base, lines: parts.lines, clip: wire.clip, box: wire.box, stripe: wire.stripe,
+            graphic: wire.graphic, logo: wire.logo, block: wire.block, panels: wire.panels
+        )
     }
 }
 

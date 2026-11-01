@@ -122,7 +122,8 @@ private extension ArtComposer.Layers {
     init(_ layers: ArtPiece.Layers) {
         self.init(
             base: layers.base, lines: layers.lines, clip: layers.clip, box: layers.box,
-            stripe: layers.stripe, graphic: layers.graphic, logo: layers.logo, block: layers.block
+            stripe: layers.stripe, graphic: layers.graphic, logo: layers.logo, block: layers.block,
+            panels: (layers.panels ?? []).map { ArtComposer.Panel(clip: $0.clip, box: $0.box, angle: $0.angle) }
         )
     }
 }
