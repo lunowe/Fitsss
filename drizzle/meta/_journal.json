@@ -71,6 +71,13 @@
       "when": 1791896680799,
       "tag": "0009_blue_slipstream",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793021938223,
+      "tag": "0010_clammy_screwball",
+      "breakpoints": true
     }
   ]
 }

@@ -81,7 +81,7 @@ function toGenerateCode(code: StructuredErrorCode): GenerateErrorCode {
 /* Loading                                                             */
 /* ------------------------------------------------------------------ */
 
-async function loadActiveBlocks(userId: string): Promise<Block[]> {
+export async function loadActiveBlocks(userId: string): Promise<Block[]> {
   const rows = await db
     .select()
     .from(blocks)
@@ -89,7 +89,7 @@ async function loadActiveBlocks(userId: string): Promise<Block[]> {
   return rows.map(rowToBlock);
 }
 
-async function loadStyle(userId: string, styleId: string | undefined): Promise<StyleForPrompt | null> {
+export async function loadStyle(userId: string, styleId: string | undefined): Promise<StyleForPrompt | null> {
   if (!styleId || !isUuid(styleId)) return null;
   const [row] = await db
     .select({ name: styles.name, description: styles.description, rules: styles.rules })

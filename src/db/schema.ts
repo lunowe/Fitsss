@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   customType,
+  date,
   real,
   boolean,
   index,
@@ -232,6 +233,38 @@ export const looks = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
   (table) => [index("looks_user_idx").on(table.userId, table.archivedAt)],
+);
+
+/**
+ * A trip to pack for: where, when, the weather per day, and the plan (the
+ * suitcase and an outfit a day). Shapes live in src/domain/trip.ts. The plan
+ * is null until packed; a style deleted later leaves `options.styleId`
+ * pointing nowhere, which the planner ignores.
+ */
+export const trips = pgTable(
+  "trips",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** TripPlace */
+    place: jsonb("place").notNull(),
+    startDate: date("start_date", { mode: "string" }).notNull(),
+    endDate: date("end_date", { mode: "string" }).notNull(),
+    /** TripOptions */
+    options: jsonb("options").notNull(),
+    /** TripDayWeather[] */
+    weather: jsonb("weather").notNull().default([]),
+    /** TripPlan, or null until packed */
+    plan: jsonb("plan"),
+    model: text("model"),
+    usage: jsonb("usage"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("trips_user_start_idx").on(table.userId, table.startDate)],
 );
 
 /** Feedback signal: saved, liked, disliked (+reason), worn, swapped. Feeds taste memory in phase 3. */

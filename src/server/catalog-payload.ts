@@ -8,6 +8,11 @@ import {
   DISLIKE_REASONS,
   MATERIALS,
   OCCASIONS,
+  TRIP_ACTIVITIES,
+  LUGGAGE_OPTIONS,
+  MAX_TRIP_DAYS,
+  MAX_TRIP_LEAD_DAYS,
+  CARRY_ON_MAX_NIGHTS,
   OUTFIT_SLOTS,
   PALETTE,
   PATTERN_LABELS,
@@ -95,6 +100,15 @@ export interface CatalogPayload {
   dislikeReasons: { id: string; label: string }[];
   /** Outfit slots in display order, each with the role that fills it. Accessories are a list on top of these. */
   outfitSlots: { id: string; role: Category }[];
+  /** Packing for a trip: what the days are for, the bags, and the limits. */
+  trips: {
+    activities: { id: string; label: string; hint: string }[];
+    luggage: { id: string; label: string; hint: string }[];
+    /** A trip of up to this many nights defaults to a carry-on. */
+    carryOnMaxNights: number;
+    maxDays: number;
+    maxLeadDays: number;
+  };
 }
 
 const STROKE = "var(--icon-stroke, #000)";
@@ -199,6 +213,13 @@ export function buildCatalogPayload(): CatalogPayload {
     weatherConditions: WEATHER_CONDITIONS.map((id) => ({ id, label: WEATHER_CONDITION_LABELS[id] })),
     dislikeReasons: DISLIKE_REASONS.map(({ id, label }) => ({ id, label })),
     outfitSlots: OUTFIT_SLOTS.map((id) => ({ id, role: SLOT_CATEGORY[id] })),
+    trips: {
+      activities: TRIP_ACTIVITIES.map(({ id, label, hint }) => ({ id, label, hint })),
+      luggage: LUGGAGE_OPTIONS.map(({ id, label, hint }) => ({ id, label, hint })),
+      carryOnMaxNights: CARRY_ON_MAX_NIGHTS,
+      maxDays: MAX_TRIP_DAYS,
+      maxLeadDays: MAX_TRIP_LEAD_DAYS,
+    },
   };
 
   const version = createHash("sha1").update(JSON.stringify(payload)).digest("hex").slice(0, 16);

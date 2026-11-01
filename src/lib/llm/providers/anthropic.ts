@@ -93,6 +93,9 @@ export async function callAnthropic<T>(
       messages: [{ role: "user", content: messageContent(call) }],
     });
   } catch (error) {
+    // The SDK's own errors are mapped; anything else (a parse failure, a
+    // truncated answer) would otherwise vanish behind a generic sentence.
+    if (!(error instanceof Anthropic.APIError)) console.error("[llm] anthropic call failed", error);
     return { ok: false, ...describe(error) };
   }
 
@@ -102,7 +105,17 @@ export async function callAnthropic<T>(
 
   const parsed = message.parsed_output;
   if (parsed === null || parsed === undefined) {
-    return { ok: false, code: "invalid-output", error: "The model returned nothing usable." };
+    console.warn(
+      `[llm] ${model} answered no usable output (stop: ${message.stop_reason}, ${message.usage.output_tokens}/${call.maxTokens} output tokens)`,
+    );
+    return {
+      ok: false,
+      code: "invalid-output",
+      error:
+        message.stop_reason === "max_tokens"
+          ? "The answer ran past its length limit. Try again, or a shorter trip."
+          : "The model returned nothing usable.",
+    };
   }
 
   return {

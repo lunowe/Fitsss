@@ -21,6 +21,8 @@ const asking = vi.hoisted(() => ({
   swapCatalogMidRequest: false,
   /** Whether the owner's custom type was in the catalog when each closet match ran. */
   ringKnownAtMatch: [] as boolean[],
+  /** The weather service down, for trips. */
+  weatherDown: false,
 }));
 
 vi.mock("server-only", () => ({}));
@@ -52,6 +54,22 @@ vi.mock("@/lib/inspo", async (importOriginal) => {
     },
   };
 });
+// Trips read the weather and search places over the network; tests never do.
+vi.mock("@/server/trip-weather", () => ({
+  tripWeather: async (_place: unknown, dates: string[]) =>
+    asking.weatherDown
+      ? { ok: false, error: "The weather is down." }
+      : {
+          ok: true,
+          days: dates.map((date) => ({ date, tempC: 18, lowC: 11, condition: "cloudy", precipitationChance: 20, source: "typical" })),
+        },
+}));
+vi.mock("@/server/places", () => ({
+  searchPlaces: async () => ({
+    ok: true,
+    places: [{ name: "Lisbon", country: "Portugal", countryCode: "PT", lat: 38.72, lon: -9.14, timezone: "Europe/Lisbon" }],
+  }),
+}));
 vi.mock("@/lib/session", () => ({
   getSession: async () => (asking.user ? { user: asking.user } : null),
   isAdmin: async () => false,
@@ -61,6 +79,8 @@ const run = Boolean(process.env.DATABASE_URL);
 const stamp = Date.now();
 const owner: TestUser = { id: `v1-owner-${stamp}`, email: `v1-owner-${stamp}@fitsss.test`, name: "Owner" };
 const intruder: TestUser = { id: `v1-intruder-${stamp}`, email: `v1-intruder-${stamp}@fitsss.test`, name: "Intruder" };
+/** Owns only what the trip tests give them, so the suitcase is predictable. */
+const traveler: TestUser = { id: `v1-traveler-${stamp}`, email: `v1-traveler-${stamp}@fitsss.test`, name: "Traveler" };
 
 const white = { name: "White", hex: "#ffffff", family: "neutral", paletteId: "white" };
 const navy = { name: "Navy", hex: "#1f2a44", family: "blue", paletteId: "navy" };
@@ -96,6 +116,11 @@ let tasteLinesRoute: typeof import("./taste/lines/route");
 let tasteLineRoute: typeof import("./taste/lines/[lineId]/route");
 let llmRoute: typeof import("./settings/llm/route");
 let llmTestRoute: typeof import("./settings/llm/test/route");
+let tripsRoute: typeof import("./trips/route");
+let tripRoute: typeof import("./trips/[id]/route");
+let tripPlanRoute: typeof import("./trips/[id]/plan/route");
+let tripSwapRoute: typeof import("./trips/[id]/swap/route");
+let placesRoute: typeof import("./places/route");
 
 /** A real PNG, `seed` making each one's bytes (and so its hash) different. */
 function png(seed: number, width = 2, height = 3): Uint8Array<ArrayBuffer> {
@@ -176,7 +201,7 @@ describe.skipIf(!run)("/api/v1", () => {
   beforeAll(async () => {
     const { db } = await import("@/db");
     const { customCategories, customPieceTypes, user } = await import("@/db/schema");
-    await db.insert(user).values([owner, intruder]);
+    await db.insert(user).values([owner, intruder, traveler]);
     // The owner has a catalog of their own; the intruder must never see it.
     await db.insert(customCategories).values({ userId: owner.id, slug: "v1-jewelry", label: "V1 Jewelry", role: "accessory" });
     await db.insert(customPieceTypes).values({
@@ -223,6 +248,11 @@ describe.skipIf(!run)("/api/v1", () => {
     tasteLineRoute = await import("./taste/lines/[lineId]/route");
     llmRoute = await import("./settings/llm/route");
     llmTestRoute = await import("./settings/llm/test/route");
+    tripsRoute = await import("./trips/route");
+    tripRoute = await import("./trips/[id]/route");
+    tripPlanRoute = await import("./trips/[id]/plan/route");
+    tripSwapRoute = await import("./trips/[id]/swap/route");
+    placesRoute = await import("./places/route");
   }, 120_000);
 
   afterAll(async () => {
@@ -231,7 +261,7 @@ describe.skipIf(!run)("/api/v1", () => {
     const { user } = await import("@/db/schema");
     const { inArray } = await import("drizzle-orm");
     // Blocks, custom catalog and idempotency rows cascade with the users.
-    await db.delete(user).where(inArray(user.id, [owner.id, intruder.id]));
+    await db.delete(user).where(inArray(user.id, [owner.id, intruder.id, traveler.id]));
   }, 60_000);
 
   describe("tenant isolation", () => {
@@ -1338,6 +1368,223 @@ describe.skipIf(!run)("/api/v1", () => {
         if (mocked === undefined) delete process.env.LLM_MOCK;
         else process.env.LLM_MOCK = mocked;
       }
+    });
+  });
+  describe("trips", () => {
+    const place = { name: "Lisbon", country: "Portugal", countryCode: "PT", lat: 38.72, lon: -9.14, timezone: "Europe/Lisbon" };
+    /** A date `days` from today, as the API takes it. */
+    const day = (days: number) => {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() + days);
+      return d.toISOString().slice(0, 10);
+    };
+    let teeId = "";
+    let jeansId = "";
+    let intruderPiece = "";
+
+    async function trips(as: TestUser | null, method = "GET", body?: unknown) {
+      asking.user = as;
+      const handler = method === "GET" ? tripsRoute.GET : tripsRoute.POST;
+      return handler(request("/api/v1/trips", method, body), undefined as never);
+    }
+    async function onTrip(
+      handler: (request: Request, context: { params: Promise<{ id: string }> }) => Promise<Response>,
+      as: TestUser,
+      id: string,
+      method: string,
+      body?: unknown,
+    ) {
+      return onInspo(handler, as, `/api/v1/trips/${id}`, { id }, method, body);
+    }
+    async function newTrip(as: TestUser, days: [number, number], extra: Record<string, unknown> = {}) {
+      const created = await trips(as, "POST", { place, startDate: day(days[0]), endDate: day(days[1]), ...extra });
+      expect(created.status).toBe(201);
+      return (await created.json()).data as { id: string; options: { luggage: string } };
+    }
+
+    beforeAll(async () => {
+      const made = await save(traveler, [
+        { ...tee, quantity: 2 },
+        { typeId: "jeans", color: navy, fit: "straight", material: "denim", pattern: "solid", quantity: 1 },
+        { typeId: "sneakers", color: white, variant: "low-top", pattern: "solid", quantity: 1 },
+      ]);
+      expect(made.status).toBe(201);
+      const created = (await made.json()).data.created as { id: string; typeId: string }[];
+      teeId = created.find((b) => b.typeId === "t-shirt")!.id;
+      jeansId = created.find((b) => b.typeId === "jeans")!.id;
+      const theirs = await save(intruder, { ...tee, quantity: 3 });
+      intruderPiece = (await theirs.json()).data.created[0].id;
+    }, 60_000);
+
+    it("keeps trips to their owner", async () => {
+      const trip = await newTrip(traveler, [3, 4]);
+      const listed = (await (await trips(intruder)).json()).data as { id: string }[];
+      expect(listed.map((t) => t.id)).not.toContain(trip.id);
+      expect((await onTrip(tripRoute.GET, intruder, trip.id, "GET")).status).toBe(404);
+      expect((await onTrip(tripRoute.PATCH, intruder, trip.id, "PATCH", { name: "Mine now" })).status).toBe(404);
+      expect((await onTrip(tripPlanRoute.POST, intruder, trip.id, "POST", {})).status).toBe(404);
+      expect((await onTrip(tripSwapRoute.POST, intruder, trip.id, "POST", { date: day(3), slot: "top", toBlockId: intruderPiece })).status).toBe(404);
+      expect((await onTrip(tripRoute.DELETE, intruder, trip.id, "DELETE")).status).toBe(404);
+      const mine = await onTrip(tripRoute.GET, traveler, trip.id, "GET");
+      expect((await mine.json()).data.name).toBe("Lisbon");
+      expect((await trips(null)).status).toBe(401);
+      asking.user = null;
+      expect((await placesRoute.GET(request("/api/v1/places?q=Lis"), undefined as never)).status).toBe(401);
+    });
+
+    it("refuses trips that make no sense, and picks the bag by length", async () => {
+      for (const body of [
+        { place, startDate: day(5), endDate: day(3) },
+        { place, startDate: day(-5), endDate: day(-3) },
+        { place, startDate: day(1), endDate: day(30) },
+        { place: { ...place, timezone: "" }, startDate: day(1), endDate: day(2) },
+        { place, startDate: day(1), endDate: day(2), activities: ["skydiving"] },
+        [place],
+      ]) {
+        expect((await trips(traveler, "POST", body)).status, JSON.stringify(body).slice(0, 60)).toBe(422);
+      }
+      expect((await newTrip(traveler, [2, 4])).options.luggage).toBe("carry-on");
+      expect((await newTrip(traveler, [2, 7])).options.luggage).toBe("checked");
+
+      asking.weatherDown = true;
+      try {
+        const before = ((await (await trips(traveler)).json()).data as unknown[]).length;
+        const down = await trips(traveler, "POST", { place, startDate: day(2), endDate: day(3) });
+        expect(down.status).toBe(503);
+        expect(((await (await trips(traveler)).json()).data as unknown[]).length).toBe(before);
+      } finally {
+        asking.weatherDown = false;
+      }
+    });
+
+    it("packs every day from what the person owns, never more than they have (mock model)", async () => {
+      const trip = await newTrip(traveler, [10, 14]);
+      const packed = await onTrip(tripPlanRoute.POST, traveler, trip.id, "POST", {});
+      expect(packed.status).toBe(200);
+      const plan = (await packed.json()).data.plan as {
+        days: { date: string; outfit: { slots: Record<string, unknown> } }[];
+        packing: { blockId: string; count: number; packed: boolean }[];
+        warnings: string[];
+      };
+      expect(plan.days.map((d) => d.date)).toEqual([10, 11, 12, 13, 14].map(day));
+      // Two tees for five days and no laundry: two packed, and a plain warning.
+      expect(plan.packing.find((p) => p.blockId === teeId)?.count).toBe(2);
+      expect(plan.warnings.join(" ")).toMatch(/worn 5 days; you have 2/);
+      // Everything worn is in the bag.
+      const bag = new Set(plan.packing.map((p) => p.blockId));
+      for (const d of plan.days) for (const id of Object.values(d.outfit.slots).flat()) if (typeof id === "string") expect(bag.has(id)).toBe(true);
+
+      // Laundry halves what the tees have to cover.
+      expect((await onTrip(tripRoute.PATCH, traveler, trip.id, "PATCH", { laundry: true })).status).toBe(200);
+      const again = (await (await onTrip(tripPlanRoute.POST, traveler, trip.id, "POST", {})).json()).data.plan;
+      expect(again.warnings.join(" ")).toMatch(/worn 5 days; you have 2\./);
+    });
+
+    it("ticks and counts within what is owned and what the days wear", async () => {
+      const trip = await newTrip(traveler, [20, 21]);
+      // Not packed yet: nothing to tick.
+      expect((await onTrip(tripRoute.PATCH, traveler, trip.id, "PATCH", { packed: { [teeId]: true } })).status).toBe(422);
+      await onTrip(tripPlanRoute.POST, traveler, trip.id, "POST", {});
+
+      const ticked = await onTrip(tripRoute.PATCH, traveler, trip.id, "PATCH", { packed: { [teeId]: true } });
+      expect(ticked.status).toBe(200);
+      expect((await ticked.json()).data.plan.packing.find((p: { blockId: string }) => p.blockId === teeId).packed).toBe(true);
+
+      for (const counts of [{ [teeId]: 3 }, { [teeId]: 1 }, { [jeansId]: 0 }, { [intruderPiece]: 1 }, { [teeId]: 1.5 }]) {
+        expect((await onTrip(tripRoute.PATCH, traveler, trip.id, "PATCH", { counts })).status, JSON.stringify(counts)).toBe(422);
+      }
+      // A repack keeps the tick on a piece that is still packed.
+      const repacked = (await (await onTrip(tripPlanRoute.POST, traveler, trip.id, "POST", { steer: "Keep it simple" })).json()).data;
+      expect(repacked.options.steer).toBe("Keep it simple");
+      expect(repacked.plan.packing.find((p: { blockId: string }) => p.blockId === teeId).packed).toBe(true);
+    });
+
+    it("swaps only the person's own pieces into a day, and the bag follows", async () => {
+      const trip = await newTrip(traveler, [25, 25]);
+      await onTrip(tripPlanRoute.POST, traveler, trip.id, "POST", {});
+      const foreign = await onTrip(tripSwapRoute.POST, traveler, trip.id, "POST", { date: day(25), slot: "top", toBlockId: intruderPiece });
+      expect(foreign.status).toBe(422);
+      const wrongSlot = await onTrip(tripSwapRoute.POST, traveler, trip.id, "POST", { date: day(25), slot: "top", toBlockId: jeansId });
+      expect(wrongSlot.status).toBe(422);
+      const otherDay = await onTrip(tripSwapRoute.POST, traveler, trip.id, "POST", { date: day(26), slot: "bottom", toBlockId: jeansId });
+      expect(otherDay.status).toBe(422);
+
+      const deleted = await onTrip(tripRoute.DELETE, traveler, trip.id, "DELETE");
+      expect(deleted.status).toBe(204);
+      expect((await onTrip(tripRoute.GET, traveler, trip.id, "GET")).status).toBe(404);
+    });
+
+    it("reads a plan against the closet as it is now", async () => {
+      const trip = await newTrip(traveler, [40, 44]);
+      await onTrip(tripPlanRoute.POST, traveler, trip.id, "POST", {});
+      // The tees drop from two to one after packing.
+      const lowered = await onPiece(item.PATCH, traveler, teeId, "PATCH", { ...tee, quantity: 1 });
+      expect(lowered.status).toBe(200);
+      try {
+        const read = (await (await onTrip(tripRoute.GET, traveler, trip.id, "GET")).json()).data;
+        expect(read.plan.packing.find((p: { blockId: string }) => p.blockId === teeId).count).toBe(1);
+        expect(read.plan.warnings.join(" ")).toMatch(/you have one/);
+        const listed = ((await (await trips(traveler)).json()).data as { id: string; plan: { packing: { blockId: string; count: number }[] } }[])
+          .find((t) => t.id === trip.id)!;
+        expect(listed.plan.packing.find((p) => p.blockId === teeId)?.count).toBe(1);
+      } finally {
+        await onPiece(item.PATCH, traveler, teeId, "PATCH", { ...tee, quantity: 2 });
+      }
+    });
+
+    it("swaps a dress in and back out, takes an accessory off, and never wears one piece twice a day", async () => {
+      const made = await save(traveler, [
+        { typeId: "dress", color: navy, fit: "a-line", material: "cotton", pattern: "solid", quantity: 1 },
+        { typeId: "scarf", color: white, variant: "wool-scarf", material: "wool", pattern: "solid", quantity: 1 },
+      ]);
+      const created = (await made.json()).data.created as { id: string; typeId: string }[];
+      const dressId = created.find((b) => b.typeId === "dress")!.id;
+      const scarfId = created.find((b) => b.typeId === "scarf")!.id;
+      try {
+        const trip = await newTrip(traveler, [50, 50]);
+        await onTrip(tripPlanRoute.POST, traveler, trip.id, "POST", {});
+        const swap = (body: Record<string, unknown>) => onTrip(tripSwapRoute.POST, traveler, trip.id, "POST", { date: day(50), ...body });
+
+        const dressed = await swap({ slot: "fullbody", toBlockId: dressId });
+        expect(dressed.status).toBe(200);
+        expect((await dressed.json()).data.plan.days[0].outfit.slots).toMatchObject({ fullbody: dressId });
+        expect((await swap({ slot: "top", toBlockId: teeId })).status).toBe(422);
+        const back = await swap({ slot: "separates", top: teeId, bottom: jeansId });
+        expect(back.status).toBe(200);
+        const slots = (await back.json()).data.plan.days[0].outfit.slots;
+        expect(slots.fullbody).toBeUndefined();
+        expect(slots).toMatchObject({ top: teeId, bottom: jeansId });
+
+        expect((await swap({ slot: "accessories", toBlockId: scarfId })).status).toBe(200);
+        expect((await swap({ slot: "accessories", toBlockId: scarfId })).status).toBe(422);
+        const off = await swap({ slot: "accessories", toBlockId: null, fromBlockId: scarfId });
+        expect((await off.json()).data.plan.days[0].outfit.slots.accessories).toEqual([]);
+        // Shoes and the top can't be taken off.
+        expect((await swap({ slot: "footwear", toBlockId: null })).status).toBe(422);
+        expect((await onTrip(tripRoute.PATCH, traveler, trip.id, "PATCH", {})).status).toBe(422);
+        expect((await onTrip(tripRoute.PATCH, traveler, trip.id, "PATCH", { foo: 1 })).status).toBe(422);
+        expect((await onTrip(tripRoute.PATCH, traveler, trip.id, "PATCH", { counts: {} })).status).toBe(422);
+        // Ids in any case.
+        const upper = await swap({ slot: "accessories", toBlockId: scarfId.toUpperCase() });
+        expect(upper.status).toBe(200);
+        // Taken off the only day that wore it, the scarf leaves the bag.
+        const offAgain = await swap({ slot: "accessories", toBlockId: null, fromBlockId: scarfId.toUpperCase() });
+        expect((await offAgain.json()).data.plan.packing.some((p: { blockId: string }) => p.blockId === scarfId)).toBe(false);
+      } finally {
+        await onPiece(item.DELETE, traveler, dressId, "DELETE");
+        await onPiece(item.DELETE, traveler, scarfId, "DELETE");
+      }
+    });
+
+    it("packs a trip once when asked twice at the same time (mock model)", async () => {
+      const trip = await newTrip(traveler, [30, 31]);
+      asking.user = traveler;
+      const [a, b] = await Promise.all([
+        tripPlanRoute.POST(request(`/api/v1/trips/${trip.id}/plan`, "POST", {}), { params: Promise.resolve({ id: trip.id }) }),
+        tripPlanRoute.POST(request(`/api/v1/trips/${trip.id}/plan`, "POST", {}), { params: Promise.resolve({ id: trip.id }) }),
+      ]);
+      const [ja, jb] = [(await a.json()).data, (await b.json()).data];
+      expect(ja.updatedAt).toBe(jb.updatedAt);
     });
   });
 });

@@ -30,7 +30,13 @@ export type ApiErrorCode =
   | "refresh_failed"
   // AI model settings: the test call came back wrong, or too many tests.
   | "test_failed"
-  | "rate_limited";
+  | "rate_limited"
+  // Trips: no weather for the dates, packing failed, too many trips.
+  | "weather_failed"
+  | "plan_failed"
+  | "limit_reached"
+  | "trip_busy"
+  | "search_failed";
 
 export function data<T>(payload: T, status = 200): Response {
   return Response.json({ data: payload }, { status });
