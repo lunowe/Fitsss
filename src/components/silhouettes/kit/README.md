@@ -67,16 +67,15 @@ the chest width (22–24%) and a graphic anchor about half: the tiles are drawn 
 - `print`: a ditsy of five-petal blossoms with a dot between; motifs are ~6 units so a
   sleeve or hem cuts through several instead of beheading one, and at closet size the print
   is a speckle rather than fragments.
-- `textured`: shaded wales, a rib knit on knits and tees (14 across the piece) and a
-  corduroy on wovens (`markupV`, 20). Each wale is a stack of vertical strokes in the pattern
-  color that narrow towards an off-centre crest, so it is lit from one side, with a quiet ink
-  crease between wales; the field takes only a faint tint. Ribs with relief, not flat bands,
-  are what keep it apart from the stripe, and there is no second direction to read as a
-  check. The pattern color shows in the pile, the garment color in the gaps: a corduroy at
-  240 px, visible ribbing at 96 px, a soft tonal grain at 56 px. On a dark piece the ink is a
-  tint, so the creases catch light instead of casting shadow; the crease is kept quiet so
-  that does not turn into pinstripes. Seven stroked paths per tile, straight lines only, so
-  it rotates cleanly on a sleeve panel.
+- `textured`: a waffle knit on knits and tees, a basketweave (oxford, hopsack) on wovens
+  (`markupV`). Both are drawn tonally, the way a flat illustration shows cloth: the field
+  takes a faint tint of the pattern color, the structure is a little more of it, and the ink
+  casts a thin shadow along each cell so it reads as relief, not as a check or a print. Low
+  contrast and an orderly, fine grid are what make it read as surface rather than pattern; the
+  ink relief keeps it visible when the pattern color is close to the garment's (stone on
+  white, graphite on black). A knit or weave at 240 px, a quiet grain at 96 px, a tint at 56
+  px. Both tiles are a few dashed lines, so the markup is tiny, and both are isotropic
+  enough to rotate on a sleeve panel.
 - `graphic`: a chest print, a sun setting into three bars that shorten downwards, solid in
   the pattern color with no frame, so it fills its anchor and reads as a screen print at
   closet size instead of a pocket.

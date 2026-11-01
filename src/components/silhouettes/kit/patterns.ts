@@ -74,36 +74,74 @@ function blossoms(): string {
 }
 
 /**
- * Corduroy and rib knit, drawn as shaded wales. Each wale is a stack of
- * vertical strokes in the pattern color, narrowing towards the crest with a
- * cosine profile and a little off-centre (`asym`), so it is lit from one side;
- * between wales the ink draws a crease: a soft wide shadow and a narrower
- * line, both quiet, so on a dark piece (where the ink is a tint) the creases
- * do not turn into pinstripes. The field takes only a faint tint, so the
- * garment keeps its own color in the gaps and the pattern color shows in the
- * pile. Vertical lines only, so the tile rotates cleanly on a sleeve panel
- * and the markup stays tiny.
+ * `rows` lines across the tile (or down it) at the center of each row, one
+ * subpath each: a dash pattern restarts on every subpath, so a dashed stroke
+ * turns the lines into a grid of cells with almost no markup.
  */
-function wales(count: number, asym: number): string {
-  const p = 100 / count;
-  const lines = (shift: number) => {
-    let d = "";
-    for (let i = 0; i <= count; i++) {
-      const x = n(i * p + shift);
-      d += `M${x} -2L${x} 102`;
+function rules(rows: number, vertical: boolean, from: number, to: number): string {
+  const period = 100 / rows;
+  let d = "";
+  for (let j = 0; j < rows; j++) {
+    const at = n(j * period + period / 2);
+    d += vertical ? `M${at} ${n(from)}L${at} ${n(to)}` : `M${n(from)} ${at}L${n(to)} ${at}`;
+  }
+  return d;
+}
+
+/**
+ * A waffle knit, drawn tonally: the field takes a faint tint of the pattern
+ * color, each well of the waffle a little more, and the ink casts a thin
+ * shadow along the top and left of every well, which is what makes the cells
+ * read as relief instead of a check. The wells are one dashed line per row,
+ * as wide as a cell, so the whole tile is three elements. `cells` and `gap`
+ * must divide 100 cleanly: the dash pattern repeats across the tile and a
+ * rounded length would drift out of step with the rows.
+ */
+function waffle(cells: number, gap: number, tint: number, well: number, shadow: number, lift: number): string {
+  const period = 100 / cells;
+  const w = n(period - gap);
+  const d = rules(cells, false, gap / 2, 100 + gap / 2);
+  const dash = `stroke-dasharray="${w} ${n(gap)}" stroke-width="${w}"`;
+  return (
+    `<rect x="-2" y="-2" width="104" height="104" ${INK} fill-opacity="${tint}"/>` +
+    `<path d="${d}" fill="none" stroke="var(--icon-stroke, #000)" ${dash} stroke-opacity="${shadow}" ` +
+    `transform="translate(${n(-lift)} ${n(-lift)})"/>` +
+    `<path d="${d}" fill="none" stroke="var(--icon-pattern, #000)" ${dash} stroke-opacity="${well}"/>`
+  );
+}
+
+/**
+ * A basketweave (oxford cloth, hopsack): two short bars per cell, across in
+ * one cell and down in the next, over a faint tint, with the same thin ink
+ * shadow as the waffle. Four dashed lines per row and per column; the dash
+ * period is two cells, so `cells` must divide 100 cleanly here too.
+ */
+function basketweave(cells: number, width: number, gap: number, tint: number, bar: number, shadow: number): string {
+  const period = 100 / cells;
+  // Dash period is two cells; cover the tile plus one cell with whole periods.
+  const span = Math.ceil((100 + period) / (2 * period)) * 2 * period;
+  let d = "";
+  for (let j = 0; j < cells; j++) {
+    const even = j % 2 === 0;
+    for (const side of [-1, 1]) {
+      const at = n(j * period + period / 2 + (side * period) / 4);
+      // Rows start a cell later on odd rows, columns on even ones, so the
+      // bars of the two directions never share a cell. Every line is a whole
+      // number of dash periods long, so a renderer that runs one dash phase
+      // across subpaths (Core Graphics) draws the same tile as one that
+      // restarts it (SVG).
+      const rowStart = (even ? 0 : period) + gap / 2;
+      const colStart = (even ? period : 0) + gap / 2;
+      d += `M${n(rowStart)} ${at}L${n(rowStart + span)} ${at}`;
+      d += `M${at} ${n(colStart)}L${at} ${n(colStart + span)}`;
     }
-    return d;
-  };
-  const steps = [0.06, 0.07, 0.09, 0.12, 0.2];
-  let out = `<rect x="-2" y="-2" width="104" height="104" ${INK} fill-opacity="0.05"/>`;
-  steps.forEach((opacity, k) => {
-    const t = (k + 1) / (steps.length + 1);
-    const width = Math.cos((t * Math.PI) / 2) * 0.95;
-    out += `<path d="${lines(p * (0.5 - asym * t))}" fill="none" stroke="var(--icon-pattern, #000)" stroke-width="${n(p * width)}" stroke-opacity="${opacity}"/>`;
-  });
-  out += `<path d="${lines(-p * 0.1)}" fill="none" stroke="var(--icon-stroke, #000)" stroke-width="${n(p * 0.34)}" stroke-opacity="0.14"/>`;
-  out += `<path d="${lines(0)}" fill="none" stroke="var(--icon-stroke, #000)" stroke-width="${n(p * 0.2)}" stroke-opacity="0.16"/>`;
-  return out;
+  }
+  const dash = `stroke-dasharray="${n(period - gap)} ${n(period + gap)}" stroke-width="${n(width)}"`;
+  return (
+    `<rect x="-2" y="-2" width="104" height="104" ${INK} fill-opacity="${tint}"/>` +
+    `<path d="${d}" fill="none" stroke="var(--icon-stroke, #000)" ${dash} stroke-opacity="${shadow}" transform="translate(0.5 0.5)"/>` +
+    `<path d="${d}" fill="none" stroke="var(--icon-pattern, #000)" ${dash} stroke-opacity="${bar}"/>`
+  );
 }
 
 /** A semicircle of radius `r` sitting on y = `cy`, as two quarter arcs. */
@@ -142,15 +180,15 @@ export const PATTERN_TILES: Record<string, PatternTile> = {
       `<g ${INK} fill-opacity="0.75">${crossings(7, 7.4)}</g>`,
   },
   print: { kind: "field", markup: blossoms() },
-  // Textured: a rib knit on knits and tees (14 wales across the piece), a
-  // corduroy on wovens (`markupV`, 20 wales). Both are shaded relief: the
-  // pattern color in the pile, the garment color between, ink in the creases.
-  // Ribs, not bands, so it is nothing like the stripe; no second direction,
-  // so it is nothing like the check.
+  // Textured: a waffle knit on knits and tees, a basketweave on wovens
+  // (`markupV`). Both are tonal: a faint tint of the pattern color with the
+  // structure in ink relief, so the piece still reads as its own color with a
+  // visible knit or weave, on light and dark grounds and when the pattern
+  // color is close to the garment's.
   textured: {
     kind: "field",
-    markup: wales(14, 0.22),
-    markupV: wales(20, 0.22),
+    markup: waffle(25, 1.2, 0.08, 0.2, 0.14, 0.5),
+    markupV: basketweave(25, 0.9, 0.8, 0.1, 0.26, 0.08),
   },
   // A chest print: a sun setting into three bars that shorten downwards,
   // solid in the pattern color with no frame, so it reads as a screen print
