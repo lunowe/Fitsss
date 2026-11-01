@@ -125,8 +125,9 @@ graphic, a logo or colour-blocked panels, laid between the garment's fills and i
 pattern colour (`compose.ts`; the iOS app ports the same recipe). With no pattern colour of its
 own a pattern is inked deep navy on light pieces and off-white on dark ones.
 
-The outline contrasts with the *garment*, not with the theme: `Silhouette` measures the piece
-colour's lightness and inks it black at 62% or white at 72%. A colour it cannot measure (a
+The outline contrasts with the *garment*, not with the theme, and belongs to it: `Silhouette`
+measures the piece colour's lightness and inks it with a deep shade of that colour (40% colour,
+60% black) on light pieces or a pale tint (32% colour, 68% white) on dark ones. A colour it cannot measure (a
 `var()` from the add flow) falls back to `var(--color-label)` at 70%.
 
 A user's own drawing (content admin, uploaded or generated) wins over the kit. Custom types with

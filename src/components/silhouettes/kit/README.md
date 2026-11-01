@@ -67,15 +67,18 @@ the chest width (22–24%) and a graphic anchor about half: the tiles are drawn 
 - `print`: a ditsy of five-petal blossoms with a dot between; motifs are ~6 units so a
   sleeve or hem cuts through several instead of beheading one, and at closet size the print
   is a speckle rather than fragments.
-- `textured`: a marl. Two layers of short rounded flecks in the pattern color at random
-  angles on a jittered grid (a soft dense layer and a sparser stronger one) plus a scatter
-  of ink specks, generated from a seeded PRNG so every client draws the same cloth. It has
-  no direction and no grid, so it reads as surface rather than stripe, hatch or print, and
-  the same tile works rotated on a sleeve panel. A flecked knit at 240 px, a quiet speckle
-  at 96 px, a soft tint at 56 px; the ink specks keep it visible when the pattern color is
-  close to the garment's (stone on white) and read as the dark fibre of a heather.
-- `graphic`: a framed landscape print (sun on the horizon over two bars) cut from a solid
-  block, so it reads as a screen print on any ground at any size.
+- `textured`: a waffle knit on knits and tees, a basketweave (oxford, hopsack) on wovens
+  (`markupV`). Both are drawn tonally, the way a flat illustration shows cloth: the field
+  takes a faint tint of the pattern color, the structure is a little more of it, and the ink
+  casts a thin shadow along each cell so it reads as relief, not as a check or a print. Low
+  contrast and an orderly, fine grid are what make it read as surface rather than pattern; the
+  ink relief keeps it visible when the pattern color is close to the garment's (stone on
+  white, graphite on black). A knit or weave at 240 px, a quiet grain at 96 px, a tint at 56
+  px. Both tiles are a few dashed lines, so the markup is tiny, and both are isotropic
+  enough to rotate on a sleeve panel.
+- `graphic`: a chest print, a sun setting into three bars that shorten downwards, solid in
+  the pattern color with no frame, so it fills its anchor and reads as a screen print at
+  closet size instead of a pocket.
 - `logo`: a solid roundel with two peaks cut out of it. The disc fills its anchor, so at
   closet size it is still a crisp dot of pattern color and the peaks appear from ~96 px;
   nothing like the graphic.

@@ -4,9 +4,9 @@
  * a shift with cap sleeves; slip hangs from thin straps with a V neck; wrap
  * crosses over at the bust and ties at the side of the waist.
  */
-import { C, CX, FILL2, fill, ink, L, lerp, mirrored, path, piece, polyline, Q, seam, shade, stroke, symmetric, type Pt } from "../draw";
+import { boundsOf, C, CX, FILL2, fill, ink, L, lerp, mirrored, path, piece, polyline, Q, seam, shade, stroke, symmetric, type Pt, type Seg } from "../draw";
 import { sleeve } from "../parts-tops";
-import type { KitPiece } from "../types";
+import type { ArtPanel, KitPiece } from "../types";
 import { crewNeck } from "../torso";
 import { crewRib } from "./tee";
 
@@ -22,6 +22,32 @@ function hem(hw: number, y: number, droop: number): { seg: ReturnType<typeof Q>;
 
 /** A straight seam across the body at `y`, inset `margin` from half width `hw`. */
 const across = (hw: number, y: number, margin = 2) => polyline([CX - hw + margin, y], [CX + hw - margin, y]);
+
+/**
+ * Pattern panels for a flared skirt: the cloth either side of `split` (a path
+ * from the waist seam at `y0` down to the hem at `y1`, on the right, starting
+ * at x = `splitX`) is cut on its own grain, leaning out with the flare by
+ * `lean` degrees, so stripes fan with the hem and a check turns with it
+ * instead of staying parallel to the bodice. The tile turns about the top of
+ * the split on the dress's own center line, so the pattern is continuous
+ * where the panel meets the body and bends outward from there; the main clip
+ * cuts the panels to the dress.
+ */
+function skirtPanels(outline: string, splitX: number, split: Seg[], y0: number, y1: number, lean: number): ArtPanel[] {
+  const far = CX + 110;
+  const right = path([CX, y0], [L([splitX, y0]), ...split, L([far, y1 + 12]), L([far, y0])], true);
+  const left = mirrored(right);
+  const [, by, , bh] = boundsOf([outline]);
+  const cy = by + bh / 2;
+  const hw = far - splitX;
+  const hh = Math.max(Math.abs(y0 - cy), Math.abs(y1 + 12 - cy));
+  const r = (n: number) => Math.round(n * 10) / 10;
+  const box = (x0: number): ArtPanel["box"] => [r(x0), r(cy - hh), r(2 * hw), r(2 * hh)];
+  return [
+    { clip: right, box: box(splitX - hw), angle: -lean },
+    { clip: left, box: box(2 * CX - splitX - hw), angle: lean },
+  ];
+}
 
 function sheath(): KitPiece {
   const neckW = 14;
@@ -77,7 +103,8 @@ function aLine(): KitPiece {
   ]);
   const rib = crewRib(neckW, NECK_Y, 14, 2.5);
   // Skirt panel seams that follow the flare.
-  const panel = path([CX + 17, waist[1] + 0.5], [C([CX + 17.5, waist[1] + skirtLen * 0.3], [CX + 35, waist[1] + skirtLen * 0.7], [CX + 37, H[1] + 7 * 0.75 - 0.5])]);
+  const gore: Seg = C([CX + 17.5, waist[1] + skirtLen * 0.3], [CX + 35, waist[1] + skirtLen * 0.7], [CX + 37, H[1] + 7 * 0.75 - 0.5]);
+  const panel = path([CX + 17, waist[1] + 0.5], [gore]);
   return piece({
     base: [fill(outline)],
     lines: [
@@ -86,7 +113,7 @@ function aLine(): KitPiece {
       rib.lines,
     ],
     clip: outline,
-    panels: sl.panels,
+    panels: [...sl.panels, ...skirtPanels(outline, CX + 17, [gore], waist[1], H[1] + 7, 13)],
     stripe: "h",
   });
 }
@@ -118,7 +145,9 @@ function shift(): KitPiece {
     base: [fill(outline)],
     lines: [rib.fills, ink(stroke(outline), sl.armSeams, sl.cuffLines(3.5), seam(pocket), seam(mirrored(pocket)), seam(h.line)), rib.lines],
     clip: outline,
-    panels: sl.panels,
+    // The skirt's sides lean out from the hip, so a stripe bends gently with
+    // the hem instead of cutting straight across the flare.
+    panels: [...sl.panels, ...skirtPanels(outline, CX + 20, [L([CX + 31, H[1] + 5])], hip[1], H[1] + 5, 9)],
     stripe: "h",
   });
 }
@@ -210,7 +239,7 @@ function wrap(): KitPiece {
       ink(stroke(outline), sl.armSeams, sl.cuffLines(3.5), stroke(over), seam(sash), stroke(tie2), stroke(tie), stroke(knotShape), seam(h.line)),
     ],
     clip: outline,
-    panels: sl.panels,
+    panels: [...sl.panels, ...skirtPanels(outline, CX, [L([CX, H[1] + 8])], 110, H[1] + 8, 12)],
     stripe: "h",
   });
 }

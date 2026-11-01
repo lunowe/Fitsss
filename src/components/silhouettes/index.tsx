@@ -68,10 +68,19 @@ function lightnessOf(color: string): number | null {
  */
 const LABEL_INK = "color-mix(in srgb, var(--color-label, currentColor) 70%, transparent)";
 
-function inkFor(lightness: number | null): string {
+function inkFor(color: string, lightness: number | null): string {
   if (lightness === null) return LABEL_INK;
-  return lightness > 0.45 ? "rgb(0 0 0 / 0.62)" : "rgb(255 255 255 / 0.72)";
+  // Tonal ink: a deep shade of the garment's own colour on light pieces, a pale
+  // tint of it on dark ones, so lines belong to the cloth instead of sitting on
+  // it as a black or white wireframe.
+  return lightness > 0.45
+    ? `color-mix(in srgb, ${color} ${TONAL_LIGHT}%, #000)`
+    : `color-mix(in srgb, ${color} ${TONAL_DARK}%, #fff)`;
 }
+
+/** How much of the garment colour its ink keeps, on light and on dark pieces. */
+const TONAL_LIGHT = 40;
+const TONAL_DARK = 32;
 
 /**
  * The pattern ink when the piece has no pattern colour of its own: a deep navy
@@ -118,7 +127,7 @@ export function Silhouette({
   const layers: ArtLayers | undefined = kit?.layers;
   const label = title ? { role: "img" as const, "aria-label": title } : { "aria-hidden": true };
   const lightness = lightnessOf(color);
-  const ink = inkFor(lightness);
+  const ink = inkFor(color, lightness);
 
   const vars = {
     "--icon-fill": color,

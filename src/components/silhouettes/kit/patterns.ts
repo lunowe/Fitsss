@@ -73,68 +73,83 @@ function blossoms(): string {
   return `<g ${INK}>${petals}${dots}</g><g ${GROUND}>${holes}</g>`;
 }
 
-/** A small deterministic PRNG (mulberry32), so the marl is the same on every client. */
-function rng(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+/**
+ * `rows` lines across the tile (or down it) at the center of each row, one
+ * subpath each: a dash pattern restarts on every subpath, so a dashed stroke
+ * turns the lines into a grid of cells with almost no markup.
+ */
+function rules(rows: number, vertical: boolean, from: number, to: number): string {
+  const period = 100 / rows;
+  let d = "";
+  for (let j = 0; j < rows; j++) {
+    const at = n(j * period + period / 2);
+    d += vertical ? `M${at} ${n(from)}L${at} ${n(to)}` : `M${n(from)} ${at}L${n(to)} ${at}`;
+  }
+  return d;
 }
 
-/** Coordinates to half a unit: irregular enough to hide any grid, short enough to keep the tile small. */
-const h = (v: number) => String(Math.round(v * 2) / 2);
-
 /**
- * Short rounded dashes at random angles, one per cell of a jittered grid so
- * the cover is even without ever lining up. Returns one stroked path.
+ * A waffle knit, drawn tonally: the field takes a faint tint of the pattern
+ * color, each well of the waffle a little more, and the ink casts a thin
+ * shadow along the top and left of every well, which is what makes the cells
+ * read as relief instead of a check. The wells are one dashed line per row,
+ * as wide as a cell, so the whole tile is three elements. `cells` and `gap`
+ * must divide 100 cleanly: the dash pattern repeats across the tile and a
+ * rounded length would drift out of step with the rows.
  */
-function flecks(seed: number, cells: number, len: [number, number], width: number, opacity: number): string {
-  const r = rng(seed);
-  const step = 100 / cells;
-  let d = "";
-  for (let i = 0; i < cells; i++) {
-    for (let j = 0; j < cells; j++) {
-      const cx = i * step + r() * step;
-      const cy = j * step + r() * step;
-      const half = (len[0] + r() * (len[1] - len[0])) / 2;
-      const a = r() * Math.PI;
-      const dx = Math.cos(a) * half;
-      const dy = Math.sin(a) * half;
-      d += `M${h(cx - dx)} ${h(cy - dy)}L${h(cx + dx)} ${h(cy + dy)}`;
-    }
-  }
+function waffle(cells: number, gap: number, tint: number, well: number, shadow: number, lift: number): string {
+  const period = 100 / cells;
+  const w = n(period - gap);
+  const d = rules(cells, false, gap / 2, 100 + gap / 2);
+  const dash = `stroke-dasharray="${w} ${n(gap)}" stroke-width="${w}"`;
   return (
-    `<path d="${d}" fill="none" stroke="var(--icon-pattern, #000)" stroke-width="${n(width)}" ` +
-    `stroke-linecap="round" stroke-opacity="${opacity}"/>`
+    `<rect x="-2" y="-2" width="104" height="104" ${INK} fill-opacity="${tint}"/>` +
+    `<path d="${d}" fill="none" stroke="var(--icon-stroke, #000)" ${dash} stroke-opacity="${shadow}" ` +
+    `transform="translate(${n(-lift)} ${n(-lift)})"/>` +
+    `<path d="${d}" fill="none" stroke="var(--icon-pattern, #000)" ${dash} stroke-opacity="${well}"/>`
   );
 }
 
 /**
- * A fabric texture: a marl. Two layers of short flecks in the pattern color,
- * a soft dense one and a sparser stronger one, so the surface has tonal depth
- * instead of one kind of mark; plus a scatter of ink specks that keeps the
- * weave visible when the pattern color is close to the garment's (stone on
- * white) and reads as the dark fibre of a heather. Nothing has a direction,
- * so the same tile works rotated on a sleeve panel. At 240 px it is a flecked
- * knit, at 96 px a quiet speckle, at 56 px a soft tint.
+ * A basketweave (oxford cloth, hopsack): two short bars per cell, across in
+ * one cell and down in the next, over a faint tint, with the same thin ink
+ * shadow as the waffle. Four dashed lines per row and per column; the dash
+ * period is two cells, so `cells` must divide 100 cleanly here too.
  */
-function marl(): string {
-  const r = rng(29);
-  let specks = "";
-  for (let i = 0; i < 320; i++) {
-    const x = r() * 100;
-    const y = r() * 100;
-    specks += `M${h(x)} ${h(y)}L${h(x + 0.5)} ${h(y + 0.5)}`;
+function basketweave(cells: number, width: number, gap: number, tint: number, bar: number, shadow: number): string {
+  const period = 100 / cells;
+  // Dash period is two cells; cover the tile plus one cell with whole periods.
+  const span = Math.ceil((100 + period) / (2 * period)) * 2 * period;
+  let d = "";
+  for (let j = 0; j < cells; j++) {
+    const even = j % 2 === 0;
+    for (const side of [-1, 1]) {
+      const at = n(j * period + period / 2 + (side * period) / 4);
+      // Rows start a cell later on odd rows, columns on even ones, so the
+      // bars of the two directions never share a cell. Every line is a whole
+      // number of dash periods long, so a renderer that runs one dash phase
+      // across subpaths (Core Graphics) draws the same tile as one that
+      // restarts it (SVG).
+      const rowStart = (even ? 0 : period) + gap / 2;
+      const colStart = (even ? period : 0) + gap / 2;
+      d += `M${n(rowStart)} ${at}L${n(rowStart + span)} ${at}`;
+      d += `M${at} ${n(colStart)}L${at} ${n(colStart + span)}`;
+    }
   }
+  const dash = `stroke-dasharray="${n(period - gap)} ${n(period + gap)}" stroke-width="${n(width)}"`;
   return (
-    flecks(11, 34, [0.9, 2.2], 0.55, 0.4) +
-    flecks(5, 24, [1, 2.4], 0.6, 0.6) +
-    `<path d="${specks}" fill="none" stroke="var(--icon-stroke, #000)" stroke-width="0.55" ` +
-    `stroke-linecap="round" stroke-opacity="0.24"/>`
+    `<rect x="-2" y="-2" width="104" height="104" ${INK} fill-opacity="${tint}"/>` +
+    `<path d="${d}" fill="none" stroke="var(--icon-stroke, #000)" ${dash} stroke-opacity="${shadow}" transform="translate(0.5 0.5)"/>` +
+    `<path d="${d}" fill="none" stroke="var(--icon-pattern, #000)" ${dash} stroke-opacity="${bar}"/>`
+  );
+}
+
+/** A semicircle of radius `r` sitting on y = `cy`, as two quarter arcs. */
+function dome(r: number, cy: number): string {
+  const k = 0.5523 * r;
+  return (
+    `M${n(50 - r)} ${n(cy)}C${n(50 - r)} ${n(cy - k)} ${n(50 - k)} ${n(cy - r)} 50 ${n(cy - r)}` +
+    `C${n(50 + k)} ${n(cy - r)} ${n(50 + r)} ${n(cy - k)} ${n(50 + r)} ${n(cy)}Z`
   );
 }
 
@@ -165,15 +180,25 @@ export const PATTERN_TILES: Record<string, PatternTile> = {
       `<g ${INK} fill-opacity="0.75">${crossings(7, 7.4)}</g>`,
   },
   print: { kind: "field", markup: blossoms() },
-  textured: { kind: "field", markup: marl() },
-  // A chest print: a framed landscape, the sun on the horizon over two bars
-  // of sea, cut out of a solid block in the garment color.
+  // Textured: a waffle knit on knits and tees, a basketweave on wovens
+  // (`markupV`). Both are tonal: a faint tint of the pattern color with the
+  // structure in ink relief, so the piece still reads as its own color with a
+  // visible knit or weave, on light and dark grounds and when the pattern
+  // color is close to the garment's.
+  textured: {
+    kind: "field",
+    markup: waffle(25, 1.2, 0.08, 0.2, 0.14, 0.5),
+    markupV: basketweave(25, 0.9, 0.8, 0.1, 0.26, 0.08),
+  },
+  // A chest print: a sun setting into three bars that shorten downwards,
+  // solid in the pattern color with no frame, so it reads as a screen print
+  // at closet size instead of a pocket, and fills its anchor.
   graphic: {
     kind: "motif",
     markup:
-      `<rect x="8" y="16" width="84" height="64" ${INK}/>` +
-      `<g ${GROUND}><path d="M30 58L30 56C30 44 39 36 50 36C61 36 70 44 70 56L70 58Z"/>` +
-      `<rect x="8" y="60" width="84" height="3"/><rect x="8" y="67" width="84" height="4"/></g>`,
+      `<g ${INK}><path d="${dome(44, 48)}"/>` +
+      `<rect x="6" y="53" width="88" height="10"/><rect x="16" y="69" width="68" height="8"/>` +
+      `<rect x="26" y="83" width="48" height="7"/></g>`,
   },
   // A small embroidered mark: a solid roundel with two peaks cut out of it.
   // The disc fills the anchor, so at closet size it is still a crisp dot of

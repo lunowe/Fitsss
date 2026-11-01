@@ -27,11 +27,11 @@ interface TankSpec {
 const BASE: TankSpec = { neckW: 18, strap: 10, chestW: 52, hemW: 51, armhole: 52, length: 142 };
 
 const FITS: Record<string, Partial<TankSpec>> = {
-  fitted: { neckW: 17, strap: 8, chestW: 45, waistW: 39, hemW: 43, armhole: 48, length: 138 },
+  fitted: { neckW: 17, strap: 7, chestW: 44, waistW: 37, hemW: 41, armhole: 46, length: 136 },
   regular: {},
-  relaxed: { neckW: 19, strap: 11, chestW: 59, hemW: 58, armhole: 56, length: 150 },
-  oversized: { neckW: 22, strap: 13, chestW: 72, hemW: 71, armhole: 66, length: 164 },
-  boxy: { neckW: 22, strap: 13, chestW: 70, hemW: 70, armhole: 60, length: 128 },
+  relaxed: { neckW: 19, strap: 11, chestW: 60, hemW: 59, armhole: 57, length: 151 },
+  oversized: { neckW: 22, strap: 14, chestW: 74, hemW: 73, armhole: 68, length: 166 },
+  boxy: { neckW: 22, strap: 13, chestW: 71, hemW: 71, armhole: 60, length: 126 },
 };
 
 function tank(fit: string): KitPiece {

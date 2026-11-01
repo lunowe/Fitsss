@@ -87,8 +87,8 @@ public struct Silhouette: View {
         return ArtDrawing.cached(key: resolved.key, viewBox: piece.viewBox, body: piece.body)
     }
 
-    /// Ink and shade from the garment's lightness, matching the web:
-    /// black at 62% on light pieces, white at 72% on dark ones; the shade is
+    /// Ink and shade from the garment's lightness, matching the web: a tonal
+    /// ink (a shade of the garment on light pieces, a tint on dark ones); the shade is
     /// the color mixed 18% towards the opposite end. The pattern ink is the
     /// piece's pattern color, else `defaultPatternColor` on the web: a deep
     /// navy on light pieces, an off-white on dark ones.
@@ -97,11 +97,22 @@ public struct Silhouette: View {
         let isDark = (lightness ?? 1) <= 0.45
         let stroke = lightness == nil
             ? Color.fitsssLabel.opacity(0.7)
-            : (isDark ? Color.white.opacity(0.72) : Color.black.opacity(0.62))
+            : tonalInk(color, isDark: isDark)
         let fill = Color(hex: color)
         let fill2 = secondaryColor.map(Color.init(hex:)) ?? shade(color, towardsWhite: isDark)
         let pattern = patternColor.map(Color.init(hex:)) ?? defaultPatternColor(lightness: lightness)
         return ArtInks(fill: fill, fill2: fill2, stroke: stroke, pattern: pattern)
+    }
+
+    /// Tonal ink, `inkFor` on the web: a deep shade of the garment's own color
+    /// on light pieces (40% color, 60% black), a pale tint on dark ones (32%
+    /// color, 68% white).
+    private static func tonalInk(_ hex: String, isDark: Bool) -> Color {
+        guard let (r, g, b) = ColorMath.rgb(hex) else { return isDark ? .white.opacity(0.72) : .black.opacity(0.62) }
+        let keep = isDark ? 0.32 : 0.40
+        let target = isDark ? 1.0 : 0.0
+        let mix = { (channel: Double) in channel * keep + target * (1 - keep) }
+        return Color(.sRGB, red: mix(r), green: mix(g), blue: mix(b))
     }
 
     /// `defaultPatternColor` in `src/components/silhouettes/index.tsx`.

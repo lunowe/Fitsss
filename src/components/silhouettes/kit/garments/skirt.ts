@@ -10,11 +10,16 @@ const WAIST_Y = 12;
 const WAIST_W = 33;
 const BAND = 8;
 
-/** Lengths share one frame, so mini, midi and maxi read by length: mid-thigh, mid-calf, ankle. */
+/**
+ * Lengths share one frame, so mini, midi and maxi read by length: mid-thigh,
+ * mid-calf, ankle. The hem widens with the length at one flare angle, so the
+ * maxi keeps the A of the mini and midi instead of narrowing into a column
+ * once its taller frame scales it down.
+ */
 const FITS: Record<string, { length: number; hemW: number }> = {
   mini: { length: 74, hemW: 50 },
-  midi: { length: 138, hemW: 62 },
-  maxi: { length: 202, hemW: 70 },
+  midi: { length: 138, hemW: 64 },
+  maxi: { length: 202, hemW: 86 },
 };
 
 function skirt(fit: string): KitPiece {

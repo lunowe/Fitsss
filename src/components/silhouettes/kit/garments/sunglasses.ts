@@ -12,9 +12,13 @@ import type { KitPiece } from "../types";
 
 const CY = 100;
 
-/** A lens: the second color under a tint, with a highlight along its upper edge. */
+/**
+ * A lens: the second color under a strong tint, so the glass is clearly
+ * darker than a light frame and clearly lighter than a dark one, and the
+ * frame stays a visible band of its own color on every tile.
+ */
 function lens(d: string): string {
-  return fill(d, FILL2) + shade(d, 0.16);
+  return fill(d, FILL2) + shade(d, 0.34);
 }
 
 /** A temple tab angling back from the frame's outer edge at (x, y). */
@@ -24,7 +28,7 @@ function temple(x: number, y: number, len: number, w: number, dirn: 1 | -1): str
 
 
 function wayfarer(): KitPiece {
-  const fw = 6; // frame width
+  const fw = 8; // frame width
   // Right lens outer frame (trapezoid, outer corner higher), as a right-side half piece.
   const outer = (inset: number) =>
     path([CX + 4 + inset, CY - 22 + inset * 0.6], [
@@ -56,7 +60,7 @@ function wayfarer(): KitPiece {
 }
 
 function aviator(): KitPiece {
-  const fw = 2.6;
+  const fw = 3.4;
   // Teardrop: wide at the brow, tapering to a rounded bottom.
   const outer = (inset: number) =>
     path([CX + 6 + inset, CY - 24 + inset], [
@@ -89,7 +93,7 @@ function aviator(): KitPiece {
 function round(): KitPiece {
   const r = 34;
   const cx = CX + 42;
-  const fw = 3.2;
+  const fw = 4.2;
   const circle = (c: number, rad: number) => path([c - rad, CY], [C([c - rad, CY - rad * 1.33], [c + rad, CY - rad * 1.33], [c + rad, CY]), C([c + rad, CY + rad * 1.33], [c - rad, CY + rad * 1.33], [c - rad, CY])], true);
   const frameR = circle(cx, r);
   const lensR = circle(cx, r - fw);

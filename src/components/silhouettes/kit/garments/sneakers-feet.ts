@@ -52,6 +52,23 @@ function heelCounter(back: readonly Pt[], topIndex: number, seamPts: readonly Pt
   };
 }
 
+/**
+ * The quarter seam: where the vamp meets the quarter, from the end of the
+ * lace line at `meet` down to the sole at x = `xSole`, bowing forward.
+ */
+function quarterSeam(meet: Pt, xSole: number): Pt[] {
+  return [meet, [meet[0] + 4, meet[1] + (GROUND - meet[1]) * 0.35], [xSole - 1.5, GROUND - 10], [xSole, GROUND]];
+}
+
+/**
+ * The colorblock panel as a designed two-tone: everything behind the quarter
+ * seam (heel, quarter, collar, eyestay and tongue) in the pattern color, the
+ * vamp and toe in the shoe's own. `back` runs from the heel to `meet`.
+ */
+function splitBlock(back: readonly Pt[], quarter: readonly Pt[]): string {
+  return path(back[0], [...splineSegs(back), ...splineSegs(quarter), L(back[0])], true);
+}
+
 /** A padded collar: a seam a few units under the topline, from the heel to the throat. */
 const collarSeam = (pts: readonly Pt[]) => seam(smooth(pts));
 
@@ -72,50 +89,62 @@ function lowTop(): KitPiece {
   const cap = toeCap(front, 4, [152, GROUND]);
   const counter = heelCounter(back, 6, [[44, 57.5], [46, 63], [41, 81], [38.5, 100], [39, GROUND]]);
   const collar = collarSeam([[17.5, 70], [24, 64], [33, 61.5], [46, 62.5], [58, 65], [70, 67.5], [77, 70]]);
+  const quarter = quarterSeam(meet, 130);
   return piece({
     base: [fill(upper)],
     lines: [
       s.fills,
       tongueShade(back, 9),
       stay.laceFills,
-      ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), seam(cap.seam)),
+      ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), seam(cap.seam), seam(smooth(quarter))),
       s.lines,
     ],
     clip: upper,
     extent: [upper, s.path],
-    block: cap.panel + counter.panel + stay.panel,
+    block: splitBlock(back, quarter),
   });
 }
 
-/** The high-top: the collar rises over the ankle, the lacing runs all the way up, a rubber toe cap. */
+/**
+ * The high-top: the shaft rises well over the ankle to a padded collar, the
+ * lacing runs all the way up the shaft to the vamp, a rubber toe cap.
+ */
 function highTop(): KitPiece {
   const s = footSole({ x0: 18, x1: 186, depth: 14, spring: 6, midsole: true });
-  const throat: Pt = [62, 46];
+  const throat: Pt = [64, 30];
   const vamp: Pt = [140, 83];
-  const meet = lerp(throat, vamp, 0.64);
+  const meet = lerp(throat, vamp, 0.62);
   const back: Pt[] = [
-    [18, GROUND], [15.5, 100], [15, 82], [17, 66], [20, 54], [25, 46], [33, 42], [44, 41], [54, 43], throat,
-    [66, 42], [74, 39.5], [84, 40.5], [94, 45.5], [102, 53], [108, 60], meet,
+    [18, GROUND], [15.5, 100], [15, 80], [16.5, 60], [19, 42], [23, 30], [30, 24], [42, 22], [54, 25], throat,
+    [70, 26], [78, 24], [88, 25.5], [98, 32], [106, 42], [112, 54], meet,
   ];
   const front: Pt[] = [meet, vamp, [152, 85.5], [162, 88.5], [173, 93], [181.5, 99], [187, 106], s.toe];
   const upper = upperPath(back, front, s);
-  const stay = eyestay(throat, vamp, 10, 6, 0, 0.08, 0.92, LACE_W);
+  const stay = eyestay(throat, vamp, 10, 7, 0, 0.06, 0.94, LACE_W);
   const cap = toeCap(front, 3, [151, GROUND]);
-  const counter = heelCounter(back, 7, [[44, 41], [46, 48.5], [43, 70], [41, 95], [41.5, GROUND]]);
-  const collar = collarSeam([[18.5, 62], [24, 53], [31, 49], [42, 48], [53, 50], [60, 53.5]]);
+  const counter = heelCounter(back, 7, [[42, 22], [45, 34], [43, 70], [41, 95], [41.5, GROUND]]);
+  // The padded collar: a band under the topline from the heel to the throat,
+  // deep enough to read at 56 px, with the ankle patch on its quarter.
+  const collarPts: Pt[] = [[17.5, 50], [21, 38], [27, 32], [41, 30.5], [54, 33], [62, 37]];
+  const collar = collarSeam(collarPts);
+  const collarPad = shade(path([15.5, 62], [...splineSegs([[15.5, 62], [17.5, 50], [21, 38], [27, 32], [41, 30.5], [54, 33], [62, 37], [64, 30]]), L([54, 25]), L([42, 22]), L([30, 24]), L([23, 30]), L([19, 42]), L([16.5, 60])], true), 0.09);
+  const ankle = `<circle cx="38" cy="49" r="5.5" fill="var(--icon-fill-2, #8c8c8c)" stroke="var(--icon-stroke, #000)" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+  const quarter = quarterSeam(meet, 134);
   return piece({
     base: [fill(upper)],
     lines: [
       s.fills,
       tongueShade(back, 9),
+      collarPad,
       fill(cap.panel, FILL2),
       stay.laceFills,
-      ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), stroke(cap.seam)),
+      ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), stroke(cap.seam), seam(smooth(quarter))),
+      ankle,
       s.lines,
     ],
     clip: upper,
     extent: [upper, s.path],
-    block: counter.panel + stay.panel,
+    block: splitBlock(back, quarter),
   });
 }
 
@@ -138,18 +167,19 @@ function chunky(): KitPiece {
   // The chunky signature: a mudguard along the sole and a quarter sweeping down into it.
   const mudguard = smooth([[24, 103], [60, 100], [110, 102], [150, 105]]);
   const quarter = smooth([[98, 84], [102, 94], [108, 102]]);
+  const split = quarterSeam(meet, 134);
   return piece({
     base: [fill(upper)],
     lines: [
       s.fills,
       tongueShade(back, 9),
       stay.laceFills,
-      ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), seam(cap.seam), seam(mudguard), seam(quarter)),
+      ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), seam(cap.seam), seam(mudguard), seam(quarter), seam(smooth(split))),
       s.lines,
     ],
     clip: upper,
     extent: [upper, s.path],
-    block: cap.panel + counter.panel + stay.panel,
+    block: splitBlock(back, split),
   });
 }
 
@@ -171,18 +201,19 @@ function running(): KitPiece {
   const collar = collarSeam([[15, 72], [19, 65], [27, 62.5], [36, 64.5], [48, 68.5], [60, 72.5], [72, 76], [79, 78.5]]);
   // A long quarter line sweeping from the heel towards the toe.
   const sweep = smooth([[44, 76], [80, 94], [122, 102], [156, 100]]);
+  const quarter = quarterSeam(meet, 134);
   return piece({
     base: [fill(upper)],
     lines: [
       s.fills,
       tongueShade(back, 10),
       stay.laceFills,
-      ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), seam(cap.seam), seam(sweep)),
+      ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), seam(cap.seam), seam(sweep), seam(smooth(quarter))),
       s.lines,
     ],
     clip: upper,
     extent: [upper, s.path],
-    block: cap.panel + counter.panel + stay.panel,
+    block: splitBlock(back, quarter),
   });
 }
 
@@ -206,6 +237,7 @@ function retro(): KitPiece {
   // Side band: a slanted stripe of the second color from the stay down to the sole.
   const bandTop = (x: number) => lerp(stay.a2, stay.b2, (x - stay.a2[0]) / (stay.b2[0] - stay.a2[0]));
   const band = path(bandTop(104), [L(bandTop(118)), L([98, GROUND]), L([84, GROUND])], true);
+  const quarter = quarterSeam(meet, 132);
   return piece({
     base: [fill(upper)],
     lines: [
@@ -213,12 +245,12 @@ function retro(): KitPiece {
       tongueShade(back, 9),
       fill(band, FILL2),
       stay.laceFills,
-      ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, stroke(band), seam(counter.seam), seam(cap.seam), seam(tBar)),
+      ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, stroke(band), seam(counter.seam), seam(cap.seam), seam(tBar), seam(smooth(quarter))),
       s.lines,
     ],
     clip: upper,
     extent: [upper, s.path],
-    block: cap.panel + counter.panel,
+    block: splitBlock(back, quarter),
   });
 }
 
@@ -238,7 +270,8 @@ function slipOn(): KitPiece {
   // Elastic gore: a tapered insert with ribs, in the second color.
   const gore = path([68, 66.8], [L([90, 66.2]), L([87, 84]), L([73, 84])], true);
   const ribs = [74.5, 79, 83.5].map((x) => seam(polyline([x, 69], [x + (x - 79) * 0.1, 82])));
-  const vampSeam = smooth([goreFront, [97, 82], [102, 102], [104, GROUND]]);
+  const vampPts: Pt[] = [goreFront, [97, 82], [102, 102], [104, GROUND]];
+  const vampSeam = smooth(vampPts);
   return piece({
     base: [fill(upper)],
     lines: [
@@ -249,7 +282,7 @@ function slipOn(): KitPiece {
     ],
     clip: upper,
     extent: [upper, s.path],
-    block: cap.panel + counter.panel,
+    block: splitBlock(outline.slice(0, 11), vampPts),
   });
 }
 

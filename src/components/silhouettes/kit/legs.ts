@@ -3,7 +3,7 @@
  * closed silhouette, plus hem lines. Fits are leg widths at the hip, knee and
  * hem. Half widths from the center line x = 100; y grows downwards.
  */
-import { C, CX, L, mirrored, path, polyline, Q, seam, symmetric, type Pt } from "./draw";
+import { add, C, CX, L, lerp, mirrored, path, polyline, Q, seam, symmetric, type Pt } from "./draw";
 
 export interface LegsSpec {
   /** y of the top of the waistband. */
@@ -27,8 +27,22 @@ export interface LegsSpec {
   /**
    * Fabric pooling at the hem (a baggy leg breaking on the shoe): the hem
    * edge ripples by this much and the leg bows out just above it. 0 = clean.
+   * From 6 up the leg stacks: a second fold above the first.
    */
   pool?: number;
+  /**
+   * Thigh volume: how far the outseam bellies out between the hip and the
+   * knee, beyond the straight fall of the leg (a baggy leg's balloon). 0 = the
+   * leg falls from the hip.
+   */
+  thigh?: number;
+  /**
+   * How much the outseam from the hip to the knee straightens onto its chord
+   * (0: the seat rounds into the leg and the leg bends in at mid thigh; 1: one
+   * straight taper from the hip to the knee, a drainpipe). A leg much narrower
+   * at the knee than the hip needs this, or the thigh reads as a jodhpur.
+   */
+  taper?: number;
 }
 
 export interface Legs {
@@ -58,6 +72,8 @@ export function legs(spec: LegsSpec): Legs {
   const gap = spec.gap ?? 6;
   const band = spec.band ?? 9;
   const pool = spec.pool ?? 0;
+  const thigh = spec.thigh ?? 0;
+  const taper = spec.taper ?? 0;
   const crotchY = waistY + rise;
   const hipY = waistY + rise * 0.55;
   const kneeY = crotchY + (length - crotchY) * 0.47;
@@ -71,15 +87,25 @@ export function legs(spec: LegsSpec): Legs {
   // so a wide leg is a straight column and never bells out.
   const shin = length - kneeY;
   const lean = (hemOuter[0] - kneeOuter) / shin;
+  // Outseam controls from the hip to the knee: an S (the seat rounds into
+  // the leg, the leg bends in above the knee) straightened `taper` of the way
+  // onto the chord, then bellied out by `thigh`.
+  const hip: Pt = [CX + hipW, hipY];
+  const knee: Pt = [kneeOuter, kneeY];
+  const s1: Pt = [CX + hipW, hipY + (kneeY - hipY) * 0.5];
+  const s2: Pt = [kneeOuter - lean * (kneeY - hipY) * 0.35, kneeY - (kneeY - hipY) * 0.35];
+  const c1 = add(lerp(s1, lerp(hip, knee, 0.4), taper), [thigh * 1.6, 0]);
+  const c2 = add(lerp(s2, lerp(hip, knee, 0.7), taper), [thigh * 0.5, 0]);
   const segs = [
     L([CX + waistW, waistY]),
     // Hip: the seat curves out from the waist.
-    C([CX + waistW, waistY + rise * 0.3], [CX + hipW, hipY - rise * 0.15], [CX + hipW, hipY]),
+    C([CX + waistW, waistY + rise * 0.3], [CX + hipW, hipY - rise * 0.15], hip),
     // Outseam: hip → knee → hem.
-    C([CX + hipW, hipY + (kneeY - hipY) * 0.5], [kneeOuter - lean * (kneeY - hipY) * 0.35, kneeY - (kneeY - hipY) * 0.35], [kneeOuter, kneeY]),
+    C(c1, c2, knee),
     C([kneeOuter + lean * shin * 0.35, kneeY + shin * 0.35], [hemOuter[0] - lean * shin * 0.3 + pool * 0.6, length - shin * 0.3], hemOuter),
-    // Hem: straight, or rippling when the leg pools.
-    pool ? C([hemOuter[0] - hemW * 0.2, length + pool], [hemInner[0] + hemW * 0.35, length + pool * 0.1], hemInner) : L(hemInner),
+    // Hem: straight, or rippling when the leg pools: the edge dips under the
+    // outer half of the leg and lifts under the inner, a bunched hem.
+    pool ? C([hemOuter[0] - hemW * 0.3, length + pool], [hemInner[0] + hemW * 0.3, length - pool * 0.15], hemInner) : L(hemInner),
     // Inseam: hem → knee → crotch.
     C([hemInner[0], length - (length - kneeY) * 0.45], [kneeInner, kneeY + (length - kneeY) * 0.35], [kneeInner, kneeY]),
     C([kneeInner, kneeY - (kneeY - crotchY) * 0.4], [CX + 2, crotchY + 6], [CX, crotchY]),
@@ -89,14 +115,16 @@ export function legs(spec: LegsSpec): Legs {
   const bandLine = polyline([CX - waistW - 1, waistY + band], [CX + waistW + 1, waistY + band]);
   const hemLine = (inset: number) =>
     pool
-      ? path([hemInner[0] + 1.5, length - inset], [C([hemInner[0] + hemW * 0.35, length - inset + pool * 0.1], [hemOuter[0] - hemW * 0.2, length - inset + pool], [hemOuter[0] - 1.5, length - inset])])
+      ? path([hemInner[0] + 1.5, length - inset], [C([hemInner[0] + hemW * 0.3, length - inset - pool * 0.15], [hemOuter[0] - hemW * 0.3, length - inset + pool], [hemOuter[0] - 1.5, length - inset])])
       : polyline([hemInner[0] + 1.5, length - inset], [hemOuter[0] - 1.5, length - inset]);
   // A pooling leg breaks on the shoe: a soft fold across the leg above the
   // hem. A slight break (a tailored leg) is a short fold in the middle of
-  // the leg, so it does not read as a turn-up; a pooled hem folds right across.
-  const breakY = length - 11 - pool;
+  // the leg, so it does not read as a turn-up; a pooled hem folds right
+  // across, and a heavily pooled one stacks a second fold above the first.
   const breakIn = pool >= 3 ? 4 : hemW * 0.24;
-  const breakLine = path([hemInner[0] + breakIn, breakY - 1.5], [C([hemInner[0] + hemW * 0.3, breakY + pool * 0.9], [hemOuter[0] - hemW * 0.35, breakY + pool * 0.5], [hemOuter[0] - breakIn, breakY - 1])]);
+  const breakAt = (breakY: number, k: number) =>
+    path([hemInner[0] + breakIn, breakY - 1.5 * k], [C([hemInner[0] + hemW * 0.3, breakY + pool * 0.9 * k], [hemOuter[0] - hemW * 0.35, breakY + pool * 0.5 * k], [hemOuter[0] - breakIn, breakY - 1 * k])]);
+  const breakLine = breakAt(length - 11 - pool, 1) + (pool >= 6 ? breakAt(length - 20 - pool * 1.4, 0.6) : "");
   // The inseam topstitch follows the inner leg edge from the crotch to the hem.
   const inseam = (inset: number) =>
     path([CX + inset + 1, crotchY + 4], [

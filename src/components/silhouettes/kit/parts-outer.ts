@@ -54,6 +54,14 @@ export interface JacketSpec extends Omit<TorsoSpec, "neck" | "neckDepth"> {
    * so there is no wedge of background between a sleeve and the torso.
    */
   hang?: number;
+  /**
+   * A blouson body: the side bellies out to `waistW` and tucks sharply into
+   * a hem band this deep, which is narrower than the body (a bomber). The
+   * band's sides are straight; `hemBand(blouson)` is the band.
+   */
+  blouson?: number;
+  /** How far the top edge of each sleeve bows outward at mid length. Default 1.5; a full sleeve 4. */
+  sleeveBow?: number;
 }
 
 export interface Jacket {
@@ -131,14 +139,23 @@ export function jacket(input: JacketSpec): Jacket {
   const H: Pt = [CX + hemW, length];
   const hemMid: Pt = [CX, length + hemCurve];
 
+  const blouson = input.blouson ?? 0;
+  // Blouson: the belly ends here and tucks into the band over `tuck` units.
+  const bandTop: Pt = [CX + hemW, length - blouson];
+  const tuck = 7;
+  const bellyEnd: Pt = [CX + waistW - 1.5, bandTop[1] - tuck];
   const halfW = (y: number) => {
     if (y <= A[1]) return chestW;
     if (y >= length) return hemW;
+    if (blouson) {
+      if (y >= bandTop[1]) return hemW;
+      if (y >= bellyEnd[1]) return bellyEnd[0] - CX + (hemW - (bellyEnd[0] - CX)) * ((y - bellyEnd[1]) / tuck);
+    }
     // The body side is a cubic; sample it.
     const p0 = A;
-    const p1: Pt = [CX + waistW, lerp(A, H, 0.42)[1]];
-    const p2: Pt = [CX + hemW - (hemW - waistW) * 0.25, lerp(A, H, 0.8)[1]];
-    const p3 = H;
+    const p1: Pt = blouson ? [CX + waistW, lerp(A, bellyEnd, 0.35)[1]] : [CX + waistW, lerp(A, H, 0.42)[1]];
+    const p2: Pt = blouson ? [CX + waistW + 1, bellyEnd[1] - 10] : [CX + hemW - (hemW - waistW) * 0.25, lerp(A, H, 0.8)[1]];
+    const p3 = blouson ? bellyEnd : H;
     let best = chestW;
     let bestD = Infinity;
     for (let i = 0; i <= 40; i++) {
@@ -153,7 +170,10 @@ export function jacket(input: JacketSpec): Jacket {
     return best;
   };
   const sleeveAngle =
-    input.hang === undefined ? input.sleeveAngle : sleeveHang(S, sleeveLen, cuffW, (y) => CX + halfW(y), input.hang, input.sleeveAngle);
+    input.hang === undefined
+      ? input.sleeveAngle
+      : // A blouson sleeve hangs beside the belly, not tucked into the gathered hem.
+        sleeveHang(S, sleeveLen, cuffW, (y) => CX + (blouson && y > A[1] ? Math.max(halfW(y), waistW - 1.5) : halfW(y)), input.hang, input.sleeveAngle);
   const spec: JacketSpec = { ...input, sleeveAngle };
   const u = dir(sleeveAngle);
   const v = perp(u);
@@ -174,6 +194,13 @@ export function jacket(input: JacketSpec): Jacket {
       bodySide.push(Q([lerp(p0, p1, 0.5)[0] + depth * 2, lerp(p0, p1, 0.5)[1]], p1));
     }
     baffles.pop();
+  } else if (blouson) {
+    // Belly out to the waist, tuck into the band, then the band's straight side.
+    bodySide = [
+      C([CX + waistW, lerp(A, bellyEnd, 0.35)[1]], [CX + waistW + 1, bellyEnd[1] - 10], bellyEnd),
+      Q([CX + waistW - 3.5, bandTop[1] - 1], bandTop),
+      L(H),
+    ];
   } else {
     bodySide = [C([CX + waistW, lerp(A, H, 0.42)[1]], [CX + hemW - (hemW - waistW) * 0.25, lerp(A, H, 0.8)[1]], H)];
   }
@@ -184,7 +211,8 @@ export function jacket(input: JacketSpec): Jacket {
       : [L(hemMid)];
   // Sleeve edges: one bowed segment each, or a run of bulges for a quilted sleeve.
   const sleeveBaffles: number[] = [];
-  let sleeveTop: Seg[] = [Q(add(lerp(S, Co, 0.5), v, -1.5), Co)];
+  const bow = input.sleeveBow ?? 1.5;
+  let sleeveTop: Seg[] = [Q(add(lerp(S, Co, 0.5), v, -bow), Co)];
   const underarm: Seg[] = [Q(add(lerp(Ci, A, 0.5), v, 1.5), A)];
   if (spec.scallop?.sleeves) {
     const { pitch, depth } = spec.scallop;
@@ -227,12 +255,12 @@ export function jacket(input: JacketSpec): Jacket {
       hemCurve ? Q([CX + hemW * 0.5, length + hemCurve], hemMid) : L(hemMid),
     ]);
   const sleevePanel = () =>
-    path(S, [Q(add(lerp(S, Co, 0.5), v, -1.5), Co), L(Ci), Q(add(lerp(Ci, A, 0.5), v, 1.5), A), C([A[0] + 3, A[1] - armhole * 0.22], [S[0] - 1, lerp(S, A, 0.4)[1]], S)], true);
+    path(S, [Q(add(lerp(S, Co, 0.5), v, -bow), Co), L(Ci), Q(add(lerp(Ci, A, 0.5), v, 1.5), A), C([A[0] + 3, A[1] - armhole * 0.22], [S[0] - 1, lerp(S, A, 0.4)[1]], S)], true);
   const yokePanel = (y: number) => path([CX - 120, neckY - 80], [L([CX + 120, neckY - 80]), L([CX + 120, y]), L([CX - 120, y])], true);
   const raglanPanel = () =>
     path([CX + neckW + 2.5, neckY + 1.2], [
       Q([CX + neckW + (shoulderW - neckW) * 0.55, neckY + shoulderDrop * 0.25], S),
-      Q(add(lerp(S, Co, 0.5), v, -1.5), Co),
+      Q(add(lerp(S, Co, 0.5), v, -bow), Co),
       L(Ci),
       Q(add(lerp(Ci, A, 0.5), v, 1.5), A),
       C([A[0] - 2, A[1] - armhole * 0.5], [CX + neckW + 6, neckY + 6], [CX + neckW + 2.5, neckY + 1.2]),
@@ -410,6 +438,58 @@ export function fitTable<T>(typeId: string, fits: readonly string[], defaultFit:
 }
 
 /* ------------------------------------------------------------------ */
+/* Rib trims                                                            */
+/* ------------------------------------------------------------------ */
+
+/** Opacity of the knit lines inside a rib band: lighter than a seam, so the band reads as texture. */
+export const RIB = 0.32;
+/** Spacing of rib lines, in units: coarse enough to separate at 56 px. */
+const RIB_PITCH = 3.4;
+
+/** The rib lines across a hem band `depth` deep: one stroke item for an `ink()` group. */
+export function ribHem(j: Jacket, depth: number, pitch = RIB_PITCH): string {
+  const { hemW, length } = j.spec;
+  const y0 = length - depth + 1.2;
+  const y1 = j.hemY - 1.2;
+  const n = Math.floor((2 * hemW - 4) / pitch);
+  const x0 = CX - ((n - 1) * pitch) / 2;
+  let d = "";
+  for (let i = 0; i < n; i++) d += polyline([x0 + i * pitch, y0], [x0 + i * pitch, y1]);
+  return stroke(d, RIB);
+}
+
+/** The rib lines along both cuff bands `depth` deep: one stroke item for an `ink()` group. */
+export function ribCuffs(j: Jacket, depth: number, pitch = RIB_PITCH): string {
+  const { cuffW } = j.spec;
+  const u = j.sleeveDir;
+  const v = perp(u);
+  const n = Math.floor((cuffW - 3) / pitch);
+  const k0 = (cuffW - (n - 1) * pitch) / 2;
+  let d = "";
+  for (let i = 0; i < n; i++) {
+    const at = add(j.cuffOuter, v, k0 + i * pitch);
+    d += polyline(add(at, u, -depth + 1.2), add(at, u, -1.2));
+  }
+  return stroke(d, RIB) + stroke(mirrored(d), RIB);
+}
+
+/**
+ * Gathers above a blouson's hem band: short folds where the full body is
+ * drawn onto the narrower rib, `n` each side. One seam item for `ink()`.
+ */
+export function gathers(j: Jacket, depth: number, n = 3, rise = 7): string {
+  const { hemW, length } = j.spec;
+  const y1 = length - depth - 0.5;
+  let d = "";
+  for (let i = 0; i < n; i++) {
+    const x = CX + hemW * (0.22 + (0.66 * i) / Math.max(1, n - 1));
+    const lean = (x - CX) / hemW;
+    d += path([x + lean * 1.5, y1 - rise], [Q([x + lean * 0.3, y1 - rise * 0.35], [x, y1])]);
+  }
+  return seam(d) + seam(mirrored(d));
+}
+
+/* ------------------------------------------------------------------ */
 /* Necklines                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -544,7 +624,7 @@ export function standCollar(
   w: number,
   y: number,
   h: number,
-  opts: { paint?: string; lining?: string } = {},
+  opts: { paint?: string; lining?: string; rib?: boolean } = {},
 ): { fills: string; lines: string; baseY: number; holeY: number } {
   const paint = opts.paint ?? FILL;
   const outW = w + 5;
@@ -575,9 +655,38 @@ export function standCollar(
   ]);
   const lining = opts.lining ? fill(hole, opts.lining) + shade(hole, 0.12) : fill(hole) + shade(hole, 0.26);
   const base = polyline([CX - outW + 1.5, baseY], [CX + outW - 1.5, baseY]);
+  // A rib knit collar: vertical knit lines across its face, around the hole.
+  let rib = "";
+  if (opts.rib) {
+    const topAt = (x: number) => {
+      // y of the collar's top edge at |x|: sample the top cubic.
+      const ax = Math.abs(x - CX);
+      let best = top;
+      let bestD = Infinity;
+      for (let i = 0; i <= 24; i++) {
+        const t = i / 24;
+        const p = lerp(lerp(lerp([CX, top], [CX + outW * 0.55, top], t), lerp([CX + outW * 0.55, top], [CX + outW, top + (sideTop - top) * 0.5], t), t), lerp(lerp([CX + outW * 0.55, top], [CX + outW, top + (sideTop - top) * 0.5], t), lerp([CX + outW, top + (sideTop - top) * 0.5], [CX + outW, sideTop], t), t), t);
+        const d = Math.abs(p[0] - CX - ax);
+        if (d < bestD) {
+          bestD = d;
+          best = p[1];
+        }
+      }
+      return best;
+    };
+    const n = Math.floor((2 * outW - 4) / RIB_PITCH);
+    const x0 = CX - ((n - 1) * RIB_PITCH) / 2;
+    let d = "";
+    for (let i = 0; i < n; i++) {
+      const x = x0 + i * RIB_PITCH;
+      const y0 = Math.abs(x - CX) < holeW - 1 ? holeY + 1.2 : topAt(x) + 1.2;
+      if (baseY - 1.2 - y0 > 1.5) d += polyline([x, y0], [x, baseY - 1.2]);
+    }
+    rib = stroke(d, RIB);
+  }
   return {
     fills: fill(outer, paint) + lining,
-    lines: ink(stroke(sides), seam(base), stroke(hole)),
+    lines: ink(stroke(sides), seam(base), stroke(hole), rib),
     baseY,
     holeY,
   };

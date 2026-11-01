@@ -18,77 +18,82 @@ type TorsoDims = Omit<TorsoSpec, "neck">;
 /**
  * One fit table for every top, applied as deltas to a garment's regular
  * block, so a tee, a sweater and an overshirt grow the same way and every
- * neighbouring step still reads at 96 px once the fits share one frame:
+ * step reads on its own at 96 px without its caption. Each step changes the
+ * construction, not only the width:
  *
- *   fitted     narrower shoulders and body, a pulled-in waist, a touch shorter
- *   relaxed    wider body, a little longer, fuller sleeves
- *   oversized  dropped shoulder, much wider, longer in the body and the sleeves
- *   boxy       as wide as oversized through the body, cropped short
+ *   fitted     close to the body: the seam at the shoulder point, a high and
+ *              narrow armhole, a waist pulled in and a hem that eases back
+ *              out, sleeves short and narrow and held near the body
+ *   regular    a straight body with a standard set-in sleeve
+ *   relaxed    a wider straight body, the shoulder seam dropped a little, a
+ *              fuller sleeve, a touch longer
+ *   oversized  the shoulder seam well down the arm, a wide body, long wide
+ *              sleeves, long
+ *   boxy       as wide as oversized with a dropped shoulder, cropped square
  *
  * Sleeve deltas scale with the sleeve, so short and long sleeves grow alike;
- * a sleeve's top width (`sleeveW`) grows with its cuff.
+ * a sleeve's top width (`sleeveW`) grows with its cuff, and the gap a long
+ * sleeve hangs from the body (`hang`) grows with the room in the body.
  */
 export function topFit<T extends TorsoDims>(base: T, fit: string): T {
   const short = base.sleeveAngle < 50;
   const r = Math.round;
-  const sleeveW = (k: number) => (base.sleeveW === undefined ? {} : { sleeveW: r(base.sleeveW * k) });
+  const sleeve = (len: number, cuff: number, w: number, angle: number, hang: number) => ({
+    sleeveLen: r(base.sleeveLen * len),
+    cuffW: r(base.cuffW * cuff),
+    ...(base.sleeveW === undefined ? {} : { sleeveW: r(base.sleeveW * w) }),
+    ...(base.hang === undefined ? {} : { hang }),
+    sleeveAngle: base.sleeveAngle + angle,
+  });
   switch (fit) {
-    case "fitted":
+    case "fitted": {
+      const chestW = base.chestW - 8;
       return {
         ...base,
-        shoulderW: base.shoulderW - 5,
-        chestW: base.chestW - 7,
-        waistW: base.chestW - 13,
-        hemW: base.hemW - 8,
-        length: base.length - 6,
-        armhole: base.armhole - 3,
-        sleeveLen: r(base.sleeveLen * 0.93),
-        cuffW: r(base.cuffW * 0.86),
-        ...sleeveW(0.88),
-        sleeveAngle: base.sleeveAngle + 2,
+        shoulderW: base.shoulderW - 7,
+        chestW,
+        waistW: chestW - 7,
+        hemW: chestW - 4,
+        length: base.length - 7,
+        armhole: base.armhole - 6,
+        ...sleeve(short ? 0.88 : 0.96, short ? 0.74 : 0.8, 0.78, short ? 7 : 0, 1.5),
       };
+    }
     case "relaxed":
       return {
         ...base,
-        shoulderW: base.shoulderW + 6,
-        chestW: base.chestW + 7,
-        waistW: base.waistW === undefined ? undefined : base.waistW + 7,
-        hemW: base.hemW + 7,
-        length: base.length + 8,
-        armhole: base.armhole + 4,
-        sleeveLen: r(base.sleeveLen * 1.06),
-        cuffW: r(base.cuffW * 1.14),
-        ...sleeveW(1.12),
+        shoulderW: base.shoulderW + 9,
+        shoulderDrop: base.shoulderDrop + 3,
+        chestW: base.chestW + 9,
+        waistW: base.waistW === undefined ? undefined : base.waistW + 9,
+        hemW: base.hemW + 9,
+        length: base.length + 10,
+        armhole: base.armhole + 6,
+        ...sleeve(short ? 1.14 : 1.07, 1.24, 1.2, short ? 5 : 0, 3),
       };
     case "oversized":
       return {
         ...base,
-        shoulderW: base.shoulderW + 19,
-        shoulderDrop: base.shoulderDrop + 6,
-        chestW: base.chestW + 21,
+        shoulderW: base.shoulderW + 22,
+        shoulderDrop: base.shoulderDrop + 11,
+        chestW: base.chestW + 22,
         waistW: undefined,
-        hemW: base.hemW + 20,
-        length: base.length + 20,
-        armhole: base.armhole + 12,
-        sleeveLen: r(base.sleeveLen * (short ? 1.2 : 1.12)),
-        cuffW: r(base.cuffW * 1.4),
-        ...sleeveW(1.36),
-        sleeveAngle: base.sleeveAngle + (short ? 6 : -2),
+        hemW: base.hemW + 21,
+        length: base.length + 24,
+        armhole: base.armhole + 15,
+        ...sleeve(short ? 1.32 : 1.15, 1.55, 1.48, short ? 12 : -2, 4),
       };
     case "boxy":
       return {
         ...base,
-        shoulderW: base.shoulderW + 16,
-        shoulderDrop: base.shoulderDrop + 3,
-        chestW: base.chestW + 18,
+        shoulderW: base.shoulderW + 18,
+        shoulderDrop: base.shoulderDrop + 7,
+        chestW: base.chestW + 19,
         waistW: undefined,
-        hemW: base.chestW + 18,
-        length: base.length - 14,
-        armhole: base.armhole + 10,
-        sleeveLen: r(base.sleeveLen * (short ? 1.08 : 1.02)),
-        cuffW: r(base.cuffW * 1.3),
-        ...sleeveW(1.3),
-        sleeveAngle: base.sleeveAngle + (short ? 3 : -1),
+        hemW: base.chestW + 19,
+        length: base.length - 16,
+        armhole: base.armhole + 12,
+        ...sleeve(short ? 1.16 : 1.03, 1.4, 1.36, short ? 6 : -1, 3.5),
       };
     default:
       return { ...base };
@@ -117,7 +122,7 @@ export function chestAnchors(t: Torso, opts: { top?: number; bottom?: number; lo
   const armpitY = t.armpit[1];
   const top = opts.top ?? armpitY - 4;
   const bottom = opts.bottom ?? length - 10;
-  const logoSize = Math.round(chest * 0.23);
+  const logoSize = Math.round(chest * 0.2);
   const graphicSize = Math.min(Math.round(chest * 0.5), Math.round((bottom - top) * 0.72));
   return {
     logo: [Math.round(CX + chestW * (opts.logoX ?? 0.4)), Math.round(opts.logoY ?? armpitY + 6), logoSize],

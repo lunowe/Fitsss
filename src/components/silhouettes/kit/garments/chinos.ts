@@ -12,7 +12,7 @@ import { fitTable } from "../parts-outer";
 function chinos(fit: string): KitPiece {
   const spec: LegsSpec = { ...PANT_BASE, ...PANT_FITS[fit] };
   // Chinos taper a touch more than jeans.
-  spec.hemW = Math.max(16, spec.hemW - 1);
+  spec.hemW = Math.max(9, spec.hemW - 1);
   const l = legs(spec);
   const { waistY } = spec;
   const band = spec.band ?? 9;
