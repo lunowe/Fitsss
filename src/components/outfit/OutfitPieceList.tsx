@@ -29,9 +29,12 @@ export function OutfitPieceList({
           leading={
             <Silhouette
               typeId={block.typeId}
-      variant={block.variant}
+              variant={block.variant}
               color={block.color.hex}
               secondaryColor={block.secondaryColor?.hex}
+              fit={block.fit}
+              pattern={block.pattern}
+              patternColor={block.patternColor?.hex}
               size={36}
             />
           }

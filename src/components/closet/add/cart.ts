@@ -37,6 +37,8 @@ export interface Draft {
   options: string[];
   materials: MaterialId[];
   pattern: Pattern;
+  /** The pattern's own color; unset draws a contrasting ink. Ignored for solid. */
+  patternColor?: BlockColor;
   weight?: Weight;
   nickname?: string;
   notes?: string;
@@ -62,6 +64,7 @@ export function lineKey(input: CartInput): string {
     input.variant ?? null,
     input.material ?? null,
     input.pattern,
+    input.patternColor ? colorKey(input.patternColor) : null,
     input.weight ?? null,
     input.nickname ?? null,
     input.notes ?? null,
@@ -79,6 +82,7 @@ export function expandDraft(draft: Draft, usesFit: boolean): CartInput[] {
         if (usesFit) input.fit = option;
         else input.variant = option;
         if (material) input.material = material;
+        if (draft.pattern !== "solid" && draft.patternColor) input.patternColor = draft.patternColor;
         if (draft.weight) input.weight = draft.weight;
         if (draft.nickname) input.nickname = draft.nickname;
         if (draft.notes) input.notes = draft.notes;
@@ -162,6 +166,7 @@ export function parseCart(raw: unknown): CartLine[] {
     if (typeof candidate.typeId !== "string" || !getPieceType(candidate.typeId)) continue;
     if (!isColor(candidate.color)) continue;
     if (typeof candidate.pattern !== "string") continue;
+    if (candidate.patternColor !== undefined && !isColor(candidate.patternColor)) delete candidate.patternColor;
     const q = Number(quantity);
     if (!Number.isInteger(q) || q < 1 || q > MAX_QUANTITY) continue;
     out.push({ key: lineKey(candidate), input: candidate, quantity: q });

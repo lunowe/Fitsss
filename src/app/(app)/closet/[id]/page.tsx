@@ -97,7 +97,19 @@ export default async function BlockDetailPage({ params }: Props) {
             ) : null}
             <Row title={garment ? "Fit" : "Style"} trailing={variation || "—"} />
             <Row title="Material" trailing={material || "—"} />
-            <Row title="Pattern" trailing={PATTERN_LABELS[block.pattern]} />
+            <Row
+              title="Pattern"
+              trailing={
+                block.patternColor ? (
+                  <span className="inline-flex items-center gap-2">
+                    {PATTERN_LABELS[block.pattern]} ·
+                    <ColorValue name={block.patternColor.name} hex={block.patternColor.hex} />
+                  </span>
+                ) : (
+                  PATTERN_LABELS[block.pattern]
+                )
+              }
+            />
             <Row title="Weight" trailing={WEIGHT_LABELS[block.effectiveWeight]} />
             <Row title="Warmth" trailing={<Dots value={block.warmth} label="Warmth" />} />
             <Row title="Formality" trailing={<Dots value={block.formality} label="Formality" />} />

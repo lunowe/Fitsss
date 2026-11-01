@@ -17,6 +17,7 @@ export interface InspoPiece {
   variant?: string;
   material?: MaterialId;
   pattern: Pattern;
+  patternColor?: BlockColor;
   /** 0..1, how sure the model is about this piece being there and what it is. */
   confidence: number;
   /** Short free-text detail worth keeping, e.g. "cropped, boxy, half-tucked". */

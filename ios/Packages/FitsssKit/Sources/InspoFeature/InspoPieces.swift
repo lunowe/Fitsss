@@ -35,8 +35,11 @@ struct InspoPieceStrip: View {
             Silhouette(
                 typeId: piece.typeId,
                 variant: piece.variant,
+                fit: piece.fit,
                 color: piece.color.hex,
-                secondaryColor: piece.secondaryColor?.hex
+                secondaryColor: piece.secondaryColor?.hex,
+                pattern: piece.pattern,
+                patternColor: piece.patternColor?.hex
             )
             .frame(width: wellHeight * 0.8, height: wellHeight * 0.8)
             .frame(maxWidth: .infinity)

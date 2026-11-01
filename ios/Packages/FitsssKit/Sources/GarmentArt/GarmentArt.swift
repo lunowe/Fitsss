@@ -1,6 +1,7 @@
 import SwiftUI
 
-// PUBLIC CONTRACT — `FitsssUI.Silhouette` builds on exactly this surface.
+// PUBLIC CONTRACT — `FitsssUI.Silhouette` builds on exactly this surface
+// (plus `ArtComposer` for patterns).
 
 /// A parsed garment drawing: the inner markup of an SVG in the house
 /// convention (`var(--icon-fill)`, `var(--icon-fill-2)`, `var(--icon-stroke)`,
@@ -31,8 +32,14 @@ nonisolated public struct ArtDrawing: Sendable, Equatable {
     /// Parsed drawings by key, so lists of tiles parse each drawing once.
     /// Keys from the catalog are content-stable (see `catalog-payload.ts`).
     @MainActor public static func cached(key: String, viewBox: String, body: String) -> ArtDrawing {
+        cached(key: key, viewBox: viewBox) { body }
+    }
+
+    /// Same, for a body that costs something to build (a pattern laid in):
+    /// `body` runs only when the key is not cached yet.
+    @MainActor public static func cached(key: String, viewBox: String, body: () -> String) -> ArtDrawing {
         if let hit = cache[key] { return hit }
-        let drawing = ArtDrawing(viewBox: viewBox, body: body)
+        let drawing = ArtDrawing(viewBox: viewBox, body: body())
         cache[key] = drawing
         return drawing
     }
@@ -63,7 +70,7 @@ nonisolated public struct ArtDrawing: Sendable, Equatable {
     }
 }
 
-/// The three colors a drawing is painted with.
+/// The four colors a drawing is painted with.
 nonisolated public struct ArtInks: Equatable, Sendable {
     /// `--icon-fill`: the garment's own color.
     public var fill: Color
@@ -71,11 +78,15 @@ nonisolated public struct ArtInks: Equatable, Sendable {
     public var fill2: Color
     /// `--icon-stroke`: the outline.
     public var stroke: Color
+    /// `--icon-pattern`: stripes, checks, prints, logos. Only kit drawings
+    /// with a pattern laid in use it.
+    public var pattern: Color
 
-    public init(fill: Color, fill2: Color, stroke: Color) {
+    public init(fill: Color, fill2: Color, stroke: Color, pattern: Color = .black) {
         self.fill = fill
         self.fill2 = fill2
         self.stroke = stroke
+        self.pattern = pattern
     }
 }
 

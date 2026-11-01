@@ -72,6 +72,7 @@ function toColumnValues(input: BlockInput, userId: string) {
     variant: input.variant ?? null,
     material: input.material ?? null,
     pattern: input.pattern,
+    patternColor: input.patternColor ?? null,
     weight: input.weight ?? null,
     effectiveWeight: derived.effectiveWeight,
     quantity: input.quantity,

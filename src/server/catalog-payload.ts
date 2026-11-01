@@ -35,6 +35,7 @@ import {
 } from "@/domain";
 import { ART } from "@/components/silhouettes/art";
 import { GLYPHS } from "@/components/silhouettes/glyphs";
+import { KIT, PATTERN_TILES, kitKey, type ArtLayers, type PatternTile } from "@/components/silhouettes/kit";
 import { ART_FOR_TYPE } from "@/components/silhouettes/mapping";
 
 /**
@@ -44,7 +45,8 @@ import { ART_FOR_TYPE } from "@/components/silhouettes/mapping";
  * It carries the vocabulary (categories, types and their options, labels,
  * palette) and the drawing for every type and variant, already resolved the
  * way `Silhouette` resolves it on the web: the user's own drawing, else the
- * built-in art, else the hand-drawn glyph. Glyphs are rewritten into the same
+ * kit drawing (by variant, then fit, then type), else the built-in art, else
+ * the hand-drawn glyph. Glyphs are rewritten into the same
  * `var(--icon-*)` SVG convention as the art, so a client needs exactly one
  * renderer. Derivation inputs (base warmth, formality) stay on the server.
  *
@@ -54,8 +56,17 @@ import { ART_FOR_TYPE } from "@/components/silhouettes/mapping";
 
 export interface ArtPayload {
   viewBox: string;
+  /** The plain drawing. Enough for any client that ignores `layers`. */
   body: string;
+  /**
+   * Kit drawings only: lets a client lay a pattern under the lines
+   * (`composeLayers`). `base` and `lines` are not repeated: `body` is always
+   * `base + lines`, so `split` is the UTF-16 offset in `body` where `lines` begins.
+   */
+  layers?: ArtLayersPayload;
 }
+
+export type ArtLayersPayload = Omit<ArtLayers, "base" | "lines"> & { split: number };
 
 export interface PieceTypePayload {
   id: string;
@@ -76,8 +87,11 @@ export interface PieceTypePayload {
   patternOptions: string[];
   /** Palette ids, offered first. */
   suggestedColors: string[];
-  /** Keys into `CatalogPayload.art`. `variants` lists only the variants that draw differently. */
-  art: { default: string; variants?: Record<string, string> };
+  /**
+   * Keys into `CatalogPayload.art`. `variants` and `fits` list only the ones
+   * that draw differently from `default`.
+   */
+  art: { default: string; variants?: Record<string, string>; fits?: Record<string, string> };
 }
 
 export interface CatalogPayload {
@@ -94,6 +108,8 @@ export interface CatalogPayload {
   colorFamilies: { id: ColorFamily; label: string }[];
   palette: { id: string; name: string; hex: string; family: ColorFamily }[];
   art: Record<string, ArtPayload>;
+  /** How each pattern is laid into a drawing with `layers`, by pattern id. */
+  patternTiles: Record<string, PatternTile>;
   /** What Today steers by and what outfit feedback says. */
   occasions: { id: string; label: string; hint: string }[];
   weatherConditions: { id: string; label: string }[];
@@ -138,14 +154,33 @@ function glyphArt(icon: string): ArtPayload {
   };
 }
 
-/** Resolves one type (and optionally variant) to an art key, registering the drawing. */
-function resolveArt(type: PieceType, variant: string | undefined, art: Record<string, ArtPayload>): string {
+const contentHash = (content: string) => createHash("sha1").update(content).digest("hex").slice(0, 12);
+
+/** Resolves one type (and optionally variant or fit) to an art key, registering the drawing. */
+function resolveArt(
+  type: PieceType,
+  variant: string | undefined,
+  fit: string | undefined,
+  art: Record<string, ArtPayload>,
+): string {
   const override = getArtOverride(type.id, variant);
   if (override) {
     // Keyed by content so two overrides with the same drawing share a slot
     // and a changed drawing gets a fresh key (clients cache parsed art by key).
-    const key = `user:${createHash("sha1").update(override.viewBox + override.body).digest("hex").slice(0, 12)}`;
+    const key = `user:${contentHash(override.viewBox + override.body)}`;
     art[key] ??= { viewBox: override.viewBox, body: override.body };
+    return key;
+  }
+
+  const kit = kitKey(type.id, variant, fit);
+  if (kit) {
+    // Kit drawings are redrawn in place, so they are keyed by content too.
+    const { viewBox, body, layers } = KIT[kit];
+    const { base, lines, ...rest } = layers;
+    if (base + lines !== body) throw new Error(`kit drawing ${kit}: body is not base + lines`);
+    const wire: ArtLayersPayload = { ...rest, split: base.length };
+    const key = `kit:${kit}:${contentHash(viewBox + body + JSON.stringify(wire))}`;
+    art[key] ??= { viewBox, body, layers: wire };
     return key;
   }
 
@@ -167,14 +202,19 @@ export function buildCatalogPayload(): CatalogPayload {
   const variantLabels: Record<string, string> = {};
 
   const types = allPieceTypes().map((type): PieceTypePayload => {
-    const base = resolveArt(type, undefined, art);
+    const base = resolveArt(type, undefined, undefined, art);
     const variants: Record<string, string> = {};
     for (const variant of type.variantOptions ?? []) {
       variantLabels[variant] = variantLabel(variant);
-      const key = resolveArt(type, variant, art);
+      const key = resolveArt(type, variant, undefined, art);
       if (key !== base) variants[variant] = key;
     }
-    for (const fit of type.fitOptions ?? []) fitLabels[fit] = fitLabel(fit);
+    const fits: Record<string, string> = {};
+    for (const fit of type.fitOptions ?? []) {
+      fitLabels[fit] = fitLabel(fit);
+      const key = resolveArt(type, undefined, fit, art);
+      if (key !== base) fits[fit] = key;
+    }
 
     const patternOptions = type.patternOptions.includes("solid")
       ? [...type.patternOptions]
@@ -194,7 +234,11 @@ export function buildCatalogPayload(): CatalogPayload {
       defaultWeight: type.defaultWeight,
       patternOptions,
       suggestedColors: [...type.suggestedColors],
-      art: Object.keys(variants).length ? { default: base, variants } : { default: base },
+      art: {
+        default: base,
+        ...(Object.keys(variants).length ? { variants } : {}),
+        ...(Object.keys(fits).length ? { fits } : {}),
+      },
     };
   });
 
@@ -209,6 +253,7 @@ export function buildCatalogPayload(): CatalogPayload {
     colorFamilies: COLOR_FAMILIES.map((id) => ({ id, label: COLOR_FAMILY_LABELS[id] })),
     palette: PALETTE.map(({ id, name, hex, family }) => ({ id, name, hex, family })),
     art,
+    patternTiles: PATTERN_TILES,
     occasions: OCCASIONS.map(({ id, label, hint }) => ({ id, label, hint })),
     weatherConditions: WEATHER_CONDITIONS.map((id) => ({ id, label: WEATHER_CONDITION_LABELS[id] })),
     dislikeReasons: DISLIKE_REASONS.map(({ id, label }) => ({ id, label })),

@@ -224,6 +224,8 @@ export interface BlockInput {
   variant?: string;
   material?: MaterialId;
   pattern: Pattern;
+  /** Color of the stripes, checks, print or logo. Only kept when `pattern` is not `solid`. */
+  patternColor?: BlockColor;
   /** Overrides the type's default weight. */
   weight?: Weight;
   /** How many near-identical pieces this block stands for. Default 1. */

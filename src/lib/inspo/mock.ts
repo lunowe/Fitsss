@@ -70,6 +70,7 @@ function findUnownedPiece(piece: InspoPiece, blocks: Block[]): InspoPiece | null
 
   for (const type of CATALOG) {
     if (type.category !== piece.category) continue;
+    const pattern = type.patternOptions.includes(piece.pattern) ? piece.pattern : "solid";
     for (const color of PALETTE) {
       const candidate: InspoPiece = {
         ...piece,
@@ -78,7 +79,8 @@ function findUnownedPiece(piece: InspoPiece, blocks: Block[]): InspoPiece | null
         fit: undefined,
         variant: undefined,
         material: undefined,
-        pattern: type.patternOptions.includes(piece.pattern) ? piece.pattern : "solid",
+        pattern,
+        patternColor: pattern === "solid" ? undefined : piece.patternColor,
       };
       if (owned.every((block) => similarity(candidate, block) < MATCH_THRESHOLD)) return candidate;
     }
@@ -96,6 +98,7 @@ function blockToPiece(block: Block, confidence: number): InspoPiece {
     ...(block.variant ? { variant: block.variant } : {}),
     ...(block.material ? { material: block.material } : {}),
     pattern: block.pattern,
+    ...(block.patternColor ? { patternColor: { ...block.patternColor } } : {}),
     confidence,
     ...(block.nickname ? { note: block.nickname } : {}),
   };

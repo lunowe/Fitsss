@@ -44,11 +44,14 @@ private struct Configurator: View {
     @State private var picked: [String] = []
     @State private var materials: [String] = []
     @State private var pattern: String
+    /// Nil: the automatic contrasting ink. Only shown, and kept, off solid.
+    @State private var patternColor: BlockColor?
     @State private var weight: String
     @State private var nickname = ""
     @State private var notes = ""
     @State private var showsMore = false
     @State private var showsCustomColor = false
+    @State private var showsCustomPatternColor = false
     /// Set by "Add to cart": the screen is on its way out, ignore further taps.
     @State private var didAdd = false
 
@@ -72,6 +75,7 @@ private struct Configurator: View {
             options: picked,
             materials: materials,
             pattern: pattern,
+            patternColor: pattern == "solid" ? nil : patternColor,
             weight: weight,
             nickname: nickname.trimmed,
             notes: notes.trimmed
@@ -81,7 +85,15 @@ private struct Configurator: View {
     var body: some View {
         List {
             Section {
-                PreviewLineup(type: type, colors: colors, variant: usesFit ? nil : picked.last, fallback: type.drawingColor(in: catalog))
+                PreviewLineup(
+                    type: type,
+                    colors: colors,
+                    variant: usesFit ? nil : picked.last,
+                    fit: usesFit ? picked.last : nil,
+                    pattern: pattern,
+                    patternColor: pattern == "solid" ? nil : patternColor?.hex,
+                    fallback: type.drawingColor(in: catalog)
+                )
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
             }
 
@@ -113,6 +125,27 @@ private struct Configurator: View {
             Section("Pattern") {
                 ChipGroup(options: type.patternOptions, label: { catalog.patternLabel($0) }, isSelected: { $0 == pattern }) { option in
                     pattern = option
+                    if option == "solid" { patternColor = nil }
+                }
+            }
+
+            if pattern != "solid" {
+                Section {
+                    ColorSection(
+                        suggested: [],
+                        selected: Binding(
+                            get: { patternColor.map { [$0] } ?? [] },
+                            // One color: the newest pick replaces the last, removing it clears.
+                            set: { patternColor = $0.last }
+                        ),
+                        catalog: catalog,
+                        identifierPrefix: "addflow.pattern",
+                        onAddCustom: { showsCustomPatternColor = true }
+                    )
+                } header: {
+                    Text("Pattern color")
+                } footer: {
+                    Text("Optional. Leave empty for a color that stands out from the piece.")
                 }
             }
 
@@ -175,6 +208,11 @@ private struct Configurator: View {
                 }
             }
         }
+        .sheet(isPresented: $showsCustomPatternColor) {
+            CustomColorSheet(catalog: catalog) { color in
+                patternColor = color
+            }
+        }
     }
 
     // MARK: - Bottom bar
@@ -223,7 +261,10 @@ private struct Configurator: View {
         } else if materials.count > 1 {
             parts.append(plural(materials.count, "material"))
         }
-        if pattern != "solid" { parts.append(catalog.patternLabel(pattern).lowercased()) }
+        if pattern != "solid" {
+            let label = catalog.patternLabel(pattern).lowercased()
+            parts.append(patternColor.map { "\(label) in \($0.name.lowercased())" } ?? label)
+        }
         return parts.joined(separator: " · ")
     }
 
@@ -257,6 +298,9 @@ private struct PreviewLineup: View {
     let type: PieceType
     let colors: [BlockColor]
     let variant: String?
+    let fit: String?
+    let pattern: String
+    let patternColor: String?
     let fallback: String
 
     var body: some View {
@@ -287,7 +331,14 @@ private struct PreviewLineup: View {
     private func lineup(_ shown: [(key: String, hex: String)], size: CGFloat) -> some View {
         HStack(spacing: 12) {
             ForEach(shown, id: \.key) { item in
-                Silhouette(typeId: type.id, variant: variant, color: item.hex)
+                Silhouette(
+                    typeId: type.id,
+                    variant: variant,
+                    fit: fit,
+                    color: item.hex,
+                    pattern: pattern,
+                    patternColor: patternColor
+                )
                     .frame(width: size, height: size)
                     .transition(reduceMotion ? .opacity : .scale(scale: 0.8).combined(with: .opacity))
             }

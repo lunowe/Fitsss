@@ -96,7 +96,7 @@ struct PieceDetailScreen: View {
                 }
                 LabeledContent(isGarment ? "Fit" : "Style", value: variation.isEmpty ? "—" : variation)
                 LabeledContent("Material", value: block.material.map(catalog.materialLabel) ?? "—")
-                LabeledContent("Pattern", value: catalog.patternLabel(block.pattern))
+                LabeledContent("Pattern", value: catalog.patternLine(pattern: block.pattern, patternColor: block.patternColor))
                 LabeledContent("Weight", value: catalog.weightLabel(block.effectiveWeight))
                 LabeledContent("Warmth") { Dots(value: block.warmth) }
                     .accessibilityElement(children: .ignore)

@@ -28,6 +28,9 @@ export function PieceStrip({ analysis }: { analysis: InspoAnalysis }) {
                 variant={piece.variant}
                 color={piece.color.hex}
                 secondaryColor={piece.secondaryColor?.hex}
+                fit={piece.fit}
+                pattern={piece.pattern}
+                patternColor={piece.patternColor?.hex}
                 size={44}
                 title={pieceTypeLabel(piece)}
               />
@@ -90,6 +93,9 @@ export function ClosetMatches({
                       variant={block.variant}
                       color={block.color.hex}
                       secondaryColor={block.secondaryColor?.hex}
+                      fit={block.fit}
+                      pattern={block.pattern}
+                      patternColor={block.patternColor?.hex}
                       size={36}
                     />
                   }

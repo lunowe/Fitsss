@@ -31,6 +31,7 @@ export function rowToBlock(row: BlockRow): Block {
     variant: row.variant ?? undefined,
     material: (row.material as MaterialId | null) ?? undefined,
     pattern: row.pattern as Pattern,
+    patternColor: row.patternColor ?? undefined,
     weight: (row.weight as Weight | null) ?? undefined,
     effectiveWeight: row.effectiveWeight as Weight,
     quantity: row.quantity,

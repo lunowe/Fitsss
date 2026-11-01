@@ -104,6 +104,7 @@ export const blocks = pgTable(
     variant: text("variant"),
     material: text("material"),
     pattern: text("pattern").default("solid").notNull(),
+    patternColor: jsonb("pattern_color").$type<BlockColor>(),
     weight: text("weight"),
     effectiveWeight: text("effective_weight").notNull(),
     quantity: integer("quantity").default(1).notNull(),

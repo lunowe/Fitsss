@@ -6,6 +6,7 @@ import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Chip, Sheet, Swatch, SegmentedControl } from "@/components/shell";
+import { defaultPatternColor } from "@/components/silhouettes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -200,6 +201,7 @@ export function EditBlockSheet({
   const [variant, setVariant] = useState(block.variant ?? "");
   const [material, setMaterial] = useState<MaterialId | undefined>(block.material);
   const [pattern, setPattern] = useState<Pattern>(block.pattern);
+  const [patternColor, setPatternColor] = useState<BlockColor | undefined>(block.patternColor);
   const [weight, setWeight] = useState<Weight>(block.effectiveWeight);
   const [quantity, setQuantity] = useState(block.quantity);
   const [nickname, setNickname] = useState(block.nickname ?? "");
@@ -220,6 +222,7 @@ export function EditBlockSheet({
       variant: garment ? undefined : variant,
       material,
       pattern,
+      patternColor: pattern === "solid" ? undefined : patternColor,
       weight: garment ? weight : block.weight,
       quantity,
       nickname: nickname.trim() || undefined,
@@ -316,12 +319,45 @@ export function EditBlockSheet({
         <Field label="Pattern">
           <div className="flex flex-wrap gap-2">
             {patterns.map((option) => (
-              <Chip key={option} selected={pattern === option} onClick={() => setPattern(option)}>
+              <Chip
+                key={option}
+                selected={pattern === option}
+                onClick={() => {
+                  setPattern(option);
+                  if (option === "solid") setPatternColor(undefined);
+                }}
+              >
                 {PATTERN_LABELS[option]}
               </Chip>
             ))}
           </div>
         </Field>
+
+        {pattern !== "solid" ? (
+          <Field label="Pattern color">
+            {patternColor ? (
+              <div className="space-y-3">
+                <ColorPicker value={patternColor} onChange={setPatternColor} />
+                <Button variant="ghost" size="sm" className="px-0" onClick={() => setPatternColor(undefined)}>
+                  Use automatic color
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Chip
+                  // Start from the automatic ink, so the first pick changes nothing yet.
+                  onClick={() =>
+                    setPatternColor(paletteToBlockColor(defaultPatternColor(color.hex) === "#1f2a44" ? "navy" : "off-white"))
+                  }
+                  leading={<Plus size={15} />}
+                >
+                  Pattern color
+                </Chip>
+                <p className="text-footnote text-label-2">Automatic: a color that contrasts with the piece.</p>
+              </div>
+            )}
+          </Field>
+        ) : null}
 
         {garment ? (
           <Field label="Weight">

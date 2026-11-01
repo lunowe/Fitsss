@@ -38,6 +38,9 @@ function Glyph({ block, px }: Piece) {
       variant={block.variant}
       color={block.color.hex}
       secondaryColor={block.secondaryColor?.hex}
+      fit={block.fit}
+      pattern={block.pattern}
+      patternColor={block.patternColor?.hex}
       size={px}
       title={block.label}
     />

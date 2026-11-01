@@ -1,13 +1,14 @@
-import type { CSSProperties } from "react";
+import { useId, type CSSProperties } from "react";
 
 import { getArtOverride, getPieceType } from "@/domain/catalog";
 import { SILHOUETTE_IDS, type SilhouetteId } from "@/domain/types";
 
 import { ART } from "./art";
 import { GLYPHS, type Glyph } from "./glyphs";
+import { KIT, composeLayers, kitKey, type ArtLayers } from "./kit";
 import { ART_FOR_TYPE, artForType } from "./mapping";
 
-export { ART, ART_FOR_TYPE, artForType, GLYPHS, SILHOUETTE_IDS };
+export { ART, ART_FOR_TYPE, artForType, GLYPHS, KIT, kitKey, SILHOUETTE_IDS };
 export type { Glyph, SilhouetteId };
 
 /** Fallback used when a type id is unknown or has no glyph yet. */
@@ -31,12 +32,18 @@ interface CommonProps {
   className?: string;
   /** When given, the drawing is exposed to assistive tech with this label. */
   title?: string;
+  /** The piece's fit; kit drawings change shape with it. */
+  fit?: string | null;
+  /** The piece's pattern id. `solid` or unknown draws the plain garment. */
+  pattern?: string | null;
+  /** Color of the stripes, checks, print or logo. Defaults to a contrasting ink. */
+  patternColor?: string | null;
 }
 
 export type SilhouetteProps = CommonProps &
   (
-    | { id: SilhouetteId; typeId?: string; variant?: string }
-    | { id?: SilhouetteId; typeId: string; variant?: string }
+    | { id: SilhouetteId; typeId?: string; variant?: string | null }
+    | { id?: SilhouetteId; typeId: string; variant?: string | null }
   );
 
 /** Perceived lightness of a hex colour, or null if the colour is not a hex. */
@@ -68,6 +75,16 @@ function inkFor(lightness: number | null): string {
   return lightness > 0.45 ? "rgb(0 0 0 / 0.62)" : "rgb(255 255 255 / 0.72)";
 }
 
+/**
+ * The pattern ink when the piece has no pattern colour of its own: a deep navy
+ * on light pieces, an off-white on dark ones, so a stripe always shows.
+ */
+export function defaultPatternColor(color: string): string {
+  const lightness = lightnessOf(color);
+  if (lightness === null) return "color-mix(in srgb, currentColor 55%, transparent)";
+  return lightness > 0.45 ? "#1f2a44" : "#f4f1ea";
+}
+
 /** Collars, soles and cuffs when the piece has no second colour of its own. */
 function shadeOf(color: string, lightness: number | null): string {
   const towards = lightness !== null && lightness <= 0.45 ? "#fff" : "#000";
@@ -88,12 +105,19 @@ export function Silhouette({
   size = 48,
   className,
   title,
+  fit,
+  pattern,
+  patternColor,
 }: SilhouetteProps) {
-  // The user's own drawing wins over the built-in one; a custom type with no
-  // artwork falls through to the neutral glyph its role was given.
-  const art = typeId
-    ? (getArtOverride(typeId, variant) ?? ART[artForType(typeId, variant) ?? ""])
-    : undefined;
+  const clipId = `pc${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  // The user's own drawing wins over the built-in one; then the kit, then the
+  // imported art; a custom type with no artwork falls through to the neutral
+  // glyph its role was given.
+  const v = variant ?? undefined;
+  const override = typeId ? getArtOverride(typeId, v) : undefined;
+  const kit = typeId && !override ? KIT[kitKey(typeId, v, fit ?? undefined) ?? ""] : undefined;
+  const art = override ?? kit ?? (typeId ? ART[artForType(typeId, v) ?? ""] : undefined);
+  const layers: ArtLayers | undefined = kit?.layers;
   const label = title ? { role: "img" as const, "aria-label": title } : { "aria-hidden": true };
   const lightness = lightnessOf(color);
   const ink = inkFor(lightness);
@@ -102,9 +126,13 @@ export function Silhouette({
     "--icon-fill": color,
     "--icon-fill-2": secondaryColor ?? shadeOf(color, lightness),
     "--icon-stroke": ink,
+    "--icon-pattern": patternColor ?? defaultPatternColor(color),
   } as CSSProperties;
 
   if (art) {
+    const body =
+      (layers && pattern && pattern !== "solid" ? composeLayers(layers, pattern, clipId) : undefined) ??
+      art.body;
     return (
       <svg
         width={size}
@@ -115,7 +143,7 @@ export function Silhouette({
         style={vars}
         focusable="false"
         {...label}
-        dangerouslySetInnerHTML={{ __html: (title ? `<title>${title}</title>` : "") + art.body }}
+        dangerouslySetInnerHTML={{ __html: (title ? `<title>${title}</title>` : "") + body }}
       />
     );
   }

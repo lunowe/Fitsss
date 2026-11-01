@@ -12,6 +12,9 @@ struct ColorSection: View {
     let suggested: [String]
     @Binding var selected: [BlockColor]
     let catalog: Catalog
+    /// Prefix of the swatches' accessibility identifiers, so two pickers on
+    /// one screen stay apart.
+    var identifierPrefix = "addflow"
     let onAddCustom: () -> Void
 
     var body: some View {
@@ -23,7 +26,7 @@ struct ColorSection: View {
                 group("Selected") {
                     FlowLayout(spacing: 8, lineSpacing: 8) {
                         ForEach(selected, id: \.self) { color in
-                            SelectedColorChip(color: color) { toggle(color) }
+                            SelectedColorChip(color: color, identifier: "\(identifierPrefix).selected.\(color.name)") { toggle(color) }
                         }
                     }
                 }
@@ -39,7 +42,7 @@ struct ColorSection: View {
                                 name: color.name,
                                 showsName: false,
                                 isSelected: selectedKeys.contains("p:\(color.id)"),
-                                identifier: "addflow.suggested.\(color.id)"
+                                identifier: "\(identifierPrefix).suggested.\(color.id)"
                             ) { toggle(BlockColor(color)) }
                         }
                     }
@@ -56,7 +59,7 @@ struct ColorSection: View {
                                     hex: color.hex,
                                     name: color.name,
                                     isSelected: selectedKeys.contains("p:\(color.id)"),
-                                    identifier: "addflow.color.\(color.id)"
+                                    identifier: "\(identifierPrefix).color.\(color.id)"
                                 ) { toggle(BlockColor(color)) }
                             }
                         }
@@ -67,11 +70,11 @@ struct ColorSection: View {
             group("Custom") {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                     ForEach(customs, id: \.self) { color in
-                        SwatchButton(hex: color.hex, name: color.name, isSelected: true, identifier: "addflow.custom.\(color.name)") {
+                        SwatchButton(hex: color.hex, name: color.name, isSelected: true, identifier: "\(identifierPrefix).custom.\(color.name)") {
                             toggle(color)
                         }
                     }
-                    AddCustomButton(action: onAddCustom)
+                    AddCustomButton(identifier: "\(identifierPrefix).addCustomColor", action: onAddCustom)
                 }
             }
         }
@@ -138,6 +141,7 @@ private struct SwatchButton: View {
 /// A selected color as a removable chip: dot, name, x.
 private struct SelectedColorChip: View {
     let color: BlockColor
+    let identifier: String
     let remove: () -> Void
 
     var body: some View {
@@ -163,12 +167,13 @@ private struct SelectedColorChip: View {
         }
         .buttonStyle(PressableStyle())
         .accessibilityLabel("Remove \(color.name)")
-        .accessibilityIdentifier("addflow.selected.\(color.name)")
+        .accessibilityIdentifier(identifier)
     }
 }
 
 /// The dashed "+" that opens the custom color sheet.
 private struct AddCustomButton: View {
+    let identifier: String
     let action: () -> Void
 
     var body: some View {
@@ -192,6 +197,6 @@ private struct AddCustomButton: View {
         }
         .buttonStyle(PressableStyle())
         .accessibilityLabel("Add a custom color")
-        .accessibilityIdentifier("addflow.addCustomColor")
+        .accessibilityIdentifier(identifier)
     }
 }

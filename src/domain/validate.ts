@@ -83,6 +83,12 @@ export function validateBlockInput(raw: unknown): ValidationResult {
   if (type && pattern !== "solid" && !type.patternOptions.includes(pattern)) {
     errors.push(`pattern: not valid for ${type.label}`);
   }
+  // A solid piece has no pattern to color: the field is dropped, not refused,
+  // so switching a piece back to solid needs no second edit.
+  const patternColor =
+    pattern === "solid" || r.patternColor === undefined || r.patternColor === null
+      ? undefined
+      : validateColor(r.patternColor, "patternColor", errors);
 
   let weight: Weight | undefined;
   if (r.weight !== undefined && r.weight !== null) {
@@ -108,6 +114,7 @@ export function validateBlockInput(raw: unknown): ValidationResult {
   if (fit) value.fit = fit;
   if (variant) value.variant = variant;
   if (material) value.material = material;
+  if (patternColor) value.patternColor = patternColor;
   if (weight) value.weight = weight;
   if (nickname) value.nickname = nickname;
   if (notes) value.notes = notes;

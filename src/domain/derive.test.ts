@@ -47,6 +47,16 @@ describe("derive", () => {
     expect(d.label).toBe("black graphic oversized t-shirt");
   });
 
+  it("names a pattern's own color after the type", () => {
+    const navy = paletteToBlockColor("navy");
+    const tee = { typeId: "t-shirt", color: white, fit: "relaxed", material: "cotton", quantity: 1 } as const;
+    expect(derive({ ...tee, pattern: "stripe", patternColor: navy }).label).toBe(
+      "white relaxed cotton t-shirt with navy stripes",
+    );
+    expect(derive({ ...tee, pattern: "logo", patternColor: navy }).label).toBe("white relaxed cotton t-shirt with a navy logo");
+    expect(derive({ ...tee, pattern: "stripe" }).label).toBe("white striped relaxed cotton t-shirt");
+  });
+
   it("labels footwear as color material variant type", () => {
     const d = derive({ typeId: "boots", color: black, variant: "chelsea", material: "leather", pattern: "solid", quantity: 1 });
     expect(d.label).toBe("black leather chelsea boots");
@@ -120,6 +130,16 @@ describe("validateBlockInput", () => {
       expect(r.value.color.name).toBe("Dusty rose");
       expect(r.value.nickname).toBe("Stüssy");
     }
+  });
+
+  it("keeps a pattern color only on a patterned piece", () => {
+    const navy = paletteToBlockColor("navy");
+    const striped = validateBlockInput({ typeId: "t-shirt", color: white, fit: "regular", pattern: "stripe", patternColor: navy });
+    expect(striped.ok && striped.value.patternColor?.hex).toBe(navy.hex);
+    const solid = validateBlockInput({ typeId: "t-shirt", color: white, fit: "regular", pattern: "solid", patternColor: navy });
+    expect(solid.ok && solid.value.patternColor).toBeUndefined();
+    const bad = validateBlockInput({ typeId: "t-shirt", color: white, fit: "regular", pattern: "stripe", patternColor: { hex: "nope" } });
+    expect(bad.ok).toBe(false);
   });
 
   it("defaults pattern to solid and quantity to 1", () => {

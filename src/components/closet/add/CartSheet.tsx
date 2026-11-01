@@ -125,6 +125,9 @@ export function CartSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
                         typeId={line.input.typeId}
                         variant={line.input.variant}
                         color={line.input.color.hex}
+                        fit={line.input.fit}
+                        pattern={line.input.pattern}
+                        patternColor={line.input.patternColor?.hex}
                         size={36}
                         className="shrink-0"
                       />

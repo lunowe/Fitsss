@@ -39,6 +39,9 @@ nonisolated public struct BlockInput: Codable, Hashable, Sendable {
     public var variant: String?
     public var material: String?
     public var pattern: String
+    /// Color of the stripes, checks, print or logo. Only kept for non-solid
+    /// patterns: the server drops it when `pattern` is `solid`.
+    public var patternColor: BlockColor?
     /// Overrides the type's default weight.
     public var weight: String?
     /// How many near-identical pieces this block stands for, 1 to 99.
@@ -54,6 +57,7 @@ nonisolated public struct BlockInput: Codable, Hashable, Sendable {
         variant: String? = nil,
         material: String? = nil,
         pattern: String = "solid",
+        patternColor: BlockColor? = nil,
         weight: String? = nil,
         quantity: Int = 1,
         nickname: String? = nil,
@@ -66,6 +70,7 @@ nonisolated public struct BlockInput: Codable, Hashable, Sendable {
         self.variant = variant
         self.material = material
         self.pattern = pattern
+        self.patternColor = patternColor
         self.weight = weight
         self.quantity = quantity
         self.nickname = nickname
@@ -86,6 +91,8 @@ nonisolated public struct Block: Codable, Identifiable, Hashable, Sendable {
     public var variant: String?
     public var material: String?
     public var pattern: String
+    /// Absent (or null) when none: the drawing uses a contrasting ink.
+    public var patternColor: BlockColor?
     public var weight: String?
     public var effectiveWeight: String
     public var quantity: Int
@@ -114,6 +121,7 @@ nonisolated public struct Block: Codable, Identifiable, Hashable, Sendable {
             variant: variant,
             material: material,
             pattern: pattern,
+            patternColor: patternColor,
             weight: weight,
             quantity: quantity,
             nickname: nickname,

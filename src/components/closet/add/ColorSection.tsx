@@ -20,13 +20,16 @@ const BY_FAMILY = paletteByFamily();
 /**
  * Multi-select colour picker: the type's suggested colours first, then the
  * whole palette grouped by family, then an escape hatch for custom colours.
+ * The caller decides how many may be picked.
  */
 export function ColorSection({
+  title = "Colors",
   suggested,
   selected,
   onToggle,
   onAddCustom,
 }: {
+  title?: string;
   /** Palette ids the catalog suggests for this piece type. */
   suggested: readonly string[];
   selected: BlockColor[];
@@ -40,7 +43,7 @@ export function ColorSection({
 
   return (
     <section>
-      <SectionHeader>Colors</SectionHeader>
+      <SectionHeader>{title}</SectionHeader>
 
       <div className="mx-4 space-y-5 rounded-xl bg-card p-4">
         {selected.length ? (

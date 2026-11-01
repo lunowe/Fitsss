@@ -13,6 +13,8 @@ nonisolated public struct InspoPiece: Codable, Hashable, Sendable {
     public var variant: String?
     public var material: String?
     public var pattern: String
+    /// Set when the reading names one; older answers never have it.
+    public var patternColor: BlockColor?
     /// 0 to 1: how sure the model is the piece is there and is this.
     public var confidence: Double
     /// Short free-text detail, e.g. "cropped, boxy, half-tucked".

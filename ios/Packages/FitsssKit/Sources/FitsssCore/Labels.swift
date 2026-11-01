@@ -35,6 +35,13 @@ nonisolated public extension Catalog {
         colorLine(color: block.color, secondaryColor: block.secondaryColor, material: block.material)
     }
 
+    /// "Striped · Navy", or just "Striped" without a pattern color.
+    func patternLine(pattern: String, patternColor: BlockColor?) -> String {
+        let label = patternLabel(pattern)
+        guard pattern != "solid", let patternColor else { return label }
+        return "\(label) · \(patternColor.name)"
+    }
+
     /// Lowercased text a closet search matches against.
     func searchHaystack(of block: Block) -> String {
         [
@@ -42,6 +49,7 @@ nonisolated public extension Catalog {
             block.nickname ?? "",
             block.color.name,
             block.secondaryColor?.name ?? "",
+            block.patternColor?.name ?? "",
             typeLabel(of: block),
             variationLabel(fit: block.fit, variant: block.variant),
             block.material.map(materialLabel) ?? "",

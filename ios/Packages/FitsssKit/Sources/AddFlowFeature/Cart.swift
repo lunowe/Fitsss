@@ -20,6 +20,8 @@ nonisolated public struct CartInput: Codable, Hashable, Sendable {
     public var variant: String?
     public var material: String?
     public var pattern: String
+    /// Only set for non-solid patterns; nil is the automatic contrasting ink.
+    public var patternColor: BlockColor?
     public var weight: String?
     public var nickname: String?
     public var notes: String?
@@ -32,6 +34,7 @@ nonisolated public struct CartInput: Codable, Hashable, Sendable {
         variant: String? = nil,
         material: String? = nil,
         pattern: String = "solid",
+        patternColor: BlockColor? = nil,
         weight: String? = nil,
         nickname: String? = nil,
         notes: String? = nil
@@ -43,6 +46,7 @@ nonisolated public struct CartInput: Codable, Hashable, Sendable {
         self.variant = variant
         self.material = material
         self.pattern = pattern
+        self.patternColor = patternColor
         self.weight = weight
         self.nickname = nickname
         self.notes = notes
@@ -58,6 +62,7 @@ nonisolated public struct CartInput: Codable, Hashable, Sendable {
             variant: variant,
             material: material,
             pattern: pattern,
+            patternColor: patternColor,
             weight: weight,
             quantity: quantity,
             nickname: nickname,
@@ -92,6 +97,8 @@ nonisolated public struct Draft: Hashable, Sendable {
     public var options: [String]
     public var materials: [String]
     public var pattern: String
+    /// One pattern color for every combination; ignored for `solid`.
+    public var patternColor: BlockColor?
     public var weight: String?
     public var nickname: String?
     public var notes: String?
@@ -102,6 +109,7 @@ nonisolated public struct Draft: Hashable, Sendable {
         options: [String] = [],
         materials: [String] = [],
         pattern: String = "solid",
+        patternColor: BlockColor? = nil,
         weight: String? = nil,
         nickname: String? = nil,
         notes: String? = nil
@@ -111,6 +119,7 @@ nonisolated public struct Draft: Hashable, Sendable {
         self.options = options
         self.materials = materials
         self.pattern = pattern
+        self.patternColor = patternColor
         self.weight = weight
         self.nickname = nickname
         self.notes = notes
@@ -142,6 +151,7 @@ nonisolated public struct Draft: Hashable, Sendable {
                         variant: usesFit ? nil : option,
                         material: material,
                         pattern: pattern,
+                        patternColor: pattern == "solid" ? nil : patternColor,
                         weight: weight.flatMap { $0.isEmpty ? nil : $0 },
                         nickname: nickname.flatMap(Self.serverText(limit: Cart.nicknameLimit)),
                         notes: notes.flatMap(Self.serverText(limit: Cart.notesLimit))
@@ -192,6 +202,7 @@ nonisolated public struct Cart: Hashable, Sendable {
             input.variant,
             input.material,
             input.pattern,
+            input.patternColor.map(colorKey),
             input.weight,
             input.nickname,
             input.notes,
@@ -317,6 +328,11 @@ nonisolated public extension Cart {
             input.color.hex = ColorMath.normalizeHex(input.color.hex) ?? input.color.hex
             if let secondary = input.secondaryColor {
                 input.secondaryColor?.hex = ColorMath.normalizeHex(secondary.hex) ?? secondary.hex
+            }
+            if input.pattern == "solid" {
+                input.patternColor = nil
+            } else if let patternColor = input.patternColor {
+                input.patternColor?.hex = ColorMath.normalizeHex(patternColor.hex) ?? patternColor.hex
             }
             let key = lineKey(input)
             if let index = cart.lines.firstIndex(where: { $0.key == key }) {

@@ -51,6 +51,9 @@ export function ArchivedList({ blocks }: { blocks: Block[] }) {
                   variant={block.variant}
                   color={block.color.hex}
                   secondaryColor={block.secondaryColor?.hex}
+                  fit={block.fit}
+                  pattern={block.pattern}
+                  patternColor={block.patternColor?.hex}
                   size={26}
                 />
               </span>

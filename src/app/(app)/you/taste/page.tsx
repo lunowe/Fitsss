@@ -30,8 +30,11 @@ export default async function TastePage() {
       title: block.label,
       typeId: block.typeId,
       variant: block.variant,
+      fit: block.fit,
+      pattern: block.pattern,
       color: block.color.hex,
       secondaryColor: block.secondaryColor?.hex,
+      patternColor: block.patternColor?.hex,
     };
   }
 

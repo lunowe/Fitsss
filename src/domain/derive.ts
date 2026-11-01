@@ -24,6 +24,17 @@ const PATTERN_FORMALITY: Record<Pattern, number> = {
   logo: -1,
 };
 
+/** How a label names a pattern drawn in its own color: "with navy stripes", "with a red logo". */
+const PATTERN_IN_COLOR: Record<Exclude<Pattern, "solid">, (color: string) => string> = {
+  stripe: (c) => `with ${c} stripes`,
+  check: (c) => `with ${c} check`,
+  graphic: (c) => `with a ${c} graphic`,
+  logo: (c) => `with a ${c} logo`,
+  print: (c) => `with ${c} print`,
+  textured: (c) => `with ${c} texture`,
+  colorblock: (c) => `with ${c} colorblock`,
+};
+
 function weightIndex(w: Weight): number {
   return WEIGHTS.indexOf(w);
 }
@@ -68,12 +79,16 @@ export function seasonsForWarmth(warmth: number, seasonNeutral = false): Season[
  * One-line description used in captions and prompts.
  * Garments: "{color} {pattern} {fit} {material} {type}"  → "white relaxed cotton t-shirt"
  * Footwear/accessories: "{color} {material} {variant} {type}" → "black leather chelsea boots"
+ * A pattern with its own color moves to the end: "white relaxed cotton t-shirt with navy stripes".
  */
 export function deriveLabel(input: BlockInput): string {
   const type = requirePieceType(input.typeId);
   const parts: string[] = [input.color.name.toLowerCase()];
   if (input.secondaryColor) parts.push(`and ${input.secondaryColor.name.toLowerCase()}`);
-  if (input.pattern !== "solid") parts.push(PATTERN_LABELS[input.pattern].toLowerCase().split(" ")[0]);
+  const patternColor = input.pattern !== "solid" ? input.patternColor : undefined;
+  if (input.pattern !== "solid" && !patternColor) {
+    parts.push(PATTERN_LABELS[input.pattern].toLowerCase().split(" ")[0]);
+  }
   const material = input.material ? getMaterial(input.material).label.toLowerCase() : null;
   if (input.fit) {
     parts.push(fitLabel(input.fit).toLowerCase());
@@ -87,6 +102,9 @@ export function deriveLabel(input: BlockInput): string {
     }
   }
   parts.push(type.label.toLowerCase());
+  if (input.pattern !== "solid" && patternColor) {
+    parts.push(PATTERN_IN_COLOR[input.pattern](patternColor.name.toLowerCase()));
+  }
   return parts.join(" ");
 }
 

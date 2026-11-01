@@ -23,8 +23,11 @@ export interface TasteBlockInfo {
   title: string;
   typeId: string;
   variant?: string;
+  fit?: string;
+  pattern?: string;
   color: string;
   secondaryColor?: string;
+  patternColor?: string;
 }
 
 export interface StyleOption {
@@ -221,6 +224,9 @@ function PieceTile({ block }: { block: TasteBlockInfo }) {
           variant={block.variant}
           color={block.color}
           secondaryColor={block.secondaryColor}
+          fit={block.fit}
+          pattern={block.pattern}
+          patternColor={block.patternColor}
           size={44}
           title={block.title}
         />

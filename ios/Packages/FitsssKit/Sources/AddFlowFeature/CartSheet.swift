@@ -291,14 +291,17 @@ private struct CartLineRow: View {
     private func details(headline: String) -> some View {
         let input = line.input
         var colorLine = catalog.colorLine(color: input.color, secondaryColor: input.secondaryColor, material: input.material)
-        if input.pattern != "solid" { colorLine += " · \(catalog.patternLabel(input.pattern))" }
+        if input.pattern != "solid" { colorLine += " · \(catalog.patternLine(pattern: input.pattern, patternColor: input.patternColor))" }
 
         return HStack(spacing: 12) {
             Silhouette(
                 typeId: input.typeId,
                 variant: input.variant,
+                fit: input.fit,
                 color: input.color.hex,
-                secondaryColor: input.secondaryColor?.hex
+                secondaryColor: input.secondaryColor?.hex,
+                pattern: input.pattern,
+                patternColor: input.patternColor?.hex
             )
             .frame(width: 40, height: 40)
 

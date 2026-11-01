@@ -17,7 +17,10 @@ export function BlockThumb({
   className,
   children,
 }: {
-  block: Pick<Block, "typeId" | "variant" | "color" | "secondaryColor" | "label">;
+  block: Pick<
+    Block,
+    "typeId" | "variant" | "fit" | "pattern" | "color" | "secondaryColor" | "patternColor" | "label"
+  >;
   /** Silhouette size in px. */
   size?: number;
   className?: string;
@@ -35,6 +38,9 @@ export function BlockThumb({
         variant={block.variant}
         color={block.color.hex}
         secondaryColor={block.secondaryColor?.hex}
+        fit={block.fit}
+        pattern={block.pattern}
+        patternColor={block.patternColor?.hex}
         size={size}
         title={block.label}
       />

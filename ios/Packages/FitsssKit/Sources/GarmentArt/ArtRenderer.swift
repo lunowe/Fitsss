@@ -151,12 +151,14 @@ nonisolated private struct ArtPalette {
     let fill: GraphicsContext.Shading
     let fill2: GraphicsContext.Shading
     let stroke: GraphicsContext.Shading
+    let pattern: GraphicsContext.Shading
 
     init(_ inks: ArtInks) {
         self.inks = inks
         fill = .color(inks.fill)
         fill2 = .color(inks.fill2)
         stroke = .color(inks.stroke)
+        pattern = .color(inks.pattern)
     }
 
     func shading(_ paint: ArtPaint, opacity: Double) -> GraphicsContext.Shading? {
@@ -170,6 +172,8 @@ nonisolated private struct ArtPalette {
             return opacity >= 1 ? fill2 : .color(inks.fill2.opacity(opacity))
         case .stroke:
             return opacity >= 1 ? stroke : .color(inks.stroke.opacity(opacity))
+        case .pattern:
+            return opacity >= 1 ? pattern : .color(inks.pattern.opacity(opacity))
         case .rgba(let r, let g, let b, let a):
             return .color(Color(.sRGB, red: r, green: g, blue: b, opacity: a * opacity))
         }

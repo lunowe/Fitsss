@@ -64,6 +64,7 @@ export function Configurator({ type }: { type: PieceType }) {
   const [picked, setPicked] = useState<string[]>([]);
   const [materials, setMaterials] = useState<MaterialId[]>([]);
   const [pattern, setPattern] = useState<Pattern>("solid");
+  const [patternColor, setPatternColor] = useState<BlockColor | undefined>();
   const [weight, setWeight] = useState<Weight>(type.defaultWeight);
   const [nickname, setNickname] = useState("");
   const [notes, setNotes] = useState("");
@@ -76,11 +77,12 @@ export function Configurator({ type }: { type: PieceType }) {
       options: picked,
       materials,
       pattern,
+      patternColor: pattern === "solid" ? undefined : patternColor,
       weight,
       nickname: nickname.trim() || undefined,
       notes: notes.trim() || undefined,
     }),
-    [type.id, colors, picked, materials, pattern, weight, nickname, notes],
+    [type.id, colors, picked, materials, pattern, patternColor, weight, nickname, notes],
   );
 
   const count = draftCount(draft);
@@ -91,9 +93,12 @@ export function Configurator({ type }: { type: PieceType }) {
     if (picked.length) parts.push(plural(picked.length, optionWord));
     if (materials.length === 1) parts.push(getMaterial(materials[0]).label.toLowerCase());
     else if (materials.length > 1) parts.push(plural(materials.length, "material"));
-    if (pattern !== "solid") parts.push(PATTERN_LABELS[pattern].toLowerCase());
+    if (pattern !== "solid") {
+      const label = PATTERN_LABELS[pattern].toLowerCase();
+      parts.push(patternColor ? `${label} in ${patternColor.name.toLowerCase()}` : label);
+    }
     return parts.length ? parts.join(" · ") : "Nothing picked yet";
-  }, [colors.length, picked.length, materials, pattern, optionWord]);
+  }, [colors.length, picked.length, materials, pattern, patternColor, optionWord]);
 
   function toggleColor(color: BlockColor) {
     const key = colorKey(color);
@@ -105,6 +110,16 @@ export function Configurator({ type }: { type: PieceType }) {
   function addCustomColor(color: BlockColor) {
     const key = colorKey(color);
     setColors((current) => (current.some((c) => colorKey(c) === key) ? current : [...current, color]));
+  }
+
+  /** One pattern color at most: tapping it again goes back to automatic. */
+  function togglePatternColor(color: BlockColor) {
+    setPatternColor((current) => (current && colorKey(current) === colorKey(color) ? undefined : color));
+  }
+
+  function pickPattern(next: Pattern) {
+    setPattern(next);
+    if (next === "solid") setPatternColor(undefined);
   }
 
   function toggle<T>(list: T[], value: T): T[] {
@@ -174,12 +189,25 @@ export function Configurator({ type }: { type: PieceType }) {
           <SectionHeader>Pattern</SectionHeader>
           <div className="mx-4 flex flex-wrap gap-2 rounded-xl bg-card p-3">
             {type.patternOptions.map((p) => (
-              <Chip key={p} selected={pattern === p} onClick={() => setPattern(p)}>
+              <Chip key={p} selected={pattern === p} onClick={() => pickPattern(p)}>
                 {PATTERN_LABELS[p]}
               </Chip>
             ))}
           </div>
         </section>
+
+        {pattern !== "solid" ? (
+          <div>
+            <ColorSection
+              title="Pattern color"
+              suggested={[]}
+              selected={patternColor ? [patternColor] : []}
+              onToggle={togglePatternColor}
+              onAddCustom={setPatternColor}
+            />
+            <SectionFooter>Optional. Leave empty for a color that contrasts with the piece.</SectionFooter>
+          </div>
+        ) : null}
 
         {usesFit ? (
           <section>

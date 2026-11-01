@@ -11,6 +11,8 @@ nonisolated enum ArtPaint: Hashable, Sendable {
     case fill2
     /// `var(--icon-stroke)`, and `currentColor`.
     case stroke
+    /// `var(--icon-pattern)`: stripes, checks, prints, logos.
+    case pattern
     /// A literal sRGB color, components 0…1.
     case rgba(Double, Double, Double, Double)
 
@@ -58,6 +60,7 @@ nonisolated enum ArtPaint: Hashable, Sendable {
         case "--icon-fill": return .fill
         case "--icon-fill-2": return .fill2
         case "--icon-stroke": return .stroke
+        case "--icon-pattern": return .pattern
         default: return fallback.flatMap { parse(String($0)) }
         }
     }

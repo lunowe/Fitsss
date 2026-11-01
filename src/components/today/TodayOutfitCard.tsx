@@ -256,6 +256,9 @@ export function TodayOutfitCard({
                 variant={entry.block.variant}
                 color={entry.block.color.hex}
                 secondaryColor={entry.block.secondaryColor?.hex}
+                fit={entry.block.fit}
+                pattern={entry.block.pattern}
+                patternColor={entry.block.patternColor?.hex}
                 size={36}
               />
               <SwatchDot
@@ -361,6 +364,9 @@ export function TodayOutfitCard({
                   variant={entry.block.variant}
                   color={entry.block.color.hex}
                   secondaryColor={entry.block.secondaryColor?.hex}
+                  fit={entry.block.fit}
+                  pattern={entry.block.pattern}
+                  patternColor={entry.block.patternColor?.hex}
                   size={36}
                 />
                 <span className="min-w-0 flex-1">

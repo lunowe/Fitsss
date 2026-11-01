@@ -16,6 +16,10 @@ nonisolated public struct Catalog: Codable, Sendable {
     public var colorFamilies: [Option]
     public var palette: [PaletteColor]
     public var art: [String: ArtPiece]
+    /// How each pattern is laid into a drawing that has `layers`, keyed by
+    /// pattern id. Optional: older servers send none, and every piece is then
+    /// drawn plain.
+    public var patternTiles: [String: PatternTile]?
     /// What Today steers by. Optional so a catalog cached before these
     /// existed still decodes; read them through the accessors below.
     public var occasions: [Occasion]?
@@ -101,6 +105,8 @@ nonisolated public struct PieceType: Codable, Hashable, Sendable, Identifiable {
         public var `default`: String
         /// Only the variants that draw differently from `default`.
         public var variants: [String: String]?
+        /// Only the fits that draw differently from `default`.
+        public var fits: [String: String]?
     }
 
     /// True when the type is described by a fit rather than a variant.
@@ -122,6 +128,41 @@ nonisolated public struct PaletteColor: Codable, Hashable, Sendable, Identifiabl
 nonisolated public struct ArtPiece: Codable, Hashable, Sendable {
     public var viewBox: String
     public var body: String
+    /// Set for kit drawings only: the garment split so a pattern can be laid
+    /// between its fills and its lines. `ArtLayers` in
+    /// `src/components/silhouettes/kit/types.ts`.
+    public var layers: Layers?
+
+    public struct Layers: Codable, Hashable, Sendable {
+        /// Fills of every garment area, drawn first.
+        public var base: String
+        /// Everything drawn above a pattern.
+        public var lines: String
+        /// Path data of the area a pattern may cover.
+        public var clip: String
+        /// `[x, y, width, height]` of `clip`.
+        public var box: [Double]
+        /// `h` (default) or `v`: which way stripes run.
+        public var stripe: String?
+        /// Chest graphic: center x, center y, size.
+        public var graphic: [Double]?
+        /// Small logo: center x, center y, size.
+        public var logo: [Double]?
+        /// Path data of the colorblock panel.
+        public var block: String?
+    }
+}
+
+/// One pattern as markup in a 100×100 box, and how it is placed. `PatternTile`
+/// in `src/components/silhouettes/kit/patterns.ts`.
+nonisolated public struct PatternTile: Codable, Hashable, Sendable {
+    /// `field`, `motif` or `block`.
+    public var kind: String
+    /// Motifs: `graphic` (default) or `logo`.
+    public var anchor: String?
+    public var markup: String
+    /// Field tiles: the same tile for garments whose stripes run vertically.
+    public var markupV: String?
 }
 
 // MARK: - Lookups
@@ -138,12 +179,20 @@ nonisolated public extension Catalog {
 
     func palette(inFamily family: String) -> [PaletteColor] { palette.filter { $0.family == family } }
 
-    /// The drawing for a type, honoring its variant. Nil only for an unknown type.
-    func art(typeId: String, variant: String? = nil) -> (key: String, piece: ArtPiece)? {
+    /// The drawing for a type, honoring its variant, then its fit (the
+    /// server lists only those that draw differently). Nil only for an
+    /// unknown type.
+    func art(typeId: String, variant: String? = nil, fit: String? = nil) -> (key: String, piece: ArtPiece)? {
         guard let type = type(typeId) else { return nil }
-        let key = variant.flatMap { type.art.variants?[$0] } ?? type.art.default
+        let key = variant.flatMap { type.art.variants?[$0] }
+            ?? fit.flatMap { type.art.fits?[$0] }
+            ?? type.art.default
         return art[key].map { (key, $0) }
     }
+
+    /// How a pattern is laid into a layered drawing; nil for `solid`, an
+    /// unknown pattern, or a server that sends no tiles.
+    func patternTile(_ id: String) -> PatternTile? { patternTiles?[id] }
 
     func fitLabel(_ id: String) -> String { fitLabels[id] ?? humanize(id) }
     func variantLabel(_ id: String) -> String { variantLabels[id] ?? humanize(id) }

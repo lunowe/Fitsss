@@ -36,6 +36,7 @@ const row = {
   variant: null,
   material: "cotton",
   pattern: "solid",
+  patternColor: null,
   weight: null,
   effectiveWeight: "light",
   quantity: 1,

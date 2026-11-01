@@ -7,7 +7,7 @@ import type { Block } from "@/domain";
 
 export type PinnedBlock = Pick<
   Block,
-  "id" | "label" | "typeId" | "variant" | "color" | "secondaryColor"
+  "id" | "label" | "typeId" | "variant" | "fit" | "pattern" | "color" | "secondaryColor" | "patternColor"
 >;
 
 /** "light blue shirt" — short enough to sit on one row next to "Remove". */
@@ -31,6 +31,9 @@ export function PinnedRow({ block, onRemove }: { block: PinnedBlock; onRemove: (
                 variant={block.variant}
                 color={block.color.hex}
                 secondaryColor={block.secondaryColor?.hex}
+                fit={block.fit}
+                pattern={block.pattern}
+                patternColor={block.patternColor?.hex}
                 size={26}
                 title={block.label}
               />

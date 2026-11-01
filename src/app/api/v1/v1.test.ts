@@ -369,6 +369,42 @@ describe.skipIf(!run)("/api/v1", () => {
     });
   });
 
+  describe("pattern color", () => {
+    it("keeps a patterned piece's pattern color, and drops it when the piece turns solid", async () => {
+      const created = await save(owner, { ...tee, pattern: "stripe", patternColor: navy });
+      expect(created.status).toBe(201);
+      const piece = (await created.json()).data.created[0];
+      expect(piece.patternColor).toEqual(navy);
+      expect(piece.label).toContain("with navy stripes");
+
+      // A client that still sends the old pattern color with a solid piece.
+      const patched = await onPiece(item.PATCH, owner, piece.id, "PATCH", { ...tee, patternColor: navy });
+      expect(patched.status).toBe(200);
+      const stored = (await (await onPiece(item.GET, owner, piece.id, "GET")).json()).data;
+      expect(stored.pattern).toBe("solid");
+      expect(stored.patternColor).toBeUndefined();
+      expect(stored.label).not.toContain("navy");
+    });
+
+    it("ships the pattern tiles, and kit drawings with their layers and per-fit keys", async () => {
+      const { KIT } = await import("@/components/silhouettes/kit");
+      const fitKey = "jeans@wide";
+      const [typeId, fit] = fitKey.split("@");
+      asking.user = owner;
+      const { data } = await (await catalog.GET(request("/api/v1/catalog"), undefined as never)).json();
+      expect(data.patternTiles.stripe.kind).toBe("field");
+      const type = data.types.find((t: { id: string }) => t.id === typeId);
+      const key = type.art.fits[fit];
+      expect(key).toMatch(new RegExp(`^kit:${fitKey}:[0-9a-f]{12}$`));
+      expect(key).not.toBe(type.art.default);
+      // Layers travel without repeating base and lines: `split` cuts the body.
+      const { body, layers } = data.art[key];
+      const { base, lines, ...rest } = KIT[fitKey].layers;
+      expect(layers).toEqual(JSON.parse(JSON.stringify({ ...rest, split: base.length })));
+      expect([body.slice(0, layers.split), body.slice(layers.split)]).toEqual([base, lines]);
+    });
+  });
+
   describe("idempotent saves", () => {
     it("replays a repeated save instead of storing it twice", async () => {
       const before = await countPieces(owner.id);

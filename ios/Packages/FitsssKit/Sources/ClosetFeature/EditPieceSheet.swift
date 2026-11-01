@@ -67,6 +67,22 @@ struct EditPieceSheet: View {
 
     private func form(_ catalog: Catalog, _ type: PieceType) -> some View {
         Form {
+            Section {
+                // What the piece will look like, as it is edited.
+                Silhouette(
+                    typeId: block.typeId,
+                    variant: type.isGarment || draft.variant.isEmpty ? nil : draft.variant,
+                    fit: type.isGarment && !draft.fit.isEmpty ? draft.fit : nil,
+                    color: draft.color.hex,
+                    secondaryColor: draft.secondary?.hex,
+                    pattern: draft.pattern,
+                    patternColor: draft.pattern == "solid" ? nil : draft.patternColor?.hex
+                )
+                .frame(width: 104, height: 104)
+                .frame(maxWidth: .infinity)
+                .accessibilityHidden(true)
+            }
+
             ColorPickerSection(title: "Color", catalog: catalog, suggested: type.suggestedColors, value: $draft.color)
 
             if let secondary = draft.secondary {
@@ -123,6 +139,33 @@ struct EditPieceSheet: View {
                     label: catalog.patternLabel,
                     selection: $draft.pattern
                 )
+            }
+
+            if draft.pattern != "solid" {
+                if let patternColor = draft.patternColor {
+                    ColorPickerSection(
+                        title: "Pattern color",
+                        catalog: catalog,
+                        suggested: [],
+                        value: Binding(get: { draft.patternColor ?? patternColor }, set: { draft.patternColor = $0 })
+                    ) {
+                        Button("Use automatic color", role: .destructive) {
+                            withAnimation { draft.patternColor = nil }
+                        }
+                        .accessibilityIdentifier("edit.removePatternColor")
+                    }
+                } else {
+                    Section {
+                        Button("Choose pattern color", systemImage: "plus") {
+                            withAnimation { draft.patternColor = defaultPatternColor(catalog) }
+                        }
+                        .accessibilityIdentifier("edit.addPatternColor")
+                    } header: {
+                        Text("Pattern color")
+                    } footer: {
+                        Text("Automatic: a color that stands out from the piece.")
+                    }
+                }
             }
 
             if type.isGarment {
@@ -188,6 +231,21 @@ struct EditPieceSheet: View {
         (catalog.palette.first { $0.id != draft.color.paletteId } ?? catalog.palette.first).map(BlockColor.init)
     }
 
+    /// A fresh pattern color starts from the palette color closest to the
+    /// automatic ink, so the drawing does not jump when the picker opens.
+    private func defaultPatternColor(_ catalog: Catalog) -> BlockColor? {
+        let automatic = (ColorMath.lightness(draft.color.hex) ?? 1) > 0.45 ? "#1f2a44" : "#f4f1ea"
+        let closest = catalog.palette.filter { $0.id != draft.color.paletteId }.min {
+            Self.distance($0.hex, automatic) < Self.distance($1.hex, automatic)
+        }
+        return (closest ?? catalog.palette.first).map(BlockColor.init)
+    }
+
+    private static func distance(_ a: String, _ b: String) -> Double {
+        guard let x = ColorMath.rgb(a), let y = ColorMath.rgb(b) else { return .infinity }
+        return pow(x.r - y.r, 2) + pow(x.g - y.g, 2) + pow(x.b - y.b, 2)
+    }
+
     private func save(_ type: PieceType) async {
         error = nil
         isSaving = true
@@ -228,7 +286,11 @@ private struct Draft: Equatable {
     var fit: String
     var variant: String
     var material: String?
-    var pattern: String
+    var pattern: String {
+        // Back to solid drops the pattern color, as the server would.
+        didSet { if pattern == "solid" { patternColor = nil } }
+    }
+    var patternColor: BlockColor?
     var weight: String
     var quantity: Int
     var nickname: String
@@ -241,6 +303,7 @@ private struct Draft: Equatable {
         variant = block.variant ?? ""
         material = block.material
         pattern = block.pattern
+        patternColor = block.patternColor
         weight = block.effectiveWeight
         quantity = block.quantity
         nickname = block.nickname ?? ""
@@ -264,6 +327,7 @@ private struct Draft: Equatable {
             variant: !type.isGarment && !variant.isEmpty ? variant : nil,
             material: material,
             pattern: pattern,
+            patternColor: pattern == "solid" ? nil : patternColor,
             weight: type.isGarment ? (weight == type.defaultWeight ? nil : weight) : block.weight,
             quantity: quantity,
             nickname: nickname.isEmpty ? nil : nickname,

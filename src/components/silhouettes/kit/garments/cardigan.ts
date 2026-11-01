@@ -1,0 +1,95 @@
+/**
+ * Cardigan: an open-front knit buttoned up the center: a V neck framed by the
+ * button band, five buttons, two patch pockets at the hips, rib cuffs and hem.
+ */
+import { button, CX, fill, ink, L, mirrored, path, piece, polyline, seam, stroke, type Pt } from "../draw";
+import { patchPocket, ribTrims } from "../parts-tops";
+import type { KitPiece } from "../types";
+import { torso, type TorsoSpec } from "../torso";
+
+const NECK_Y = 20;
+const NECK_W = 14;
+const V_DEPTH = 44;
+const BAND = 6;
+const RIB = 7;
+
+const BASE: Omit<TorsoSpec, "neck"> = {
+  neckW: NECK_W,
+  neckY: NECK_Y,
+  shoulderW: 58,
+  shoulderDrop: 9,
+  chestW: 56,
+  hemW: 54,
+  length: 156,
+  armhole: 32,
+  sleeveLen: 112,
+  cuffW: 22,
+  sleeveAngle: 75,
+};
+
+const FITS: Record<string, Partial<TorsoSpec>> = {
+  fitted: { shoulderW: 54, chestW: 51, waistW: 47, hemW: 48, length: 152, armhole: 29, sleeveLen: 108, cuffW: 19, sleeveAngle: 77 },
+  regular: {},
+  relaxed: { shoulderW: 62, chestW: 61, hemW: 59, length: 160, armhole: 35, sleeveLen: 114, cuffW: 24 },
+  oversized: { shoulderW: 72, shoulderDrop: 13, chestW: 71, hemW: 69, length: 176, armhole: 42, sleeveLen: 120, cuffW: 28, sleeveAngle: 73 },
+  boxy: { shoulderW: 70, shoulderDrop: 11, chestW: 69, hemW: 69, length: 142, armhole: 40, sleeveLen: 112, cuffW: 26, sleeveAngle: 74 },
+};
+
+function cardigan(fit: string): KitPiece {
+  const vY = NECK_Y + V_DEPTH;
+  const spec: TorsoSpec = { ...BASE, ...FITS[fit], neck: { start: [CX, vY], segs: [L([CX + NECK_W, NECK_Y])] } };
+  const t = torso(spec);
+  const trims = ribTrims(t, RIB, RIB);
+  const hemTop = spec.length - RIB;
+  // Button band: a strip inside the V edge, continuing down the center front.
+  // Its inner edge is the V edge offset by BAND, then the line x = CX + BAND.
+  const e: Pt = [-NECK_W, V_DEPTH];
+  const len = Math.hypot(e[0], e[1]);
+  const n: Pt = [e[1] / len, -e[0] / len]; // inward normal (right and down)
+  const p0: Pt = [CX + NECK_W + n[0] * BAND, NECK_Y + n[1] * BAND];
+  // back up along the edge direction to the shoulder line
+  const startX = p0[0] + (p0[1] - NECK_Y) * (NECK_W / V_DEPTH);
+  // down the edge direction to x = CX + BAND
+  const s = ((p0[0] - CX - BAND) * len) / NECK_W;
+  const cornerY = p0[1] + (s * V_DEPTH) / len;
+  const bandInner = polyline([startX, NECK_Y + 0.5], [CX + BAND, cornerY], [CX + BAND, hemTop]);
+  const centerLine = polyline([CX, vY], [CX, spec.length]);
+  const buttons: string[] = [];
+  const first = vY + 10;
+  const last = hemTop - 8;
+  for (let i = 0; i < 5; i++) buttons.push(button(CX, first + ((last - first) * i) / 4, 1.9));
+  // Patch pockets just above the hem rib.
+  const pw = 19;
+  const ph = 16;
+  const px = CX + spec.chestW * 0.3;
+  const py = hemTop - ph - 7;
+  const pocket = patchPocket(px, py, pw, ph);
+  return piece({
+    base: [fill(t.outline)],
+    lines: [
+      trims.fills,
+      ink(
+        stroke(t.outline),
+        t.armSeams,
+        trims.lines,
+        seam(bandInner),
+        seam(mirrored(bandInner)),
+        stroke(centerLine),
+        seam(pocket),
+        seam(mirrored(pocket)),
+        stroke(path([px, py], [L([px + pw, py])])),
+        stroke(path([2 * CX - px, py], [L([2 * CX - px - pw, py])])),
+      ),
+      ...buttons,
+    ],
+    clip: t.outline,
+    stripe: "h",
+    logo: [CX + spec.chestW * 0.52, t.bodyY(0.16), 12],
+    block: t.sleevePanel() + mirrored(t.sleevePanel()),
+  });
+}
+
+export const CARDIGAN: Record<string, KitPiece> = Object.fromEntries(
+  Object.keys(FITS).map((fit) => [`cardigan@${fit}`, cardigan(fit)]),
+);
+CARDIGAN["cardigan"] = CARDIGAN["cardigan@regular"];
