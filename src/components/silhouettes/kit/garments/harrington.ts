@@ -5,7 +5,7 @@
  */
 import { button, CX, FILL2, fill, ink, mirrored, piece, seam, stroke, type Pt } from "../draw";
 import type { KitPiece } from "../types";
-import { fitTable, jacket, JACKET_BASE, mirrorPt, outerFit, roundNeck, slantFlap, standCollar, zip, type JacketSpec } from "../parts-outer";
+import { fitTable, jacket, JACKET_BASE, type JacketSpec, mirrorPt, outerFit, roundNeck, slantFlap, standCollar, withPanels, zip } from "../parts-outer";
 
 const BASE = { ...JACKET_BASE, length: 162, chestW: 58, hemW: 53, cuffW: 22 };
 const FITS = ["fitted", "regular", "relaxed", "oversized"];
@@ -24,7 +24,7 @@ function harrington(fit: string): KitPiece {
   const b: Pt = [CX + dims.hemW - 9, py];
   const flapR = slantFlap(a, b, 7);
   const flapL = slantFlap(mirrorPt(b), mirrorPt(a), 7);
-  return piece({
+  return withPanels(piece({
     base: [fill(j.outline)],
     lines: [
       collar.fills,
@@ -49,7 +49,7 @@ function harrington(fit: string): KitPiece {
     ],
     clip: j.outline,
     stripe: "h",
-  });
+  }), j.panels(true));
 }
 
 export const HARRINGTON: Record<string, KitPiece> = fitTable("harrington", FITS, "regular", harrington);

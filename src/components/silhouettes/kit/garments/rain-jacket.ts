@@ -6,7 +6,7 @@
  */
 import { button, C, CX, fill, ink, path, piece, polyline, seam, shade, stroke, type Pt } from "../draw";
 import type { KitPiece } from "../types";
-import { fitTable, hood, jacket, JACKET_BASE, mirrorPt, outerFit, roundNeck, weltPocket, zipSlider, type JacketSpec } from "../parts-outer";
+import { fitTable, hood, jacket, JACKET_BASE, type JacketSpec, mirrorPt, outerFit, roundNeck, weltPocket, withPanels, zipSlider } from "../parts-outer";
 
 const BASE = { ...JACKET_BASE, neckY: 42, neckW: 16, length: 190, chestW: 60, hemW: 63, sleeveLen: 120, cuffW: 24, shoulderDrop: 10 };
 const FITS = ["regular", "relaxed", "oversized"];
@@ -34,7 +34,7 @@ function rainJacket(fit: string): KitPiece {
   const a: Pt = [CX + 13, py];
   const b: Pt = [CX + j.halfW(py + 14) - 10, py + 14];
   const pockets = weltPocket(a, b) + weltPocket(mirrorPt(a), mirrorPt(b));
-  return piece({
+  return withPanels(piece({
     base: [fill(h.back), fill(j.outline)],
     lines: [
       fill(h.lining),
@@ -61,7 +61,7 @@ function rainJacket(fit: string): KitPiece {
     extent: [h.back, j.outline],
     stripe: "h",
     block: j.yokePanel(j.armpit[1] + 6),
-  });
+  }), j.panels());
 }
 
 export const RAIN_JACKET: Record<string, KitPiece> = fitTable("rain-jacket", FITS, "regular", rainJacket);

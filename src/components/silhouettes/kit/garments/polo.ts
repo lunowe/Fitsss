@@ -46,12 +46,13 @@ function polo(fit: string): KitPiece {
     lines: [
       fill(band, FILL2),
       fill(mirrored(band), FILL2),
-      ink(stroke(t.outline), t.armSeams, t.cuffLines(BAND), seam(t.hemLine(4)), p.lines),
+      ink(stroke(t.edges), t.armSeams, t.cuffLines(BAND), seam(t.hemLine(4)), p.lines),
       p.buttons,
       collar.fills,
       ink(collar.lines),
     ],
     clip: t.outline,
+    panels: t.panels,
     stripe: "h",
     logo: chestAnchors(t).logo,
   });

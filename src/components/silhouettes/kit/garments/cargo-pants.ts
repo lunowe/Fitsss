@@ -1,8 +1,11 @@
 /**
- * Cargo pants: chinos with a bellows pocket on each thigh, flap on top and a
- * box pleat down its middle. Fits from slim to wide, no skinny.
+ * Cargo pants: a relaxed work trouser with a big bellows pocket on each
+ * thigh, a flap on top with a single button. The pockets are the piece, so
+ * they are large enough to read at closet size and the rest stays plain.
+ * Fits from slim to wide, no skinny; every fit cuts a little fuller than the
+ * shared table.
  */
-import { button, CX, fill, ink, L, mirrored, path, piece, polyline, seam, stroke } from "../draw";
+import { button, CX, fill, ink, L, mirrored, path, piece, seam, stroke } from "../draw";
 import type { KitPiece } from "../types";
 import { legs, type LegsSpec } from "../legs";
 import { beltLoops, fly, loopXs, PANT_BASE, PANT_FITS, slantPockets } from "../parts-bottoms";
@@ -12,18 +15,24 @@ const FITS = ["slim", "straight", "relaxed", "baggy", "wide"];
 
 function cargoPants(fit: string): KitPiece {
   const spec: LegsSpec = { ...PANT_BASE, ...PANT_FITS[fit] };
+  spec.hipW += 1;
+  spec.kneeW += 3;
+  spec.hemW += 2;
   const l = legs(spec);
   const { waistY } = spec;
   const band = spec.band ?? 9;
-  // Cargo pocket on the outer thigh, above the knee.
-  const py = l.kneeY - 34;
-  const ph = 24;
-  const pw = Math.min(20, Math.round(spec.kneeW * 0.58));
-  const px = l.outerX(py + ph / 2) - pw - 3;
-  const bag = path([px, py + 5], [L([px, py + ph]), L([px + pw, py + ph]), L([px + pw, py + 5])]);
-  const pleat = polyline([px + pw / 2, py + 6], [px + pw / 2, py + ph - 0.5]);
-  const f = flap(px, py, pw, 6);
-  const fL = flap(2 * CX - px - pw, py, pw, 6);
+  // Bellows pocket on the thigh: a tall bag with a deep flap, set towards the
+  // outseam. Width follows the leg so it never crowds the inseam.
+  const ph = 30;
+  const py = l.kneeY - ph - 12;
+  const pw = Math.min(26, Math.round(spec.kneeW * 0.72));
+  const px = l.outerX(py + ph / 2) - pw - 3.5;
+  const bag = path([px, py + 7], [L([px, py + ph - 2]), L([px + 2, py + ph]), L([px + pw - 2, py + ph]), L([px + pw, py + ph - 2]), L([px + pw, py + 7])]);
+  // The bellows: a fold line inside each side of the bag.
+  const bellows = path([px + 2.5, py + 8], [L([px + 2.5, py + ph - 1])]);
+  const bellowsR = path([px + pw - 2.5, py + 8], [L([px + pw - 2.5, py + ph - 1])]);
+  const f = flap(px - 0.5, py, pw + 1, 8);
+  const fL = flap(2 * CX - px - pw - 0.5, py, pw + 1, 8);
   return piece({
     base: [fill(l.outline)],
     lines: [
@@ -35,17 +44,19 @@ function cargoPants(fit: string): KitPiece {
         seam(l.bandLine),
         fly(l),
         slantPockets(l, 11, 30),
-        seam(bag),
-        seam(mirrored(bag)),
-        seam(pleat),
-        seam(mirrored(pleat)),
+        stroke(bag),
+        stroke(mirrored(bag)),
+        seam(bellows),
+        seam(bellowsR),
+        seam(mirrored(bellows)),
+        seam(mirrored(bellowsR)),
         f.lines,
         fL.lines,
         l.hemLines(3),
       ),
       button(CX, waistY + band / 2, 2),
-      button(px + pw / 2, py + 3.5, 1.3),
-      button(2 * CX - px - pw / 2, py + 3.5, 1.3),
+      button(px + pw / 2, py + 4.5, 1.4),
+      button(2 * CX - px - pw / 2, py + 4.5, 1.4),
     ],
     clip: l.outline,
     stripe: "v",

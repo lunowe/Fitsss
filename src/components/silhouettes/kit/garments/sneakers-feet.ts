@@ -8,7 +8,7 @@
  */
 import { fill, FILL2, ink, L, lerp, path, piece, polyline, seam, shade, stroke, type Pt } from "../draw";
 import type { KitPiece } from "../types";
-import { eyestay, footSole, GROUND, smooth, splineSegs, type Sole } from "../parts-feet";
+import { eyestay, footSole, GROUND, LACE_W, smooth, splineSegs, type Sole } from "../parts-feet";
 
 /**
  * The upper's outline: a spline up the heel, over the collar and the tongue
@@ -33,7 +33,8 @@ const tongueShade = (back: readonly Pt[], throatIndex: number) => shade(tonguePa
  */
 function toeCap(front: readonly Pt[], capIndex: number, base: Pt, bulge = 4): { seam: string; panel: string } {
   const top = front[capIndex];
-  const seamPts: Pt[] = [base, [base[0] + bulge * 0.4, GROUND - 12], [top[0] - 2, top[1] + 12], top];
+  const rise = top[1] - base[1];
+  const seamPts: Pt[] = [base, [base[0] + bulge * 0.4, base[1] + rise * 0.45], [top[0] - 2, base[1] + rise * 0.8], top];
   return {
     seam: smooth(seamPts),
     panel: path(base, [...splineSegs(seamPts), ...splineSegs(front.slice(capIndex)), L(base)], true),
@@ -54,33 +55,35 @@ function heelCounter(back: readonly Pt[], topIndex: number, seamPts: readonly Pt
 /** A padded collar: a seam a few units under the topline, from the heel to the throat. */
 const collarSeam = (pts: readonly Pt[]) => seam(smooth(pts));
 
+
 /** The low-top: the family's reference profile. */
 function lowTop(): KitPiece {
-  const s = footSole({ x0: 18, x1: 186, depth: 14, spring: 6, midsole: true });
-  const throat: Pt = [80, 72];
-  const vamp: Pt = [140, 83];
+  const s = footSole({ x0: 18, x1: 186, depth: 15, spring: 6, midsole: true });
+  const throat: Pt = [80, 66];
+  const vamp: Pt = [124, 88];
   const meet = lerp(throat, vamp, 0.9);
   const back: Pt[] = [
-    [18, GROUND], [15.5, 102], [15, 87], [17, 74], [22, 64], [31, 60], [44, 61.5], [58, 65.5], [71, 69], throat,
-    [86, 66.5], [94, 64], [106, 65], [118, 69], [127, 74.5], meet,
+    [18, GROUND], [15.5, 102], [15, 87], [17, 72], [22, 61], [31, 56.5], [44, 57.5], [58, 60], [71, 63], throat,
+    [83, 60], [91, 57.5], [100, 58.5], [108, 62.5], [115, 69], [119, 76], meet,
   ];
-  const front: Pt[] = [meet, vamp, [152, 85.5], [163, 88.5], [174, 93], [182, 99], [187.5, 106], s.toe];
+  const front: Pt[] = [meet, vamp, [136, 91], [150, 94], [164, 98], [175, 103], [183, 108], s.toe];
   const upper = upperPath(back, front, s);
-  const stay = eyestay(throat, vamp, 10, 4);
-  const cap = toeCap(front, 3, [152, GROUND]);
-  const counter = heelCounter(back, 6, [[44, 61.5], [46, 67], [41, 82], [38.5, 100], [39, GROUND]]);
-  const collar = collarSeam([[17.5, 72], [24, 66.5], [33, 65], [46, 67], [58, 71], [70, 75.5], [77, 79]]);
+  const stay = eyestay(throat, vamp, 11, 5, 0, 0.1, 0.9, LACE_W);
+  const cap = toeCap(front, 4, [152, GROUND]);
+  const counter = heelCounter(back, 6, [[44, 57.5], [46, 63], [41, 81], [38.5, 100], [39, GROUND]]);
+  const collar = collarSeam([[17.5, 70], [24, 64], [33, 61.5], [46, 62.5], [58, 65], [70, 67.5], [77, 70]]);
   return piece({
     base: [fill(upper)],
     lines: [
       s.fills,
       tongueShade(back, 9),
+      stay.laceFills,
       ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), seam(cap.seam)),
       s.lines,
     ],
     clip: upper,
     extent: [upper, s.path],
-    block: cap.panel + counter.panel + stay.panel + tonguePanel(back, 9),
+    block: cap.panel + counter.panel + stay.panel,
   });
 }
 
@@ -96,7 +99,7 @@ function highTop(): KitPiece {
   ];
   const front: Pt[] = [meet, vamp, [152, 85.5], [162, 88.5], [173, 93], [181.5, 99], [187, 106], s.toe];
   const upper = upperPath(back, front, s);
-  const stay = eyestay(throat, vamp, 10, 6, 0, 0.08, 0.92);
+  const stay = eyestay(throat, vamp, 10, 6, 0, 0.08, 0.92, LACE_W);
   const cap = toeCap(front, 3, [151, GROUND]);
   const counter = heelCounter(back, 7, [[44, 41], [46, 48.5], [43, 70], [41, 95], [41.5, GROUND]]);
   const collar = collarSeam([[18.5, 62], [24, 53], [31, 49], [42, 48], [53, 50], [60, 53.5]]);
@@ -106,12 +109,13 @@ function highTop(): KitPiece {
       s.fills,
       tongueShade(back, 9),
       fill(cap.panel, FILL2),
+      stay.laceFills,
       ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), stroke(cap.seam)),
       s.lines,
     ],
     clip: upper,
     extent: [upper, s.path],
-    block: counter.panel + stay.panel + tonguePanel(back, 9),
+    block: counter.panel + stay.panel,
   });
 }
 
@@ -127,7 +131,7 @@ function chunky(): KitPiece {
   ];
   const front: Pt[] = [meet, vamp, [156, 84.5], [166, 88], [177, 93], [185, 100], [189.5, 106.5], s.toe];
   const upper = upperPath(back, front, s);
-  const stay = eyestay(throat, vamp, 10, 4);
+  const stay = eyestay(throat, vamp, 10, 5, 0, 0.1, 0.9, LACE_W);
   const cap = toeCap(front, 3, [155, GROUND]);
   const counter = heelCounter(back, 6, [[48, 58], [50, 64], [45, 80], [42, 100], [42.5, GROUND]]);
   const collar = collarSeam([[18.5, 70], [25, 64], [36, 62], [49, 63.5], [62, 67.5], [74, 72.5], [81, 76.5]]);
@@ -139,12 +143,13 @@ function chunky(): KitPiece {
     lines: [
       s.fills,
       tongueShade(back, 9),
+      stay.laceFills,
       ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), seam(cap.seam), seam(mudguard), seam(quarter)),
       s.lines,
     ],
     clip: upper,
     extent: [upper, s.path],
-    block: cap.panel + counter.panel + stay.panel + tonguePanel(back, 9),
+    block: cap.panel + counter.panel + stay.panel,
   });
 }
 
@@ -160,7 +165,7 @@ function running(): KitPiece {
   ];
   const front: Pt[] = [meet, vamp, [154, 86], [164, 88.5], [175, 92.5], [183, 97.5], [188.5, 103.5], s.toe];
   const upper = upperPath(back, front, s);
-  const stay = eyestay(throat, vamp, 9.5, 4);
+  const stay = eyestay(throat, vamp, 9.5, 5, 0, 0.1, 0.9, LACE_W);
   const cap = toeCap(front, 3, [156, GROUND], 2);
   const counter = heelCounter(back, 7, [[46, 63], [46, 68], [40, 84], [37, 102], [37, GROUND]]);
   const collar = collarSeam([[15, 72], [19, 65], [27, 62.5], [36, 64.5], [48, 68.5], [60, 72.5], [72, 76], [79, 78.5]]);
@@ -171,12 +176,13 @@ function running(): KitPiece {
     lines: [
       s.fills,
       tongueShade(back, 10),
+      stay.laceFills,
       ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, collar, seam(counter.seam), seam(cap.seam), seam(sweep)),
       s.lines,
     ],
     clip: upper,
     extent: [upper, s.path],
-    block: cap.panel + counter.panel + stay.panel + tonguePanel(back, 10),
+    block: cap.panel + counter.panel + stay.panel,
   });
 }
 
@@ -192,7 +198,7 @@ function retro(): KitPiece {
   ];
   const front: Pt[] = [meet, vamp, [154, 88.5], [164, 91], [175, 95.5], [183, 101], [188, 107], s.toe];
   const upper = upperPath(back, front, s);
-  const stay = eyestay(throat, vamp, 10, 4);
+  const stay = eyestay(throat, vamp, 10, 5, 0, 0.1, 0.9, LACE_W);
   const cap = toeCap(front, 3, [154, GROUND], 3);
   const counter = heelCounter(back, 6, [[44, 63.5], [46, 69], [41, 84], [38.5, 102], [39, GROUND]]);
   // T-toe: a stitch running forward along the crown from the cap seam.
@@ -206,6 +212,7 @@ function retro(): KitPiece {
       s.fills,
       tongueShade(back, 9),
       fill(band, FILL2),
+      stay.laceFills,
       ink(stroke(upper), stroke(stay.top), seam(stay.bottom), ...stay.bars, stroke(band), seam(counter.seam), seam(cap.seam), seam(tBar)),
       s.lines,
     ],

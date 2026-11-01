@@ -135,20 +135,46 @@ export function footSole(s: SoleSpec): Sole {
 /* Lacing and small parts                                               */
 /* ------------------------------------------------------------------ */
 
+/** Width of a lace drawn as a band (sneakers, boots): bold enough to read at 56 px. */
+export const LACE_W = 2.8;
+
+/**
+ * One lace crossing a stay as a flat band from `top` to `bot`, `w` wide along
+ * the direction `u` of the stay's edge. Returns the band's closed path.
+ */
+export function laceBand(top: Pt, bot: Pt, u: Pt, w = LACE_W): string {
+  const h = w / 2;
+  return path(add(top, u, -h), [L(add(top, u, h)), L(add(bot, u, h)), L(add(bot, u, -h))], true);
+}
+
+export interface Laces {
+  /** The bands in the second color, drawn before the ink. */
+  fills: string;
+  /** Their edges, for `ink()`. */
+  lines: string[];
+}
+
+/** Lace bands as a part: fills in `FILL2`, edges in ink. */
+export function laces(bands: readonly string[]): Laces {
+  return { fills: bands.map((d) => fill(d, FILL2)).join(""), lines: bands.map((d) => stroke(d)) };
+}
+
 /**
  * Lace bars across an eyestay from its top edge (`a0`→`a1`) to its bottom
- * edge (`b0`→`b1`), `count` of them, each leaning like the reference sneaker.
+ * edge (`b0`→`b1`), `count` of them, each leaning like the reference sneaker,
+ * drawn as flat bands of the second color.
  */
-export function laceBars(a0: Pt, a1: Pt, b0: Pt, b1: Pt, count: number): string[] {
-  const out: string[] = [];
+export function laceBars(a0: Pt, a1: Pt, b0: Pt, b1: Pt, count: number, w = LACE_W): Laces {
+  const len = Math.hypot(a1[0] - a0[0], a1[1] - a0[1]) || 1;
+  const u: Pt = [(a1[0] - a0[0]) / len, (a1[1] - a0[1]) / len];
+  const bands: string[] = [];
   for (let i = 0; i < count; i++) {
     const t = (i + 0.5) / count;
-    const top = lerp(a0, a1, t + 0.035);
-    const bot = lerp(b0, b1, t - 0.035);
-    out.push(stroke(polyline(top, bot)));
+    bands.push(laceBand(lerp(a0, a1, t + 0.035), lerp(b0, b1, t - 0.035), u, w));
   }
-  return out;
+  return laces(bands);
 }
+
 
 /** Crossed laces between two eyelet rows, each a small X. */
 export function crossLaces(a0: Pt, a1: Pt, b0: Pt, b1: Pt, count: number): string[] {
@@ -334,21 +360,29 @@ export interface Eyestay {
   top: string;
   /** The stitched lower edge of the stay, a seam. */
   bottom: string;
-  /** Lace bars across the stay. */
+  /** Lace bars across the stay, for `ink()`: the edges of the bands, or thin lines when `laceW` is 0. */
   bars: string[];
+  /** The lace bands' fills (second color), drawn before the ink. Empty for thin laces. */
+  laceFills: string;
   /** The stay as a closed panel (for a colorblock). */
   panel: string;
   /** Ends of the bottom edge. */
   a2: Pt;
   b2: Pt;
+  /** A point on the bottom edge, `t` of the way from the throat to the vamp. */
+  bottomAt(t: number): Pt;
+  /** A point on the top edge. */
+  topAt(t: number): Pt;
 }
 
 /**
  * A laced eyestay: the strip `w` deep under the edge from the throat `a` to
  * the vamp `b`, with `count` lace bars leaning across it. `bow` lifts the
- * middle of the top edge (a sneaker's lace line is slightly convex).
+ * middle of the top edge (a sneaker's lace line is slightly convex). Laces
+ * are flat bands `laceW` wide in the second color; 0 draws them as thin lines
+ * (dress shoes).
  */
-export function eyestay(a: Pt, b: Pt, w: number, count: number, bow = 0, t0 = 0.1, t1 = 0.9): Eyestay {
+export function eyestay(a: Pt, b: Pt, w: number, count: number, bow = 0, t0 = 0.1, t1 = 0.9, laceW = 0): Eyestay {
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
   const n: Pt = [-(b[1] - a[1]) / len, (b[0] - a[0]) / len];
   const a2 = add(a, n, w);
@@ -361,13 +395,29 @@ export function eyestay(a: Pt, b: Pt, w: number, count: number, bow = 0, t0 = 0.
   // deviates from the chord by 4·lift·t(1−t) along the normal.
   const on = (p: Pt, q: Pt, lift: number, t: number, inset: number): Pt =>
     add(lerp(p, q, t), n, inset - 4 * lift * t * (1 - t));
+  const u: Pt = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
   const bars: string[] = [];
+  const bands: string[] = [];
   const lean = 0.05;
   for (let i = 0; i < count; i++) {
     const t = count === 1 ? 0.5 : t0 + ((t1 - t0) * i) / (count - 1);
-    bars.push(stroke(polyline(on(a, b, bow, t + lean, 1.4), on(a2, b2, bow * 0.7, t - lean, -1.4))));
+    const top = on(a, b, bow, t + lean, 1.2);
+    const bot = on(a2, b2, bow * 0.7, t - lean, -1.2);
+    if (laceW > 0) bands.push(laceBand(top, bot, u, laceW));
+    else bars.push(stroke(polyline(top, bot)));
   }
-  return { top, bottom, bars, panel, a2, b2 };
+  const lc = laces(bands);
+  return {
+    top,
+    bottom,
+    bars: laceW > 0 ? lc.lines : bars,
+    laceFills: laceW > 0 ? lc.fills : "",
+    panel,
+    a2,
+    b2,
+    bottomAt: (t) => on(a2, b2, bow * 0.7, t, 0),
+    topAt: (t) => on(a, b, bow, t, 0),
+  };
 }
 
 /**

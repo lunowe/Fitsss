@@ -25,6 +25,8 @@ const BASE: Omit<TorsoSpec, "neck"> = {
   armhole: 31,
   sleeveLen: 114,
   cuffW: 21,
+  sleeveW: 24,
+  hang: 2.5,
   sleeveAngle: 76,
 };
 
@@ -55,14 +57,16 @@ function dressShirt(fit: string): KitPiece {
   return piece({
     base: [fill(t.outline)],
     lines: [
+      t.sleeveShade,
       collar.fills,
-      ink(stroke(t.outline), t.armSeams, t.cuffLines(cuffDepth), seam(t.hemLine(4)), p.lines),
+      ink(stroke(t.edges), t.armSeams, t.cuffLines(cuffDepth), seam(t.hemLine(4)), p.lines),
       ...buttons,
       button(cuffMid[0], cuffMid[1], 1.6),
       button(2 * CX - cuffMid[0], cuffMid[1], 1.6),
       ink(collar.lines),
     ],
     clip: t.outline,
+    panels: t.panels,
     stripe: "v",
   });
 }

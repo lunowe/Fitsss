@@ -2,7 +2,7 @@
  * Sweatshirt: fleece-backed cotton with deep rib cuffs and hem, a ribbed crew
  * neck and the classic V-stitch insert below it.
  */
-import { CX, FILL2, fill, ink, L, mirrored, path, piece, polyline, stroke } from "../draw";
+import { CX, fill, FILL2, ink, L, mirrored, path, piece, polyline, stroke } from "../draw";
 import { chestAnchors, ribTrims, topFit } from "../parts-tops";
 import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
@@ -25,6 +25,8 @@ const BASE: TorsoSpec = {
   armhole: 34,
   sleeveLen: 112,
   cuffW: 25,
+  sleeveW: 27,
+  hang: 2.5,
   sleeveAngle: 75,
 };
 
@@ -42,13 +44,15 @@ function sweatshirt(fit: string): KitPiece {
   return piece({
     base: [fill(t.outline)],
     lines: [
+      t.sleeveShade,
       rib.fills,
       trims.fills,
       fill(notch, FILL2),
-      ink(stroke(t.outline), t.armSeams, trims.lines, stroke(polyline([CX - 6, vTop], [CX, vTop + 9], [CX + 6, vTop]))),
+      ink(stroke(t.edges), t.armSeams, trims.lines, stroke(polyline([CX - 6, vTop], [CX, vTop + 9], [CX + 6, vTop]))),
       rib.lines,
     ],
     clip: t.outline,
+    panels: t.panels,
     stripe: "h",
     graphic: anchors.graphic,
     logo: anchors.logo,

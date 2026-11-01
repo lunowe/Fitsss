@@ -9,8 +9,8 @@
  * is still recognisable in a 56 px tile and not coarse at 240 px.
  *
  * Motif tiles are scaled to the garment's `graphic` or `logo` anchor. Logo
- * anchors are about a sixth of the chest width, graphic anchors about half,
- * so a logo is a bold solid mark and a graphic is a composed print.
+ * anchors are just under a quarter of the chest width, graphic anchors about
+ * half, so a logo is a bold solid mark and a graphic is a composed print.
  *
  * This table is shipped to the iOS app as-is, so tiles stay within the SVG
  * subset GarmentArt draws: g, path, rect, circle, ellipse, line, polyline,
@@ -73,40 +73,99 @@ function blossoms(): string {
   return `<g ${INK}>${petals}${dots}</g><g ${GROUND}>${holes}</g>`;
 }
 
+/** A small deterministic PRNG (mulberry32), so the marl is the same on every client. */
+function rng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Coordinates to half a unit: irregular enough to hide any grid, short enough to keep the tile small. */
+const h = (v: number) => String(Math.round(v * 2) / 2);
+
 /**
- * A fabric texture: a fine twill, diagonal ridges in the pattern color with a
- * faint ink groove between them. The pitch is 3 units, so at 240 px it is a
- * crisp weave and at 56 px a soft hatch; the ink grooves keep it visible even
- * when the pattern color is close to the garment's (cream on cream).
+ * Short rounded dashes at random angles, one per cell of a jittered grid so
+ * the cover is even without ever lining up. Returns one stroked path.
  */
-function twill(): string {
-  const pitch = 3;
-  const w = 1;
-  let ridges = "";
-  let grooves = "";
-  // Cover the tile's diagonal so the rotated bands leave no corner bare.
-  for (let x = -24; x < 124; x += pitch) {
-    ridges += `<rect x="${n(x)}" y="-24" width="${n(w)}" height="148"/>`;
-    grooves += `<rect x="${n(x + pitch / 2)}" y="-24" width="${n(w)}" height="148"/>`;
+function flecks(seed: number, cells: number, len: [number, number], width: number, opacity: number): string {
+  const r = rng(seed);
+  const step = 100 / cells;
+  let d = "";
+  for (let i = 0; i < cells; i++) {
+    for (let j = 0; j < cells; j++) {
+      const cx = i * step + r() * step;
+      const cy = j * step + r() * step;
+      const half = (len[0] + r() * (len[1] - len[0])) / 2;
+      const a = r() * Math.PI;
+      const dx = Math.cos(a) * half;
+      const dy = Math.sin(a) * half;
+      d += `M${h(cx - dx)} ${h(cy - dy)}L${h(cx + dx)} ${h(cy + dy)}`;
+    }
   }
   return (
-    `<g transform="rotate(30 50 50)">` +
-    `<g ${INK} fill-opacity="0.5">${ridges}</g>` +
-    `<g fill="var(--icon-stroke, #000)" fill-opacity="0.14">${grooves}</g>` +
-    `</g>`
+    `<path d="${d}" fill="none" stroke="var(--icon-pattern, #000)" stroke-width="${n(width)}" ` +
+    `stroke-linecap="round" stroke-opacity="${opacity}"/>`
   );
+}
+
+/**
+ * A fabric texture: a marl. Two layers of short flecks in the pattern color,
+ * a soft dense one and a sparser stronger one, so the surface has tonal depth
+ * instead of one kind of mark; plus a scatter of ink specks that keeps the
+ * weave visible when the pattern color is close to the garment's (stone on
+ * white) and reads as the dark fibre of a heather. Nothing has a direction,
+ * so the same tile works rotated on a sleeve panel. At 240 px it is a flecked
+ * knit, at 96 px a quiet speckle, at 56 px a soft tint.
+ */
+function marl(): string {
+  const r = rng(29);
+  let specks = "";
+  for (let i = 0; i < 320; i++) {
+    const x = r() * 100;
+    const y = r() * 100;
+    specks += `M${h(x)} ${h(y)}L${h(x + 0.5)} ${h(y + 0.5)}`;
+  }
+  return (
+    flecks(11, 34, [0.9, 2.2], 0.55, 0.4) +
+    flecks(5, 24, [1, 2.4], 0.6, 0.6) +
+    `<path d="${specks}" fill="none" stroke="var(--icon-stroke, #000)" stroke-width="0.55" ` +
+    `stroke-linecap="round" stroke-opacity="0.24"/>`
+  );
+}
+
+/** `count`² squares where the bands of a gingham cross. */
+function crossings(count: number, width: number): string {
+  const period = 100 / count;
+  let out = "";
+  for (let i = 0; i < count; i++) {
+    for (let j = 0; j < count; j++) {
+      const x = n(i * period + (period - width) / 2);
+      const y = n(j * period + (period - width) / 2);
+      out += `<rect x="${x}" y="${y}" width="${n(width)}" height="${n(width)}"/>`;
+    }
+  }
+  return out;
 }
 
 export const PATTERN_TILES: Record<string, PatternTile> = {
   // Breton stripes across; fine candy stripes down a shirt or trouser leg.
   stripe: { kind: "field", markup: `<g ${INK}>${bands(false, 11, 3.4)}</g>`, markupV: `<g ${INK}>${bands(true, 15, 2.1)}</g>` },
-  // Gingham: two translucent band sets whose crossings read darker.
+  // Gingham: two translucent band sets, and the crossings painted again at
+  // near full strength, as the dyed yarn would be. That keeps a pale check
+  // (navy on cream) legible without making a cream-on-navy one heavy.
   check: {
     kind: "field",
-    markup: `<g ${INK} fill-opacity="0.42">${bands(false, 7, 7.2)}${bands(true, 7, 7.2)}</g>`,
+    markup:
+      `<g ${INK} fill-opacity="0.42">${bands(false, 7, 7.4)}${bands(true, 7, 7.4)}</g>` +
+      `<g ${INK} fill-opacity="0.75">${crossings(7, 7.4)}</g>`,
   },
   print: { kind: "field", markup: blossoms() },
-  textured: { kind: "field", markup: twill() },
+  textured: { kind: "field", markup: marl() },
   // A chest print: a framed landscape, the sun on the horizon over two bars
   // of sea, cut out of a solid block in the garment color.
   graphic: {
@@ -116,12 +175,13 @@ export const PATTERN_TILES: Record<string, PatternTile> = {
       `<g ${GROUND}><path d="M30 58L30 56C30 44 39 36 50 36C61 36 70 44 70 56L70 58Z"/>` +
       `<rect x="8" y="60" width="84" height="3"/><rect x="8" y="67" width="84" height="4"/></g>`,
   },
-  // A small embroidered mark: two solid peaks. Bold enough to read at a sixth
-  // of the chest width, and nothing like the graphic.
+  // A small embroidered mark: a solid roundel with two peaks cut out of it.
+  // The disc fills the anchor, so at closet size it is still a crisp dot of
+  // pattern color; the peaks appear from ~96 px. Nothing like the graphic.
   logo: {
     kind: "motif",
     anchor: "logo",
-    markup: `<polygon points="6,80 36,26 52,52 66,18 94,80" ${INK}/>`,
+    markup: `<circle cx="50" cy="50" r="49" ${INK}/><polygon points="8,76 34,34 47,54 63,26 92,76" ${GROUND}/>`,
   },
   // The garment supplies its own panel; the fallback splits the field in two.
   colorblock: { kind: "block", markup: `<rect x="-2" y="50" width="104" height="52" ${INK}/>` },

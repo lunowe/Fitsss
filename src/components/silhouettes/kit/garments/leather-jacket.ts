@@ -5,7 +5,7 @@
  */
 import { CX, fill, ink, piece, stroke, type Pt } from "../draw";
 import type { KitPiece } from "../types";
-import { belt, buttonAt, fitTable, jacket, JACKET_BASE, lapels, outerFit, zipBetween, type JacketSpec } from "../parts-outer";
+import { belt, buttonAt, fitTable, jacket, JACKET_BASE, type JacketSpec, lapels, outerFit, withPanels, zipBetween } from "../parts-outer";
 
 const BASE = { ...JACKET_BASE, length: 156, chestW: 58, hemW: 54, cuffW: 22 };
 const FITS = ["fitted", "regular", "relaxed", "oversized"];
@@ -29,7 +29,7 @@ function leatherJacket(fit: string): KitPiece {
   const wb = belt(beltY, j.halfW(beltY), BELT);
   // Lapel snaps at the points.
   const snapR: Pt = [CX + 26, neckY + 24];
-  return piece({
+  return withPanels(piece({
     base: [fill(j.outline)],
     lines: [
       lp.fills,
@@ -43,7 +43,7 @@ function leatherJacket(fit: string): KitPiece {
     ],
     clip: j.outline,
     stripe: "v",
-  });
+  }), j.panels());
 }
 
 export const LEATHER_JACKET: Record<string, KitPiece> = fitTable("leather-jacket", FITS, "regular", leatherJacket);

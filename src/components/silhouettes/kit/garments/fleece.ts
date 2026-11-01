@@ -3,7 +3,7 @@
  * pockets and elastic cuffs and hem. Colorblock is the classic contrast
  * yoke across the chest, shoulders and collar.
  */
-import { CX, FILL2, fill, ink, L, mirrored, path, piece, Q, seam, stroke } from "../draw";
+import { CX, fill, FILL2, ink, L, mirrored, path, piece, Q, seam, stroke } from "../draw";
 import { ribTrims, standCollar, standNeck, topFit, zip } from "../parts-tops";
 import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
@@ -25,6 +25,8 @@ const BASE: Omit<TorsoSpec, "neck"> = {
   armhole: 34,
   sleeveLen: 114,
   cuffW: 25,
+  sleeveW: 27,
+  hang: 2.5,
   sleeveAngle: 75,
 };
 
@@ -49,10 +51,11 @@ function fleece(fit: string): KitPiece {
   return piece({
     base: [fill(collar.shape), fill(t.outline)],
     lines: [
+      t.sleeveShade,
       trims.fills,
       ink(
         stroke(collar.shape),
-        stroke(t.outline),
+        stroke(t.edges),
         collar.lines,
         seam(neckSeam),
         t.armSeams,
@@ -67,6 +70,7 @@ function fleece(fit: string): KitPiece {
       ink(stroke(z.pull)),
     ],
     clip: collar.shape + t.outline,
+    panels: t.panels,
     extent: [t.outline, collar.shape],
     block,
   });

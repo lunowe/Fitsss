@@ -1,7 +1,7 @@
 /**
  * Dress: each fit is its own shape. Fitted is a sleeveless sheath with a waist
  * seam; a-line has cap sleeves, a fitted bodice and a flared skirt; relaxed is
- * a straight tee dress; slip hangs from thin straps with a V neck; wrap
+ * a shift with cap sleeves; slip hangs from thin straps with a V neck; wrap
  * crosses over at the bust and ties at the side of the waist.
  */
 import { C, CX, FILL2, fill, ink, L, lerp, mirrored, path, piece, polyline, Q, seam, shade, stroke, symmetric, type Pt } from "../draw";
@@ -86,32 +86,39 @@ function aLine(): KitPiece {
       rib.lines,
     ],
     clip: outline,
+    panels: sl.panels,
     stripe: "h",
   });
 }
 
-function teeDress(): KitPiece {
-  const neckW = 15;
-  const S: Pt = [CX + 55, NECK_Y + 9];
-  const A: Pt = [CX + 54, S[1] + 31];
-  const sl = sleeve(S, A, 30, 34, 26);
-  const H: Pt = [CX + 59, 226];
-  const neck = crewNeck(neckW, NECK_Y, 15);
-  const h = hem(H[0] - CX, H[1], 3);
+function shift(): KitPiece {
+  // A relaxed shift: cap sleeves, a bound round neck, and a body that falls
+  // straight from the chest into a gentle A at the knee. The long, flared
+  // skirt and the small sleeves keep it from reading as a long tee.
+  const neckW = 14;
+  const S: Pt = [CX + 47, NECK_Y + 8];
+  const A: Pt = [CX + 45, S[1] + 30];
+  const sl = sleeve(S, A, 33, 21, 19);
+  const hip: Pt = [CX + 50, 150];
+  const H: Pt = [CX + 63, 242];
+  const neck = crewNeck(neckW, NECK_Y, 14);
+  const h = hem(H[0] - CX, H[1], 5);
   const outline = symmetric(neck.start, [
     ...neck.segs,
-    Q([CX + neckW + (55 - neckW) * 0.55, NECK_Y + 2.5], S),
+    Q([CX + neckW + (47 - neckW) * 0.55, NECK_Y + 2], S),
     ...sl.segs,
-    C([CX + 54, lerp(A, H, 0.4)[1]], [CX + 58, lerp(A, H, 0.8)[1]], H),
+    C([CX + 45, lerp(A, hip, 0.5)[1]], [CX + 48, lerp(A, hip, 0.85)[1]], hip),
+    C([CX + 53, lerp(hip, H, 0.35)[1]], [CX + 60, lerp(hip, H, 0.75)[1]], H),
     h.seg,
   ]);
-  const rib = crewRib(neckW, NECK_Y, 15, 3.5);
-  // In-seam pockets: a short opening at each side at hip height.
-  const pocket = path([CX + 50, 142], [Q([CX + 54.5, 150], [CX + 55.5, 164])]);
+  const rib = crewRib(neckW, NECK_Y, 14, 2.5);
+  // In-seam pockets at the hip.
+  const pocket = path([CX + 47.5, 146], [Q([CX + 50.5, 156], [CX + 52, 170])]);
   return piece({
     base: [fill(outline)],
-    lines: [rib.fills, ink(stroke(outline), sl.armSeams, sl.cuffLines(4), seam(pocket), seam(mirrored(pocket)), seam(h.line)), rib.lines],
+    lines: [rib.fills, ink(stroke(outline), sl.armSeams, sl.cuffLines(3.5), seam(pocket), seam(mirrored(pocket)), seam(h.line)), rib.lines],
     clip: outline,
+    panels: sl.panels,
     stripe: "h",
   });
 }
@@ -203,6 +210,7 @@ function wrap(): KitPiece {
       ink(stroke(outline), sl.armSeams, sl.cuffLines(3.5), stroke(over), seam(sash), stroke(tie2), stroke(tie), stroke(knotShape), seam(h.line)),
     ],
     clip: outline,
+    panels: sl.panels,
     stripe: "h",
   });
 }
@@ -210,7 +218,7 @@ function wrap(): KitPiece {
 export const DRESS: Record<string, KitPiece> = {
   "dress@fitted": sheath(),
   "dress@a-line": aLine(),
-  "dress@relaxed": teeDress(),
+  "dress@relaxed": shift(),
   "dress@slip": slip(),
   "dress@wrap": wrap(),
 };

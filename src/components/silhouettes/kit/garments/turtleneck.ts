@@ -26,6 +26,8 @@ const BASE: TorsoSpec = {
   armhole: 30,
   sleeveLen: 110,
   cuffW: 20,
+  sleeveW: 23,
+  hang: 2.5,
   sleeveAngle: 76,
 };
 
@@ -59,13 +61,15 @@ function turtleneck(fit: string): KitPiece {
   return piece({
     base: [fill(t.outline)],
     lines: [
+      t.sleeveShade,
       trims.fills,
-      ink(stroke(t.outline), t.armSeams, trims.lines),
+      ink(stroke(t.edges), t.armSeams, trims.lines),
       fill(neck.shape, FILL2),
       shade(neck.roll, 0.08),
       ink(stroke(neck.shape), stroke(neck.fold), seam(neck.top)),
     ],
     clip: t.outline,
+    panels: t.panels,
     extent: [t.outline, neck.shape],
     stripe: "h",
   });

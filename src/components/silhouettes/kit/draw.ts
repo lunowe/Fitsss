@@ -14,7 +14,7 @@
  *     cover, `lines` is everything that stays above it (trims in `FILL2`,
  *     shading, ink). `piece()` frames the result in a square viewBox.
  */
-import type { ArtLayers, Box, KitPiece } from "./types";
+import type { ArtLayers, ArtPanel, Box, KitPiece } from "./types";
 
 export const FILL = "var(--icon-fill, #b3b3b3)";
 export const FILL2 = "var(--icon-fill-2, #8c8c8c)";
@@ -224,6 +224,8 @@ export interface PieceParts {
   graphic?: ArtLayers["graphic"];
   logo?: ArtLayers["logo"];
   block?: string;
+  /** Areas (sleeves) where a field pattern turns to follow the part. */
+  panels?: readonly ArtPanel[];
 }
 
 /**
@@ -263,6 +265,7 @@ export function piece(parts: PieceParts): KitPiece {
   if (parts.graphic) layers.graphic = parts.graphic;
   if (parts.logo) layers.logo = parts.logo;
   if (parts.block) layers.block = parts.block;
+  if (parts.panels?.length) layers.panels = parts.panels;
   const result: KitPiece = {
     viewBox: squareFrame(extent),
     body: base + lines,
@@ -288,13 +291,25 @@ export function reframe(p: KitPiece, box: Box): KitPiece {
 }
 
 /**
- * Gives every fit of a type one frame: the union of the fits' bounds. Fits
- * are drawn in one coordinate space (the shoulder line and the waistband sit
- * at the same y in every fit), so inside the shared frame a fitted tee is
- * visibly smaller and an oversized one longer and wider, where a per-piece
- * frame normalized them to the same size. Keys `type@fit` are grouped by
- * type; variants and bare keys are untouched, and a bare default key keeps
- * pointing at the same (reframed) drawing as its fit.
+ * How far a fit's frame moves from its own bounds towards the union of its
+ * type's fits: 0 frames every fit around itself (all the same size), 1 gives
+ * every fit the type's one frame (the default fit fills ~75% of its tile and
+ * the whole grid looks small). In between, a fitted piece still draws
+ * smaller and an oversized one larger, while the default fit fills ~90%.
+ */
+export const FIT_FRAME_BLEND = 0.4;
+
+/**
+ * Gives the fits of a type a shared sense of scale. Fits are drawn in one
+ * coordinate space (the shoulder line and the waistband sit at the same y in
+ * every fit), so framing each one around the union of the type's bounds
+ * makes a fitted tee visibly smaller and an oversized one longer and wider,
+ * where a per-piece frame normalized them to the same size. Each fit's
+ * frame is its own bounds moved `FIT_FRAME_BLEND` of the way towards that
+ * union, edge by edge, so the size differences stay visible without the
+ * common fits shrinking to the corner of their tile. Keys `type@fit` are
+ * grouped by type; variants and bare keys are untouched, and a bare default
+ * key keeps pointing at the same (reframed) drawing as its fit.
  */
 export function framedByType<T extends Record<string, KitPiece>>(table: T): T {
   const groups = new Map<string, KitPiece[]>();
@@ -320,8 +335,15 @@ export function framedByType<T extends Record<string, KitPiece>>(table: T): T {
       maxX = Math.max(maxX, x + w);
       maxY = Math.max(maxY, y + h);
     }
-    const box: Box = [minX, minY, maxX - minX, maxY - minY];
-    for (const p of group) replaced.set(p, reframe(p, box));
+    const k = FIT_FRAME_BLEND;
+    for (const p of group) {
+      const [x, y, w, h] = extentOf(p);
+      const x0 = x + (minX - x) * k;
+      const y0 = y + (minY - y) * k;
+      const x1 = x + w + (maxX - x - w) * k;
+      const y1 = y + h + (maxY - y - h) * k;
+      replaced.set(p, reframe(p, [x0, y0, x1 - x0, y1 - y0]));
+    }
   }
   const out: Record<string, KitPiece> = {};
   for (const [key, p] of Object.entries(table)) out[key] = replaced.get(p) ?? p;

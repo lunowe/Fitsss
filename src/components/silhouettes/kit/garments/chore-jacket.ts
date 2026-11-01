@@ -6,7 +6,7 @@
 import { button, CX, fill, ink, L, piece, polyline, seam, stroke } from "../draw";
 import type { KitPiece } from "../types";
 import { pointCollar } from "./shirt";
-import { fitTable, jacket, JACKET_BASE, outerFit, patchPocket, type JacketSpec } from "../parts-outer";
+import { fitTable, jacket, JACKET_BASE, type JacketSpec, outerFit, patchPocket, withPanels } from "../parts-outer";
 
 const BASE = { ...JACKET_BASE, length: 174, chestW: 59, hemW: 59, cuffW: 24 };
 const FITS = ["regular", "relaxed", "oversized"];
@@ -29,7 +29,7 @@ function choreJacket(fit: string): KitPiece {
   const hipY = j.bodyY(0.58);
   const hipR = patchPocket(CX + dims.hemW - hw - 7, hipY, hw, hw * 0.92);
   const hipL = patchPocket(CX - dims.hemW + 7, hipY, hw, hw * 0.92);
-  return piece({
+  return withPanels(piece({
     base: [fill(j.outline)],
     lines: [
       collar.fills,
@@ -39,7 +39,7 @@ function choreJacket(fit: string): KitPiece {
     ],
     clip: j.outline,
     stripe: "v",
-  });
+  }), j.panels());
 }
 
 export const CHORE_JACKET: Record<string, KitPiece> = fitTable("chore-jacket", FITS, "regular", choreJacket);

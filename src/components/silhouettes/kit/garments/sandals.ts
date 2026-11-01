@@ -15,12 +15,13 @@ const X1 = 184;
 const through = (inner: string) => fill(inner + "Z") + shade(inner + "Z", 0.22);
 
 function slide(): KitPiece {
-  // A contoured footbed, thicker at the heel, and one broad band over the instep.
-  const s = footSole({ x0: X0, x1: X1, depth: 13, spring: 3, heelLift: 4, midsole: true });
-  const a = strapArch(52, 154, 34, 18, 16);
+  // A thick molded footbed, higher at the heel, and one broad band over the
+  // instep: the band is most of the drawing, so it reads at grid size.
+  const s = footSole({ x0: X0, x1: X1, depth: 17, spring: 3, heelLift: 5, midsole: true });
+  const a = strapArch(48, 158, 44, 22, 18);
   return piece({
     base: [fill(a.band)],
-    lines: [through(a.inner), s.fills, ink(stroke(a.outer), stroke(a.inner), seam(a.inset(4)), seam(a.inset(14))), s.lines],
+    lines: [through(a.inner), s.fills, ink(stroke(a.outer), stroke(a.inner), seam(a.inset(4.5)), seam(a.inset(17.5))), s.lines],
     clip: a.band,
     extent: [a.band, s.path],
   });

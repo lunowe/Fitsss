@@ -5,7 +5,9 @@
  * kit's one-line language: trims in FILL2, seams at SEAM, hardware as buttons.
  */
 import { add, button, C, CX, dir, FILL2, fill, L, lerp, mirrored, path, perp, polyline, Q, seam, shade, stroke, symmetric, type Pt, type Seg } from "./draw";
+import { sleevePanelsOf } from "./parts-outer";
 import type { Torso, TorsoSpec } from "./torso";
+import type { ArtPanel } from "./types";
 
 /* ------------------------------------------------------------------ */
 /* Fits                                                                 */
@@ -23,11 +25,13 @@ type TorsoDims = Omit<TorsoSpec, "neck">;
  *   oversized  dropped shoulder, much wider, longer in the body and the sleeves
  *   boxy       as wide as oversized through the body, cropped short
  *
- * Sleeve deltas scale with the sleeve, so short and long sleeves grow alike.
+ * Sleeve deltas scale with the sleeve, so short and long sleeves grow alike;
+ * a sleeve's top width (`sleeveW`) grows with its cuff.
  */
 export function topFit<T extends TorsoDims>(base: T, fit: string): T {
   const short = base.sleeveAngle < 50;
   const r = Math.round;
+  const sleeveW = (k: number) => (base.sleeveW === undefined ? {} : { sleeveW: r(base.sleeveW * k) });
   switch (fit) {
     case "fitted":
       return {
@@ -40,6 +44,7 @@ export function topFit<T extends TorsoDims>(base: T, fit: string): T {
         armhole: base.armhole - 3,
         sleeveLen: r(base.sleeveLen * 0.93),
         cuffW: r(base.cuffW * 0.86),
+        ...sleeveW(0.88),
         sleeveAngle: base.sleeveAngle + 2,
       };
     case "relaxed":
@@ -53,6 +58,7 @@ export function topFit<T extends TorsoDims>(base: T, fit: string): T {
         armhole: base.armhole + 4,
         sleeveLen: r(base.sleeveLen * 1.06),
         cuffW: r(base.cuffW * 1.14),
+        ...sleeveW(1.12),
       };
     case "oversized":
       return {
@@ -66,6 +72,7 @@ export function topFit<T extends TorsoDims>(base: T, fit: string): T {
         armhole: base.armhole + 12,
         sleeveLen: r(base.sleeveLen * (short ? 1.2 : 1.12)),
         cuffW: r(base.cuffW * 1.4),
+        ...sleeveW(1.36),
         sleeveAngle: base.sleeveAngle + (short ? 6 : -2),
       };
     case "boxy":
@@ -80,6 +87,7 @@ export function topFit<T extends TorsoDims>(base: T, fit: string): T {
         armhole: base.armhole + 10,
         sleeveLen: r(base.sleeveLen * (short ? 1.08 : 1.02)),
         cuffW: r(base.cuffW * 1.3),
+        ...sleeveW(1.3),
         sleeveAngle: base.sleeveAngle + (short ? 3 : -1),
       };
     default:
@@ -95,22 +103,24 @@ export type Anchor = readonly [number, number, number];
 
 /**
  * Where a chest logo and a front print sit on a top. The logo is on the
- * wearer's left chest, just below the armpit line, about 17% of the chest
- * width across; the print is centered below the neckline, about half the
- * chest width, shrunk when the body is too short for it (a boxy crop).
+ * wearer's left chest (the viewer's right), just below the armpit line,
+ * about 23% of the chest width across so the mark still reads in a closet
+ * tile; the print is centered below the neckline, about half the chest
+ * width, shrunk when the body is too short for it (a boxy crop).
  * `top`/`bottom` bound the print area (default: the armpit line to just
- * above the hem); `logoX` moves the logo as a fraction of the half chest.
+ * above the hem); `logoX` moves the logo as a fraction of the half chest,
+ * `logoY` sets its center line.
  */
-export function chestAnchors(t: Torso, opts: { top?: number; bottom?: number; logoX?: number } = {}): { logo: Anchor; graphic: Anchor } {
+export function chestAnchors(t: Torso, opts: { top?: number; bottom?: number; logoX?: number; logoY?: number } = {}): { logo: Anchor; graphic: Anchor } {
   const { chestW, length } = t.spec;
   const chest = chestW * 2;
   const armpitY = t.armpit[1];
   const top = opts.top ?? armpitY - 4;
   const bottom = opts.bottom ?? length - 10;
-  const logoSize = Math.round(chest * 0.17);
+  const logoSize = Math.round(chest * 0.23);
   const graphicSize = Math.min(Math.round(chest * 0.5), Math.round((bottom - top) * 0.72));
   return {
-    logo: [Math.round(CX + chestW * (opts.logoX ?? 0.5)), Math.round(armpitY + 4), logoSize],
+    logo: [Math.round(CX + chestW * (opts.logoX ?? 0.4)), Math.round(opts.logoY ?? armpitY + 6), logoSize],
     graphic: [CX, Math.round((top + 6 + graphicSize / 2) * 10) / 10, graphicSize],
   };
 }
@@ -260,6 +270,8 @@ export interface Sleeve {
   cuffLines(inset: number): string;
   /** The right sleeve as a closed panel. */
   panel: string;
+  /** Pattern panels for both sleeves: a field pattern turns to run along each arm. */
+  panels: ArtPanel[];
 }
 
 /** The kit's sleeve (the same curves `torso()` draws) from shoulder tip `S` to armpit `A`. */
@@ -272,6 +284,7 @@ export function sleeve(S: Pt, A: Pt, angle: number, len: number, cuffW: number):
   const under = Q(add(lerp(Ci, A, 0.5), v, 1.5), A);
   const armSeam = path(S, [C([S[0] - 1, lerp(S, A, 0.4)[1]], [A[0] + 3, A[1] - (A[1] - S[1]) * 0.22], A)]);
   const cuff = (inset: number) => polyline(add(Co, u, -inset), add(Ci, u, -inset));
+  const panel = path(S, [top, L(Ci), under, C([A[0] + 3, A[1] - (A[1] - S[1]) * 0.22], [S[0] - 1, lerp(S, A, 0.4)[1]], S)], true);
   return {
     segs: [top, L(Ci), under],
     cuffOuter: Co,
@@ -279,6 +292,7 @@ export function sleeve(S: Pt, A: Pt, angle: number, len: number, cuffW: number):
     dir: u,
     armSeams: seam(armSeam) + seam(mirrored(armSeam)),
     cuffLines: (inset) => seam(cuff(inset)) + seam(mirrored(cuff(inset))),
-    panel: path(S, [top, L(Ci), under, C([A[0] + 3, A[1] - (A[1] - S[1]) * 0.22], [S[0] - 1, lerp(S, A, 0.4)[1]], S)], true),
+    panel,
+    panels: sleevePanelsOf(panel, angle),
   };
 }

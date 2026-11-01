@@ -5,7 +5,7 @@
  */
 import { button, CX, fill, ink, L, path, piece, Q, seam, stroke } from "../draw";
 import type { KitPiece } from "../types";
-import { fitTable, flap, jacket, JACKET_BASE, lapels, outerFit, type JacketSpec } from "../parts-outer";
+import { fitTable, flap, jacket, JACKET_BASE, type JacketSpec, lapels, outerFit, withPanels } from "../parts-outer";
 
 const BASE = { ...JACKET_BASE, length: 228, chestW: 59, hemW: 63, sleeveLen: 122, cuffW: 24 };
 const FITS = ["fitted", "regular", "relaxed", "oversized"];
@@ -28,7 +28,7 @@ function woolCoat(fit: string): KitPiece {
   const fx = CX + 11;
   const flapR = flap(fx, flapY, fw, 8);
   const flapL = flap(2 * CX - fx - fw, flapY, fw, 8);
-  return piece({
+  return withPanels(piece({
     base: [fill(j.outline)],
     lines: [
       lp.fills,
@@ -40,7 +40,7 @@ function woolCoat(fit: string): KitPiece {
     ],
     clip: j.outline,
     stripe: "v",
-  });
+  }), j.panels());
 }
 
 export const WOOL_COAT: Record<string, KitPiece> = fitTable("wool-coat", FITS, "regular", woolCoat);

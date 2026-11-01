@@ -24,6 +24,8 @@ const BASE: TorsoSpec = {
   armhole: 32,
   sleeveLen: 112,
   cuffW: 22,
+  sleeveW: 25,
+  hang: 2.5,
   sleeveAngle: 75,
 };
 
@@ -36,8 +38,9 @@ function sweater(fit: string): KitPiece {
   const trims = ribTrims(t, RIB, RIB);
   return piece({
     base: [fill(t.outline)],
-    lines: [rib.fills, trims.fills, ink(stroke(t.outline), t.armSeams, trims.lines), rib.lines],
+    lines: [t.sleeveShade, rib.fills, trims.fills, ink(stroke(t.edges), t.armSeams, trims.lines), rib.lines],
     clip: t.outline,
+    panels: t.panels,
     stripe: "h",
     logo: chestAnchors(t).logo,
     block: t.sleevePanel() + mirrored(t.sleevePanel()),

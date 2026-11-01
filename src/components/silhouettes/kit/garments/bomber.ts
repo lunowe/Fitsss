@@ -5,7 +5,7 @@
  */
 import { CX, FILL2, fill, ink, mirrored, piece, seam, stroke, type Pt } from "../draw";
 import type { KitPiece } from "../types";
-import { fitTable, jacket, JACKET_BASE, mirrorPt, outerFit, roundNeck, standCollar, weltPocket, zip, type JacketSpec } from "../parts-outer";
+import { fitTable, jacket, JACKET_BASE, type JacketSpec, mirrorPt, outerFit, roundNeck, standCollar, weltPocket, withPanels, zip } from "../parts-outer";
 
 const BASE = { ...JACKET_BASE, length: 156, chestW: 61, hemW: 52, cuffW: 23, armhole: 34 };
 const FITS = ["fitted", "regular", "relaxed", "oversized"];
@@ -26,7 +26,7 @@ function bomber(fit: string): KitPiece {
   const pA: Pt = [CX + 12, py];
   const pB: Pt = [CX + dims.chestW - 12, py + 15];
   const pockets = weltPocket(pA, pB) + weltPocket(mirrorPt(pA), mirrorPt(pB));
-  return piece({
+  return withPanels(piece({
     base: [fill(j.outline)],
     lines: [
       collar.fills,
@@ -40,7 +40,7 @@ function bomber(fit: string): KitPiece {
     clip: j.outline,
     stripe: "h",
     block: j.sleevePanel() + mirrored(j.sleevePanel()),
-  });
+  }), j.panels());
 }
 
 export const BOMBER: Record<string, KitPiece> = fitTable("bomber", FITS, "regular", bomber);

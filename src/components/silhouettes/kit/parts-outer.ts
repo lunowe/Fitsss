@@ -9,6 +9,7 @@
  */
 import {
   add,
+  boundsOf,
   C,
   CX,
   dir,
@@ -33,6 +34,7 @@ import {
   type Seg,
 } from "./draw";
 import type { Neckline, TorsoSpec } from "./torso";
+import type { ArtPanel, KitPiece } from "./types";
 
 /* ------------------------------------------------------------------ */
 /* Body                                                                 */
@@ -45,6 +47,13 @@ export interface JacketSpec extends Omit<TorsoSpec, "neck" | "neckDepth"> {
   cutaway?: number;
   /** Quilted sides: the body side bulges out between baffles `pitch` apart, by `depth`; `sleeves` quilts the sleeve edges too. */
   scallop?: { pitch: number; depth: number; sleeves?: boolean };
+  /**
+   * How far the inner cuff corner hangs out from the body side, in units.
+   * When set, `sleeveAngle` is only a starting guess: the sleeve is turned
+   * until its underarm edge lies along the body with this gap at the cuff,
+   * so there is no wedge of background between a sleeve and the torso.
+   */
+  hang?: number;
 }
 
 export interface Jacket {
@@ -69,8 +78,12 @@ export interface Jacket {
   cuffBand(depth: number): string;
   hemBand(depth: number): string;
   sleevePanel(): string;
+  /** Path data of the right raglan sleeve (cuff to neckline), for colorblock and pattern panels. */
+  raglanPanel(): string;
   /** A closed panel across the whole piece from the top down to `y` (a yoke colorblock; clipped by the garment). */
   yokePanel(y: number): string;
+  /** Pattern panels for both sleeves: a field pattern turns to run along each sleeve. `raglan` uses the raglan panels. */
+  panels(raglan?: boolean): ArtPanel[];
   hemLine(inset: number, margin?: number): string;
   bodyY(t: number): number;
   /** Half width of the body at `y` (between the armpit and the hem). */
@@ -106,21 +119,46 @@ function mirroredOpen(start: Pt, segs: readonly Seg[]): string {
   return path(start, [...segs, ...left]);
 }
 
-export function jacket(spec: JacketSpec): Jacket {
-  const { neckW, neckY, shoulderW, shoulderDrop, chestW, hemW, length, armhole, sleeveLen, cuffW, sleeveAngle, neck } = spec;
-  const waistW = spec.waistW ?? Math.min(chestW, hemW);
-  const hemCurve = spec.hemCurve ?? 0;
-  const cutaway = spec.cutaway ?? 0;
+export function jacket(input: JacketSpec): Jacket {
+  const { neckW, neckY, shoulderW, shoulderDrop, chestW, hemW, length, armhole, sleeveLen, cuffW, neck } = input;
+  const waistW = input.waistW ?? Math.min(chestW, hemW);
+  const hemCurve = input.hemCurve ?? 0;
+  const cutaway = input.cutaway ?? 0;
 
   const K: Pt = [CX + neckW, neckY];
   const S: Pt = [CX + shoulderW, neckY + shoulderDrop];
+  const A: Pt = [CX + chestW, S[1] + armhole];
+  const H: Pt = [CX + hemW, length];
+  const hemMid: Pt = [CX, length + hemCurve];
+
+  const halfW = (y: number) => {
+    if (y <= A[1]) return chestW;
+    if (y >= length) return hemW;
+    // The body side is a cubic; sample it.
+    const p0 = A;
+    const p1: Pt = [CX + waistW, lerp(A, H, 0.42)[1]];
+    const p2: Pt = [CX + hemW - (hemW - waistW) * 0.25, lerp(A, H, 0.8)[1]];
+    const p3 = H;
+    let best = chestW;
+    let bestD = Infinity;
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40;
+      const a = lerp(lerp(lerp(p0, p1, t), lerp(p1, p2, t), t), lerp(lerp(p1, p2, t), lerp(p2, p3, t), t), t);
+      const d = Math.abs(a[1] - y);
+      if (d < bestD) {
+        bestD = d;
+        best = a[0] - CX;
+      }
+    }
+    return best;
+  };
+  const sleeveAngle =
+    input.hang === undefined ? input.sleeveAngle : sleeveHang(S, sleeveLen, cuffW, (y) => CX + halfW(y), input.hang, input.sleeveAngle);
+  const spec: JacketSpec = { ...input, sleeveAngle };
   const u = dir(sleeveAngle);
   const v = perp(u);
   const Co = add(S, u, sleeveLen);
   const Ci = add(Co, v, cuffW);
-  const A: Pt = [CX + chestW, S[1] + armhole];
-  const H: Pt = [CX + hemW, length];
-  const hemMid: Pt = [CX, length + hemCurve];
 
   const baffles: number[] = [];
   let bodySide: Seg[];
@@ -191,28 +229,18 @@ export function jacket(spec: JacketSpec): Jacket {
   const sleevePanel = () =>
     path(S, [Q(add(lerp(S, Co, 0.5), v, -1.5), Co), L(Ci), Q(add(lerp(Ci, A, 0.5), v, 1.5), A), C([A[0] + 3, A[1] - armhole * 0.22], [S[0] - 1, lerp(S, A, 0.4)[1]], S)], true);
   const yokePanel = (y: number) => path([CX - 120, neckY - 80], [L([CX + 120, neckY - 80]), L([CX + 120, y]), L([CX - 120, y])], true);
-  const halfW = (y: number) => {
-    if (y <= A[1]) return chestW;
-    if (y >= length) return hemW;
-    // The body side is a cubic; sample it.
-    const p0 = A;
-    const p1: Pt = [CX + waistW, lerp(A, H, 0.42)[1]];
-    const p2: Pt = [CX + hemW - (hemW - waistW) * 0.25, lerp(A, H, 0.8)[1]];
-    const p3 = H;
-    let best = chestW;
-    let bestD = Infinity;
-    for (let i = 0; i <= 40; i++) {
-      const t = i / 40;
-      const a = lerp(lerp(lerp(p0, p1, t), lerp(p1, p2, t), t), lerp(lerp(p1, p2, t), lerp(p2, p3, t), t), t);
-      const d = Math.abs(a[1] - y);
-      if (d < bestD) {
-        bestD = d;
-        best = a[0] - CX;
-      }
-    }
-    return best;
+  const raglanPanel = () =>
+    path([CX + neckW + 2.5, neckY + 1.2], [
+      Q([CX + neckW + (shoulderW - neckW) * 0.55, neckY + shoulderDrop * 0.25], S),
+      Q(add(lerp(S, Co, 0.5), v, -1.5), Co),
+      L(Ci),
+      Q(add(lerp(Ci, A, 0.5), v, 1.5), A),
+      C([A[0] - 2, A[1] - armhole * 0.5], [CX + neckW + 6, neckY + 6], [CX + neckW + 2.5, neckY + 1.2]),
+    ], true);
+  const panels = (raglan = false): ArtPanel[] => {
+    const right = raglan ? raglanPanel() : sleevePanel();
+    return sleevePanelsOf(right, sleeveAngle);
   };
-
   // A line across the sleeve: from the top edge straight across (along v) to the underarm line A–Ci.
   const sleeveLine = (d: number) => {
     const T = add(S, u, d);
@@ -243,11 +271,66 @@ export function jacket(spec: JacketSpec): Jacket {
     cuffBand,
     hemBand,
     sleevePanel,
+    raglanPanel,
     yokePanel,
+    panels,
     hemLine,
     bodyY: (t) => A[1] + (length - A[1]) * t,
     halfW,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Sleeves                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The sleeve angle (degrees below horizontal) at which a sleeve from the
+ * shoulder tip `S`, `len` long and `cuffW` across the cuff, hangs with its
+ * inner cuff corner `gap` units outside the body side (`bodyX(y)` is the
+ * body's right edge at `y`). Flat-lay sleeves lie along the torso; a sleeve
+ * turned out further leaves a wedge of background between it and the body,
+ * and one turned in further tucks under it. `guess` seeds the search.
+ */
+export function sleeveHang(S: Pt, len: number, cuffW: number, bodyX: (y: number) => number, gap: number, guess = 76): number {
+  const innerX = (deg: number) => {
+    const u = dir(deg);
+    const ci = add(add(S, u, len), perp(u), cuffW);
+    return ci[0] - (bodyX(ci[1]) + gap);
+  };
+  // innerX falls as the sleeve turns in; bisect on [guess - 15, guess + 15].
+  let lo = guess - 15;
+  let hi = guess + 15;
+  if (innerX(lo) < 0) return lo;
+  if (innerX(hi) > 0) return hi;
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    if (innerX(mid) > 0) lo = mid;
+    else hi = mid;
+  }
+  return Math.round(((lo + hi) / 2) * 10) / 10;
+}
+
+/**
+ * Pattern panels for a pair of sleeves from the right sleeve's path and the
+ * sleeve angle: a field pattern turns by the sleeve's lean from vertical on
+ * each side, so stripes and checks run along the arm instead of straight
+ * across it.
+ */
+export function sleevePanelsOf(right: string, sleeveAngle: number): ArtPanel[] {
+  const left = mirrored(right);
+  const lean = Math.round((sleeveAngle - 90) * 10) / 10;
+  const box = (d: string) => boundsOf([d]).map((n) => Math.round(n * 10) / 10) as unknown as ArtPanel["box"];
+  return [
+    { clip: right, box: box(right), angle: lean },
+    { clip: left, box: box(left), angle: -lean },
+  ];
+}
+
+/** Attaches pattern panels to a built piece. */
+export function withPanels(p: KitPiece, panels: readonly ArtPanel[]): KitPiece {
+  p.layers.panels = panels;
+  return p;
 }
 
 /* ------------------------------------------------------------------ */
@@ -267,6 +350,7 @@ export const JACKET_BASE: Omit<JacketSpec, "neck"> = {
   sleeveLen: 118,
   cuffW: 24,
   sleeveAngle: 75,
+  hang: 2.5,
 };
 
 type Dims = Omit<JacketSpec, "neck">;

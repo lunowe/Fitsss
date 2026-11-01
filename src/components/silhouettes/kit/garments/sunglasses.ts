@@ -1,7 +1,6 @@
 /**
- * Sunglasses, front view, laid at a slight angle the way they land in a
- * flat lay, so they fill a square tile like the other accessories. The
- * frame carries the color; the lenses are the second color under a tint,
+ * Sunglasses, upright front view, the way a shop shows them, so the pair
+ * sits level with the other flat lays. The frame carries the color; the lenses are the second color under a tint,
  * so they read as tinted glass on white, black and rust frames alike; the
  * temples show as short tabs at the sides. Wayfarer: thick trapezoid frame
  * with a straight brow. Aviator: teardrop lenses in a thin wire frame with
@@ -9,12 +8,9 @@
  * shield under a heavy brow bar.
  */
 import { button, C, CX, FILL2, fill, ink, L, mirrored, path, piece, polyline, Q, seam, shade, stroke, symmetric } from "../draw";
-import type { KitPiece, ArtLayers } from "../types";
-import { rotated, rotateMarkup } from "../parts-feet";
+import type { KitPiece } from "../types";
 
 const CY = 100;
-/** The flat-lay tilt, degrees (negative: the right side lifts). */
-const TILT = -14;
 
 /** A lens: the second color under a tint, with a highlight along its upper edge. */
 function lens(d: string): string {
@@ -26,25 +22,6 @@ function temple(x: number, y: number, len: number, w: number, dirn: 1 | -1): str
   return path([x, y - w / 2], [L([x + dirn * len, y - w / 2 + 1]), Q([x + dirn * (len + 2), y + 1], [x + dirn * len, y + w / 2 - 1]), L([x, y + w / 2])], true);
 }
 
-interface Upright {
-  base: string[];
-  lines: string[];
-  clip: string;
-  extent: string[];
-}
-
-/** Tilts an upright drawing into its flat-lay pose and frames it. */
-function tilted(u: Upright): KitPiece {
-  const rot = (m: string) => rotateMarkup(m, TILT, CX, CY);
-  const p = piece({
-    base: u.base.map(rot),
-    lines: u.lines.map(rot),
-    clip: rotated(u.clip, TILT, CX, CY),
-    extent: u.extent.map((d) => rotated(d, TILT, CX, CY)),
-  });
-  const layers: ArtLayers = p.layers;
-  return { viewBox: p.viewBox, body: p.body, layers };
-}
 
 function wayfarer(): KitPiece {
   const fw = 6; // frame width
@@ -64,7 +41,7 @@ function wayfarer(): KitPiece {
   const tR = temple(CX + 90, CY - 17, 9, 7, 1);
   const glint = path([CX + 14, CY - 10], [L([CX + 22, CY - 14])]);
   const frame = frameR + mirrored(frameR) + bridge;
-  return tilted({
+  return piece({
     base: [fill(frameR), fill(mirrored(frameR)), fill(bridge)],
     lines: [
       fill(tR), fill(mirrored(tR)),
@@ -97,7 +74,7 @@ function aviator(): KitPiece {
   const tR = temple(CX + 90, CY - 15, 8, 4.5, 1);
   const glint = path([CX + 16, CY - 12], [L([CX + 26, CY - 17])]);
   const frame = frameR + mirrored(frameR) + bridge;
-  return tilted({
+  return piece({
     base: [fill(frameR), fill(mirrored(frameR)), fill(bridge)],
     lines: [
       fill(tR), fill(mirrored(tR)),
@@ -120,7 +97,7 @@ function round(): KitPiece {
   const tR = temple(cx + r - 1, CY - 10, 10, 4.5, 1);
   const glint = path([cx - 20, CY - 6], [Q([cx - 18, CY - 16], [cx - 10, CY - 21])]);
   const frame = frameR + mirrored(frameR) + bridge;
-  return tilted({
+  return piece({
     base: [fill(frameR), fill(mirrored(frameR)), fill(bridge)],
     lines: [
       fill(tR), fill(mirrored(tR)),
@@ -153,7 +130,7 @@ function sport(): KitPiece {
   const tR = temple(CX + 93, CY - 15, 10, 9, 1);
   const vent = polyline([CX + 20, CY - 22], [CX + 56, CY - 22]);
   const glint = path([CX + 18, CY - 4], [L([CX + 30, CY - 10])]);
-  return tilted({
+  return piece({
     base: [fill(brow)],
     lines: [
       fill(tR), fill(mirrored(tR)),

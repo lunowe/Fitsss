@@ -2,7 +2,7 @@
  * Quarter-zip: a knit pullover with a ribbed funnel collar, a short zip from
  * the collar's top to the chest, and rib cuffs and hem.
  */
-import { FILL2, fill, ink, mirrored, piece, stroke } from "../draw";
+import { fill, FILL2, ink, mirrored, piece, stroke } from "../draw";
 import { ribTrims, standCollar, topFit, zip } from "../parts-tops";
 import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
@@ -25,6 +25,8 @@ const BASE: TorsoSpec = {
   armhole: 32,
   sleeveLen: 112,
   cuffW: 22,
+  sleeveW: 25,
+  hang: 2.5,
   sleeveAngle: 75,
 };
 
@@ -39,14 +41,16 @@ function quarterZip(fit: string): KitPiece {
   return piece({
     base: [fill(t.outline)],
     lines: [
+      t.sleeveShade,
       trims.fills,
-      ink(stroke(t.outline), t.armSeams, trims.lines),
+      ink(stroke(t.edges), t.armSeams, trims.lines),
       fill(collar.shape, FILL2),
       ink(stroke(collar.shape), collar.lines, z.lines),
       fill(z.pull, FILL2),
       ink(stroke(z.pull)),
     ],
     clip: t.outline,
+    panels: t.panels,
     extent: [t.outline, collar.shape],
     stripe: "h",
     block: t.sleevePanel() + mirrored(t.sleevePanel()),

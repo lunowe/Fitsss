@@ -25,6 +25,8 @@ const BASE: Omit<TorsoSpec, "neck"> = {
   armhole: 32,
   sleeveLen: 112,
   cuffW: 22,
+  sleeveW: 25,
+  hang: 2.5,
   sleeveAngle: 75,
 };
 
@@ -62,9 +64,10 @@ function cardigan(fit: string): KitPiece {
   return piece({
     base: [fill(t.outline)],
     lines: [
+      t.sleeveShade,
       trims.fills,
       ink(
-        stroke(t.outline),
+        stroke(t.edges),
         t.armSeams,
         trims.lines,
         seam(bandInner),
@@ -78,8 +81,9 @@ function cardigan(fit: string): KitPiece {
       ...buttons,
     ],
     clip: t.outline,
+    panels: t.panels,
     stripe: "h",
-    logo: chestAnchors(t, { logoX: 0.56 }).logo,
+    logo: chestAnchors(t, { logoX: 0.5, logoY: vY + 16 }).logo,
     block: t.sleevePanel() + mirrored(t.sleevePanel()),
   });
 }

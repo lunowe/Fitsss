@@ -45,6 +45,10 @@ export interface Legs {
   bandLine: string;
   /** Stitch lines across both hems, `inset` above the hem (and the break fold of a pooling leg). */
   hemLines(inset: number): string;
+  /** The break fold across each leg above the hem, when the leg pools (nothing otherwise). */
+  breakLines(): string;
+  /** A topstitch line along each inseam, `inset` units inside the leg's inner edge (denim's felled seam). */
+  inseamLines(inset: number): string;
   /** Outer x of the right leg at a given y (linear between hip, knee and hem). */
   outerX(y: number): number;
 }
@@ -87,9 +91,18 @@ export function legs(spec: LegsSpec): Legs {
     pool
       ? path([hemInner[0] + 1.5, length - inset], [C([hemInner[0] + hemW * 0.35, length - inset + pool * 0.1], [hemOuter[0] - hemW * 0.2, length - inset + pool], [hemOuter[0] - 1.5, length - inset])])
       : polyline([hemInner[0] + 1.5, length - inset], [hemOuter[0] - 1.5, length - inset]);
-  // A pooling leg breaks on the shoe: a soft fold across the leg above the hem.
+  // A pooling leg breaks on the shoe: a soft fold across the leg above the
+  // hem. A slight break (a tailored leg) is a short fold in the middle of
+  // the leg, so it does not read as a turn-up; a pooled hem folds right across.
   const breakY = length - 11 - pool;
-  const breakLine = path([hemInner[0] + 4, breakY - 1.5], [C([hemInner[0] + hemW * 0.3, breakY + pool * 0.9], [hemOuter[0] - hemW * 0.35, breakY + pool * 0.5], [hemOuter[0] - 4, breakY - 1])]);
+  const breakIn = pool >= 3 ? 4 : hemW * 0.24;
+  const breakLine = path([hemInner[0] + breakIn, breakY - 1.5], [C([hemInner[0] + hemW * 0.3, breakY + pool * 0.9], [hemOuter[0] - hemW * 0.35, breakY + pool * 0.5], [hemOuter[0] - breakIn, breakY - 1])]);
+  // The inseam topstitch follows the inner leg edge from the crotch to the hem.
+  const inseam = (inset: number) =>
+    path([CX + inset + 1, crotchY + 4], [
+      C([kneeInner + inset, crotchY + 8], [kneeInner + inset, kneeY - (kneeY - crotchY) * 0.4], [kneeInner + inset, kneeY]),
+      C([kneeInner + inset, kneeY + (length - kneeY) * 0.35], [hemInner[0] + inset, length - (length - kneeY) * 0.45], [hemInner[0] + inset, length - 1]),
+    ]);
   const outerX = (y: number) => {
     if (y <= hipY) return CX + waistW + (hipW - waistW) * ((y - waistY) / (hipY - waistY));
     if (y <= kneeY) return CX + hipW + (kneeOuter - CX - hipW) * ((y - hipY) / (kneeY - hipY));
@@ -103,6 +116,8 @@ export function legs(spec: LegsSpec): Legs {
     bandPath,
     bandLine,
     hemLines: (inset) => seam(hemLine(inset)) + seam(mirrored(hemLine(inset))) + (pool ? seam(breakLine) + seam(mirrored(breakLine)) : ""),
+    breakLines: () => (pool ? seam(breakLine) + seam(mirrored(breakLine)) : ""),
+    inseamLines: (inset) => seam(inseam(inset)) + seam(mirrored(inseam(inset))),
     outerX,
   };
 }

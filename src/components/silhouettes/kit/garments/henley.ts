@@ -2,7 +2,7 @@
  * Henley: a long-sleeve tee with a short three-button placket under the
  * ribbed crew neck, and rib cuffs.
  */
-import { FILL2, fill, ink, mirrored, piece, seam, stroke } from "../draw";
+import { fill, FILL2, ink, mirrored, piece, seam, stroke } from "../draw";
 import { chestAnchors, placket, topFit } from "../parts-tops";
 import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
@@ -25,6 +25,8 @@ const BASE: TorsoSpec = {
   armhole: 30,
   sleeveLen: 110,
   cuffW: 22,
+  sleeveW: 24,
+  hang: 2.5,
   sleeveAngle: 75,
 };
 
@@ -39,14 +41,16 @@ function henley(fit: string): KitPiece {
   return piece({
     base: [fill(t.outline)],
     lines: [
+      t.sleeveShade,
       rib.fills,
       fill(cuff, FILL2),
       fill(mirrored(cuff), FILL2),
-      ink(stroke(t.outline), t.armSeams, t.cuffLines(CUFF), seam(t.hemLine(4)), p.lines),
+      ink(stroke(t.edges), t.armSeams, t.cuffLines(CUFF), seam(t.hemLine(4)), p.lines),
       rib.lines,
       p.buttons,
     ],
     clip: t.outline,
+    panels: t.panels,
     stripe: "h",
     logo: chestAnchors(t).logo,
   });

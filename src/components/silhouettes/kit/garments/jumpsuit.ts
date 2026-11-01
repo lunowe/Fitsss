@@ -99,6 +99,7 @@ function jumpsuit(fit: string): KitPiece {
       collar.lines,
     ],
     clip: outline,
+    panels: sl.panels,
     stripe: "v",
   });
 }

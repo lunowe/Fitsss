@@ -58,8 +58,9 @@ function tee(fit: string): KitPiece {
   const anchors = chestAnchors(t);
   return piece({
     base: [fill(t.outline)],
-    lines: [rib.fills, ink(stroke(t.outline), t.armSeams, t.cuffLines(4), seam(t.hemLine(4))), rib.lines],
+    lines: [rib.fills, ink(stroke(t.edges), t.armSeams, t.cuffLines(4), seam(t.hemLine(4))), rib.lines],
     clip: t.outline,
+    panels: t.panels,
     stripe: "h",
     graphic: anchors.graphic,
     logo: anchors.logo,

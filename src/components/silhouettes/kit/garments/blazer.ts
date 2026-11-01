@@ -5,7 +5,7 @@
  */
 import { button, CX, fill, ink, L, path, piece, Q, stroke } from "../draw";
 import type { KitPiece } from "../types";
-import { fitTable, flap, jacket, JACKET_BASE, lapels, outerFit, weltPocket, type JacketSpec } from "../parts-outer";
+import { fitTable, flap, jacket, JACKET_BASE, type JacketSpec, lapels, outerFit, weltPocket, withPanels } from "../parts-outer";
 
 const BASE = { ...JACKET_BASE, length: 186, chestW: 57, hemW: 56, sleeveLen: 120, cuffW: 23, shoulderDrop: 7 };
 const FITS = ["fitted", "regular", "relaxed", "oversized"];
@@ -32,7 +32,7 @@ function blazer(fit: string): KitPiece {
   const fx = CX + 9;
   const flapR = flap(fx, flapY, fw, 7);
   const flapL = flap(2 * CX - fx - fw, flapY, fw, 7);
-  return piece({
+  return withPanels(piece({
     base: [fill(j.outline)],
     lines: [
       lp.fills,
@@ -45,7 +45,7 @@ function blazer(fit: string): KitPiece {
     ],
     clip: j.outline,
     stripe: "v",
-  });
+  }), j.panels());
 }
 
 export const BLAZER: Record<string, KitPiece> = fitTable("blazer", FITS, "regular", blazer);

@@ -22,11 +22,11 @@ anything the kit does not cover yet.
   ink, `--icon-pattern` for patterns. Depth comes from `shade()`, the ink at 10–30% opacity:
   it darkens light pieces and lifts dark ones, so one drawing works in white, black and every
   mid color.
-- **Square framing, shared per type.** `piece()` frames a drawing in a square viewBox around
-  its bounds plus 5% padding. `framedByType()` then reframes every `type@fit` drawing of a
-  table to the union of that type's fits, so the largest fit fills the tile and the others
-  draw smaller, shorter or narrower in the same frame (a mini is visibly shorter than a maxi).
-  Wrap every fit table in it where it is registered.
+- **Square framing, blended per type.** `piece()` frames a drawing in a square viewBox around
+  its bounds plus 5% padding. `framedByType()` then moves each `type@fit` frame
+  `FIT_FRAME_BLEND` (0.4) of the way towards the union of that type's fits, edge by edge: the
+  default fit still fills ~90% of its tile, while smaller fits draw visibly smaller and larger
+  ones larger (a mini is shorter than a maxi). Wrap every fit table in it where it is registered.
 - **Proportions.** Design space is 200 units wide, centered on x = 100. A regular tee is
   ~116 wide and ~147 tall (shoulder to hem); a shirt ~150 tall; trousers ~225 tall; a shoe
   ~170 long and ~70 tall. Keep new pieces on this scale so the family reads together.
@@ -48,23 +48,37 @@ always equals `layers.base + layers.lines`.
 - `stripe`: `"h"` for knits and tees, `"v"` for wovens (shirts, trousers, skirts).
 - `graphic` / `logo`: `[cx, cy, size]` anchors on the chest (or the face of a bag).
 - `block`: the colorblock panel (sleeves, hood, toe cap and heel…), as path data.
+- `panels`: areas where field patterns turn to follow the garment, usually the sleeves
+  (`{ clip, box, angle }`; `sleevePanelsOf()` in `parts-outer.ts` builds them from a torso).
+  Stripes run around an arm, checks turn with it. Every sleeved piece should have them.
+
+Sleeves hang along the body: `torso()` takes `sleeveW` (sleeve width at the top) and `hang`
+(gap at the cuff) and lays the sleeve over the body's side; outerwear solves the sleeve angle
+with `sleeveHang()`. No wedge of background between sleeve and torso.
 
 Pattern tiles live in `patterns.ts`; they are 100×100 and painted with `--icon-pattern`.
 Field tiles are scaled to the longer side of `layers.box`, so density is relative to the
-garment. Motif tiles are scaled to the anchor, so a logo anchor should be about a sixth of
-the chest width and a graphic anchor about half: the tiles are drawn for those sizes.
+garment. Motif tiles are scaled to the anchor, so a logo anchor should be just under a quarter of
+the chest width (22–24%) and a graphic anchor about half: the tiles are drawn for those sizes.
 
 - `stripe`: Breton bands across knits and tees, fine candy stripes down wovens (`markupV`).
-- `check`: a gingham from two translucent band sets.
+- `check`: a gingham from two translucent band sets, with the crossings painted again at
+  near full strength so a pale pair (navy on cream) still reads as a check.
 - `print`: a ditsy of five-petal blossoms with a dot between; motifs are ~6 units so a
   sleeve or hem cuts through several instead of beheading one, and at closet size the print
   is a speckle rather than fragments.
-- `textured`: a fine twill (3-unit pitch) of pattern-color ridges with faint ink grooves. A
-  texture, not a print: crisp weave at 240 px, soft hatch at 56 px, and the ink grooves keep
-  it visible when the pattern color is close to the garment's.
+- `textured`: a marl. Two layers of short rounded flecks in the pattern color at random
+  angles on a jittered grid (a soft dense layer and a sparser stronger one) plus a scatter
+  of ink specks, generated from a seeded PRNG so every client draws the same cloth. It has
+  no direction and no grid, so it reads as surface rather than stripe, hatch or print, and
+  the same tile works rotated on a sleeve panel. A flecked knit at 240 px, a quiet speckle
+  at 96 px, a soft tint at 56 px; the ink specks keep it visible when the pattern color is
+  close to the garment's (stone on white) and read as the dark fibre of a heather.
 - `graphic`: a framed landscape print (sun on the horizon over two bars) cut from a solid
   block, so it reads as a screen print on any ground at any size.
-- `logo`: two solid peaks, a bold embroidered-style mark that is nothing like the graphic.
+- `logo`: a solid roundel with two peaks cut out of it. The disc fills its anchor, so at
+  closet size it is still a crisp dot of pattern color and the peaks appear from ~96 px;
+  nothing like the graphic.
 - `colorblock`: paints `layers.block`; a garment with no panel gets the lower half.
 
 Motifs cut their negative space with `--icon-fill` (the garment's own color); tiles use no

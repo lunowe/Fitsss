@@ -9,12 +9,16 @@ import { C, FILL2, fill, ink, L, path, piece, polyline, Q, seam, shade, stroke, 
 import type { KitPiece } from "../types";
 import { eyelet, footSole, GROUND, laceBars, roundRect } from "../parts-feet";
 
-/** The boot toe: a full, round toe from the instep to the tip. */
+/**
+ * The boot toe: from the instep the vamp falls in one long, easy line to a
+ * low crown and tapers to the tip, so the toe reads as a shaped last, not a
+ * bulb. `height` is the crown's rise above the tip.
+ */
 function bootToe(vamp: Pt, tip: Pt, height: number, pointed = 0): Seg[] {
-  const crown: Pt = [tip[0] - 16 - pointed * 6, tip[1] - height];
+  const crown: Pt = [tip[0] - 20 - pointed * 6, tip[1] - height];
   return [
-    C([vamp[0] + 20, vamp[1] + 2], [crown[0] - 18, crown[1] - 2], crown),
-    C([crown[0] + 10 + pointed * 4, crown[1] + 1], [tip[0] + 2, tip[1] - height * 0.55], [tip[0] + 1.5, tip[1] - 8]),
+    C([vamp[0] + 20, vamp[1] + 3], [crown[0] - 20, crown[1] - 1.5], crown),
+    C([crown[0] + 13 + pointed * 4, crown[1] + 0.5], [tip[0] + 1.5, tip[1] - height * 0.5], [tip[0] + 1.5, tip[1] - 6]),
     Q([tip[0] + 1, tip[1] - 2], tip),
   ];
 }
@@ -32,12 +36,13 @@ function chelsea(): KitPiece {
     C([20, 44], [22, 37], topBack),
     Q([50, 30], topFront),
     C([75, 52], [84, 70], vamp),
-    ...bootToe(vamp, s.toe, 26),
+    ...bootToe(vamp, s.toe, 22),
     ...s.topBack,
   ], true);
-  // Elastic gusset: a tapered insert with vertical ribs, in the second color.
+  // Elastic gusset: a tapered insert in the boot's own color, its elastic read
+  // as a shade and close vertical ribs, with a rounded bottom.
   const gusset = path([44, 32.5], [L([68, 32.6]), C([67, 56], [64, 68], [60, 74]), Q([54, 78], [48, 74]), C([46, 68], [45, 56], [44, 32.5])], true);
-  const ribs = [49.5, 54.5, 59.5, 64].map((x, i) => seam(polyline([x + (i - 1.5) * 0.3, 35], [x - (i - 1.5) * 0.9, 72 - Math.abs(i - 1.5) * 1.5])));
+  const ribs = [47.5, 51, 54.5, 58, 61.5, 65].map((x, i) => seam(polyline([x + (i - 2.5) * 0.2, 35], [x - (i - 2.5) * 0.7, 72.5 - Math.abs(i - 2.5) * 1.6])));
   const tab = roundRect(21, 24, 8, 14, 3.2);
   const vampSeam = path([62, 72], [C([72, 84], [80, 100], [84, GROUND])]);
   return piece({
@@ -45,8 +50,7 @@ function chelsea(): KitPiece {
     lines: [
       fill(tab, FILL2),
       s.fills,
-      fill(gusset, FILL2),
-      shade(gusset, 0.1),
+      shade(gusset, 0.16),
       ink(stroke(tab), stroke(upper), stroke(gusset), ...ribs, seam(vampSeam), seam(backSeam(26, 40, GROUND))),
       s.lines,
     ],
@@ -69,7 +73,7 @@ function laceUp(): KitPiece {
     C([63, 26], [72, 24], tongueBack),
     Q([88, 28], tongueFront),
     C([93, 52], [100, 70], vamp),
-    ...bootToe(vamp, s.toe, 26),
+    ...bootToe(vamp, s.toe, 22),
     ...s.topBack,
   ], true);
   // The facing: its inner edge runs parallel to the front, laces bar across it.
@@ -82,7 +86,8 @@ function laceUp(): KitPiece {
     lines: [
       s.fills,
       tongueShade,
-      ink(stroke(upper), stroke(stayBottom), ...laces, seam(quarter), seam(backSeam(25, 42, GROUND))),
+      laces.fills,
+      ink(stroke(upper), stroke(stayBottom), ...laces.lines, seam(quarter), seam(backSeam(25, 42, GROUND))),
       s.lines,
     ],
     clip: upper,
@@ -104,7 +109,7 @@ function work(): KitPiece {
     C([63, 32], [72, 30], tongueBack),
     Q([88, 34], tongueFront),
     C([93, 56], [100, 72], vamp),
-    ...bootToe(vamp, s.toe, 26),
+    ...bootToe(vamp, s.toe, 22),
     ...s.topBack,
   ], true);
   const stayBottom = path([68, 46], [C([74, 60], [84, 76], [104, 88])]);
@@ -119,7 +124,8 @@ function work(): KitPiece {
     lines: [
       s.fills,
       tongueShade,
-      ink(stroke(upper), stroke(stayBottom), ...laces, seam(moc), seam(moc2), seam(collar), seam(backSeam(25, 48, GROUND))),
+      laces.fills,
+      ink(stroke(upper), stroke(stayBottom), ...laces.lines, seam(moc), seam(moc2), seam(collar), seam(backSeam(25, 48, GROUND))),
       s.lines,
     ],
     clip: upper,
@@ -143,7 +149,7 @@ function hiking(): KitPiece {
     C([65, 30], [72, 28], tongueBack),
     Q([89, 32], tongueFront),
     C([95, 56], [104, 72], vamp),
-    ...bootToe(vamp, s.toe, 25),
+    ...bootToe(vamp, s.toe, 22),
     ...s.topBack,
   ], true);
   const stayBottom = path([70, 44], [C([76, 60], [88, 76], [108, 88])]);
@@ -168,7 +174,8 @@ function hiking(): KitPiece {
       s.fills,
       tongueShade,
       fill(rand, FILL2),
-      ink(stroke(upper), stroke(rand), stroke(stayBottom), ...laces, seam(collar), seam(counter), seam(quarter)),
+      laces.fills,
+      ink(stroke(upper), stroke(rand), stroke(stayBottom), ...laces.lines, seam(collar), seam(counter), seam(quarter)),
       ...hooks,
       s.lines,
     ],
