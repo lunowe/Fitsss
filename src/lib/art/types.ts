@@ -2,9 +2,9 @@
  * Types for the garment-art generation pipeline.
  *
  * The pipeline turns a short written brief about a piece type into one
- * technical-flat SVG that matches the drawings in
- * `src/components/silhouettes/art`: front view, cropped to the art plus 4%
- * padding, tinted through `--icon-fill` / `--icon-fill-2` / `--icon-stroke`.
+ * flat SVG in the style of the garment kit (`src/components/silhouettes/kit`):
+ * front view, cropped to the art plus 4% padding, tinted through
+ * `--icon-fill` / `--icon-fill-2` / `--icon-stroke`.
  */
 
 /** What a drawing is supposed to show. One per piece type. */

@@ -1,10 +1,9 @@
 /**
  * Bounding boxes for SVG geometry, without a browser.
  *
- * `scripts/import-icons.mjs` gets its boxes from Chrome's `getBBox()`. The
- * generator has to crop art on the server too, so this computes the same thing
- * in pure TypeScript: exact extrema for lines and Bézier segments, sampling
- * for elliptical arcs. Off by a fraction of a unit against Chrome, which is
+ * The generator has to crop art on the server, so this computes what
+ * Chrome's `getBBox()` would in pure TypeScript: exact extrema for lines and
+ * Bézier segments, sampling for elliptical arcs. Off by a fraction of a unit against Chrome, which is
  * well inside the 4% padding the crop adds anyway.
  */
 

@@ -33,10 +33,8 @@ import {
   type ColorFamily,
   type PieceType,
 } from "@/domain";
-import { ART } from "@/components/silhouettes/art";
 import { GLYPHS } from "@/components/silhouettes/glyphs";
 import { KIT, PATTERN_TILES, kitKey, type ArtLayers, type PatternTile } from "@/components/silhouettes/kit";
-import { ART_FOR_TYPE } from "@/components/silhouettes/mapping";
 
 /**
  * The whole catalog as one JSON document, for clients that cannot import
@@ -45,7 +43,7 @@ import { ART_FOR_TYPE } from "@/components/silhouettes/mapping";
  * It carries the vocabulary (categories, types and their options, labels,
  * palette) and the drawing for every type and variant, already resolved the
  * way `Silhouette` resolves it on the web: the user's own drawing, else the
- * kit drawing (by variant, then fit, then type), else the built-in art, else
+ * kit drawing (by variant, then fit, then type), else
  * the hand-drawn glyph. Glyphs are rewritten into the same
  * `var(--icon-*)` SVG convention as the art, so a client needs exactly one
  * renderer. Derivation inputs (base warmth, formality) stay on the server.
@@ -182,13 +180,6 @@ function resolveArt(
     const key = `kit:${kit}:${contentHash(viewBox + body + JSON.stringify(wire))}`;
     art[key] ??= { viewBox, body, layers: wire };
     return key;
-  }
-
-  const mapping = ART_FOR_TYPE[type.id];
-  const builtIn = (variant ? mapping?.variants?.[variant] : undefined) ?? mapping?.art;
-  if (builtIn && ART[builtIn]) {
-    art[builtIn] ??= ART[builtIn];
-    return builtIn;
   }
 
   const key = `glyph:${type.icon}`;

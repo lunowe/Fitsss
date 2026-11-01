@@ -5,8 +5,7 @@
  * allow-list: no scripts, no external references, no CSS, no raster images.
  * What is left is rewritten into house style — the three tint variables, one
  * constant stroke width, `vector-effect="non-scaling-stroke"` — and cropped to
- * the art plus 4% padding on a 128-unit long side, the same shape
- * `scripts/import-icons.mjs` produces for the imported set.
+ * the art plus 4% padding on a 128-unit long side.
  */
 
 import { boxesOverlap, pathBox, transformBox, unionBox, type Box } from "./geometry";

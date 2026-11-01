@@ -1,6 +1,6 @@
 "use server";
 
-import { ART } from "@/components/silhouettes/art";
+import { KIT } from "@/components/silhouettes/kit";
 import { getPieceType, fitLabel, variantLabel } from "@/domain/catalog";
 import type { Category } from "@/domain/types";
 import { BRIEFS, generateArt } from "@/lib/art";
@@ -10,15 +10,15 @@ import { withCatalog } from "@/server/catalog-queries";
 import { setPieceArt } from "@/server/content";
 import { getLlmSettingsForUser } from "@/server/settings-queries";
 
-/** Which built-in drawing best teaches the model each role's shape. */
+/** Which kit drawing best teaches the model each role's shape (kit keys). */
 const EXAMPLE_FOR_ROLE: Record<Category, string> = {
-  top: "tee",
+  top: "t-shirt",
   layer: "hoodie",
   outerwear: "denim-jacket",
   bottom: "trousers",
-  footwear: "sneaker-slip-on",
+  footwear: "sneakers~low-top",
   accessory: "scarf",
-  fullbody: "gen-dress",
+  fullbody: "dress",
 };
 
 const ROLE_WORD: Record<Category, string> = {
@@ -32,7 +32,7 @@ const ROLE_WORD: Record<Category, string> = {
 };
 
 function exampleFor(id: string): ArtExample | null {
-  const piece = ART[id];
+  const piece = KIT[id];
   if (!piece) return null;
   return { id, svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${piece.viewBox}">${piece.body}</svg>` };
 }
@@ -91,7 +91,7 @@ export async function generatePieceArt(input: { typeId: string; variant?: string
     const brief = briefForType(typeId, variant);
     if (!type || !brief) return { ok: false, error: "That piece type does not exist." };
 
-    const examples = [exampleFor(EXAMPLE_FOR_ROLE[type.category]), exampleFor("tee")]
+    const examples = [exampleFor(EXAMPLE_FOR_ROLE[type.category]), exampleFor("t-shirt")]
       .filter((e): e is ArtExample => e !== null)
       .filter((e, i, all) => all.findIndex((x) => x.id === e.id) === i);
 

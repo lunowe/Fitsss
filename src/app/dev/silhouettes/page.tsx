@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import { ART_FOR_TYPE, Silhouette, silhouetteForType } from "@/components/silhouettes";
+import { Silhouette, kitKey, silhouetteForType } from "@/components/silhouettes";
 import { getArtOverride, listCategories, pieceTypesForCategoryId } from "@/domain";
 import { applyOptionalUserCatalog } from "@/server/catalog-queries";
 
@@ -25,7 +25,7 @@ function Cell({
   color: string;
   secondaryColor?: string;
 }) {
-  const mapped = getArtOverride(typeId) !== undefined || typeId in ART_FOR_TYPE;
+  const mapped = getArtOverride(typeId) !== undefined || kitKey(typeId) !== undefined;
   return (
     <li className="flex flex-col items-center gap-1.5">
       <div className="flex items-end gap-1">
@@ -113,7 +113,7 @@ export default async function SilhouetteGalleryPage({
   const size = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 320) : 64;
   const types = listCategories().flatMap((category) => pieceTypesForCategoryId(category.id));
   const mapped = types.filter(
-    (type) => getArtOverride(type.id) !== undefined || type.id in ART_FOR_TYPE,
+    (type) => getArtOverride(type.id) !== undefined || kitKey(type.id) !== undefined,
   ).length;
 
   return (

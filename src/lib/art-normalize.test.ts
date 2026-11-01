@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+
+import { KIT } from "@/components/silhouettes/kit";
 
 import { MAX_SVG_CHARS, normalizeSvgArt } from "./art-normalize";
 
@@ -66,13 +67,13 @@ describe("normalizeSvgArt", () => {
   });
 
   it("is idempotent over a built-in drawing", () => {
-    const source = readFileSync("src/components/silhouettes/art/tee.svg", "utf8");
+    const tee = KIT["t-shirt"];
+    const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${tee.viewBox}">${tee.body}</svg>`;
     const once = normalizeSvgArt(source);
     expect(once.ok).toBe(true);
     if (!once.ok) return;
 
-    expect(once.value.viewBox).toBe("0 0 128 110.7");
-    expect(once.value.body).toContain('fill="var(--icon-fill, #b3b3b3)"');
+    expect(once.value.body).toContain("var(--icon-fill");
 
     const twice = normalizeSvgArt(`<svg viewBox="${once.value.viewBox}">${once.value.body}</svg>`);
     expect(twice.ok).toBe(true);

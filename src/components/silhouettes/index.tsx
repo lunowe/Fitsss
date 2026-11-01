@@ -3,12 +3,10 @@ import { useId, type CSSProperties } from "react";
 import { getArtOverride, getPieceType } from "@/domain/catalog";
 import { SILHOUETTE_IDS, type SilhouetteId } from "@/domain/types";
 
-import { ART } from "./art";
 import { GLYPHS, type Glyph } from "./glyphs";
 import { KIT, composeLayers, kitKey, type ArtLayers } from "./kit";
-import { ART_FOR_TYPE, artForType } from "./mapping";
 
-export { ART, ART_FOR_TYPE, artForType, GLYPHS, KIT, kitKey, SILHOUETTE_IDS };
+export { GLYPHS, KIT, kitKey, SILHOUETTE_IDS };
 export type { Glyph, SilhouetteId };
 
 /** Fallback used when a type id is unknown or has no glyph yet. */
@@ -93,8 +91,9 @@ function shadeOf(color: string, lightness: number | null): string {
 
 /**
  * A tinted garment drawing. Prefer passing `typeId` (plus `variant` when the
- * piece has one): that picks the technical-flat illustration for the type, and
- * falls back to the hand-drawn glyph for the few types with no artwork.
+ * piece has one, and `fit`, `pattern`, `patternColor`): that picks the kit
+ * drawing for the type, and falls back to the hand-drawn glyph for custom
+ * types with no artwork.
  */
 export function Silhouette({
   id,
@@ -110,13 +109,12 @@ export function Silhouette({
   patternColor,
 }: SilhouetteProps) {
   const clipId = `pc${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  // The user's own drawing wins over the built-in one; then the kit, then the
-  // imported art; a custom type with no artwork falls through to the neutral
-  // glyph its role was given.
+  // The user's own drawing wins over the kit's; a custom type with no artwork
+  // falls through to the neutral glyph its role was given.
   const v = variant ?? undefined;
   const override = typeId ? getArtOverride(typeId, v) : undefined;
   const kit = typeId && !override ? KIT[kitKey(typeId, v, fit ?? undefined) ?? ""] : undefined;
-  const art = override ?? kit ?? (typeId ? ART[artForType(typeId, v) ?? ""] : undefined);
+  const art = override ?? kit;
   const layers: ArtLayers | undefined = kit?.layers;
   const label = title ? { role: "img" as const, "aria-label": title } : { "aria-hidden": true };
   const lightness = lightnessOf(color);

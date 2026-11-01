@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { ContentScreen } from "@/components/content/ContentScreen";
 import { BackButton, LargeTitleHeader, Screen } from "@/components/shell";
-import { ART } from "@/components/silhouettes";
+import { KIT } from "@/components/silhouettes";
 import { requireAdmin } from "@/lib/session";
 import { applyUserCatalog } from "@/server/catalog-queries";
 import {
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
   title: "Content",
 };
 
-/** The number of drawings that ship with the app. */
-const BUILT_IN_ART_COUNT = Object.keys(ART).length;
+/** The number of drawings that ship with the app (each fit and variant counts). */
+const BUILT_IN_ART_COUNT = new Set(Object.values(KIT).map((piece) => piece.body)).size;
 
 export default async function ContentPage() {
   await requireAdmin();
