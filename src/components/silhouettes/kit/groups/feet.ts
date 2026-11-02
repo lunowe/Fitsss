@@ -13,14 +13,11 @@ import { SUNGLASSES } from "../garments/sunglasses";
 import { TOTE } from "../garments/tote";
 import { TOTE_LEATHER } from "../garments/tote-leather";
 import { WATCH } from "../garments/watch";
+import { onShoeScale } from "../parts-feet";
 
 /** Footwear and accessories: every variant of each type, plus the type's default. */
 export const GROUP: Record<string, KitPiece> = {
-  ...SNEAKERS_FEET,
-  ...BOOTS,
-  ...LOAFERS,
-  ...DRESS_SHOES,
-  ...SANDALS,
+  ...onShoeScale({ ...SNEAKERS_FEET, ...BOOTS, ...LOAFERS, ...DRESS_SHOES, ...SANDALS }),
   ...CAP,
   ...BEANIE,
   ...BELT,

@@ -4,7 +4,8 @@
  * straps and scarves. Every shoe is a side view with the toe to the right;
  * the upper meets the sole at `GROUND` and the toe lifts off it by `spring`.
  */
-import { add, C, FILL2, fill, ink, INK, L, lerp, num, path, polyline, Q, seam, shade, stroke, type Pt, type Seg } from "./draw";
+import { add, C, extentOf, FILL2, fill, ink, INK, L, lerp, num, path, polyline, Q, reframe, seam, shade, stroke, type Pt, type Seg } from "./draw";
+import type { KitPiece } from "./types";
 
 /** y where an upper meets its sole. */
 export const GROUND = 118;
@@ -26,6 +27,15 @@ export const MOUTH = 0.3;
  * upper's own outline.
  */
 export function mouthLens(top: readonly Pt[], depth: number, opacity = MOUTH): string {
+  return mouthOpening(top, depth, opacity).shade;
+}
+
+/**
+ * A deep opening (a loafer's or a dress shoe's mouth): the lens of
+ * `mouthLens` plus its lower edge, the near topline, as path data to ink, so
+ * the shoe reads as hollow. `top` is the far topline (the silhouette's edge).
+ */
+export function mouthOpening(top: readonly Pt[], depth: number, opacity = MOUTH): { shade: string; rim: string; area: string } {
   const n = top.length - 1;
   const lower: Pt[] = [];
   for (let i = n; i >= 0; i--) {
@@ -33,7 +43,35 @@ export function mouthLens(top: readonly Pt[], depth: number, opacity = MOUTH): s
     lower.push([top[i][0], top[i][1] + depth * Math.sin(Math.PI * t) ** 0.8]);
   }
   const d = path(top[0], [...splineSegs(top), ...splineSegs(lower)], true);
-  return shade(d, opacity);
+  return { shade: shade(d, opacity), rim: smooth(lower), area: d };
+}
+
+/**
+ * The side of the square every shoe is framed in. `piece()` frames a drawing
+ * around its own bounds plus 5% padding, which for a long, low shoe only
+ * shrinks it beside the garments; shoes instead share one frame, a little
+ * tighter, so they read at the size of the tops and bottoms next to them and
+ * stay on one scale with each other (a sandal draws a little shorter than a
+ * sneaker, a high-top taller than a low-top). The longest shoe is ~179 long.
+ */
+export const SHOE_FRAME = 184;
+
+/** Every shoe in `table` framed on the shared scale: a `SHOE_FRAME` square centered on its own bounds. */
+export function onShoeScale<T extends Record<string, KitPiece>>(table: T): T {
+  const out: Record<string, KitPiece> = {};
+  const done = new Map<KitPiece, KitPiece>();
+  for (const [key, p] of Object.entries(table)) {
+    let framed = done.get(p);
+    if (!framed) {
+      const [x, y, w, h] = extentOf(p);
+      // `reframe` pads a box by 5% of its longer side; size the box so the padded square is SHOE_FRAME.
+      const side = SHOE_FRAME / 1.1;
+      framed = reframe(p, [x + w / 2 - side / 2, y + h / 2 - Math.min(h, side) / 2, side, Math.min(h, side)]);
+      done.set(p, framed);
+    }
+    out[key] = framed;
+  }
+  return out as T;
 }
 
 /* ------------------------------------------------------------------ */

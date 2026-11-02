@@ -31,23 +31,40 @@ interface CapSpec {
 function cap(spec: CapSpec): KitPiece {
   const front: Pt = [FRONT, BOTTOM - 4];
   const crown = path([BACK, BOTTOM], [...spec.crown, L(front), Q([90, BOTTOM + 3], [BACK, BOTTOM])], true);
-  const { brimTip, brimCurve } = spec;
-  // The brim: a wedge, thick at the crown, tapering to a rounded tip, bowing down a little.
-  const tipTop: Pt = [brimTip[0] - 1.5, brimTip[1] - 2.2];
-  const tipBottom: Pt = [brimTip[0] - 2.5, brimTip[1] + 1.6];
-  const brim = path([FRONT - 4, BOTTOM - 12], [
-    C([FRONT + 16, BOTTOM - 12 + brimCurve * 0.3], [brimTip[0] - 16, brimTip[1] - 5 - brimCurve * 0.2], tipTop),
-    Q([brimTip[0] + 1.5, brimTip[1]], tipBottom),
-    C([brimTip[0] - 16, brimTip[1] + 2 + brimCurve * 0.15], [FRONT + 18, BOTTOM + 2 + brimCurve * 0.5], [FRONT - 4, BOTTOM + 1.5]),
-  ], true);
+  const { brimTip: T, brimCurve: dome } = spec;
+  // The brim: pre-curved and seen from the side, a little from below. Its
+  // top face arcs up off the crown and rolls down to the tip; under the near
+  // edge (the lip) a crescent of underside shows, thickest mid-brim and
+  // closing at the root and the tip, so the brim reads as a curved, stiff
+  // visor rather than a flat blade.
+  const rootTop: Pt = [FRONT + 0.6, BOTTOM - 9];
+  const rootLip: Pt = [FRONT + 0.3, BOTTOM - 5];
+  const rootBottom: Pt = [FRONT - 1.5, BOTTOM - 0.5];
+  const span = T[0] - FRONT;
+  const tipTop: Pt = [T[0] - 0.8, T[1] - 2];
+  const tipBottom: Pt = [T[0] - 3.5, T[1] + 1.4];
+  // Top face: a shallow rise off the crown, then the pre-curve rolls it down.
+  const topFace = C([FRONT + span * 0.4, rootTop[1] - 3 - dome * 0.2], [T[0] - span * 0.22, T[1] - 7 - dome * 0.45], tipTop);
+  const tip = Q([T[0] + 1, T[1]], tipBottom);
+  const under = C([T[0] - span * 0.32, T[1] + 2.5 + dome * 0.1], [FRONT + span * 0.38, BOTTOM + 3 + dome * 0.3], rootBottom);
+  const brim = path(rootTop, [topFace, tip, under], true);
+  // The lip: the brim's near edge, a band's width under the top face.
+  const lipSegs = [C([FRONT + span * 0.4, rootLip[1] - 2 - dome * 0.15], [T[0] - span * 0.22, T[1] - 3.2 - dome * 0.35], [T[0] - 1.2, T[1] + 0.2])];
+  const lip = path(rootLip, lipSegs);
+  const underside = path(rootLip, [...lipSegs, Q([T[0] - 1.4, T[1] + 1.4], tipBottom), under], true);
+  // One row of brim stitching along the top face.
+  const stitch = path([FRONT + 8, rootTop[1] + 0.6], [C([FRONT + span * 0.42, rootTop[1] - 1.6 - dome * 0.18], [T[0] - span * 0.26, T[1] - 5.6 - dome * 0.42], [T[0] - 10, T[1] - 2.6])]);
   const sweatband = path([BACK + 4, BOTTOM - 3.5], [Q([90, BOTTOM - 0.5], [FRONT - 4, BOTTOM - 7])]);
   return piece({
     base: [fill(crown)],
     lines: [
-      fill(brim),
-      shade(brim, 0.1),
       ...(spec.trims ?? []),
-      ink(stroke(crown), stroke(brim), seam(sweatband), ...spec.details),
+      ink(stroke(crown), seam(sweatband), ...spec.details),
+      fill(brim),
+      shade(brim, 0.06),
+      fill(underside, FILL2),
+      shade(underside, 0.22),
+      ink(stroke(brim), stroke(lip), seam(stitch)),
     ],
     clip: crown,
     extent: [crown, brim],
@@ -72,7 +89,7 @@ function baseball(): KitPiece {
   const p = panels(apex, [64, BOTTOM - 2], [126, BOTTOM - 4]);
   return cap({
     crown: [C([36, 78], [46, 50], [66, 44]), C([76, 40], [84, 39], apex), C([108, 39], [128, 44], [134, 62]), C([137, 74], [137, 86], [FRONT, BOTTOM - 4])],
-    brimTip: [186, 100],
+    brimTip: [194, 108],
     brimCurve: 6,
     trims: [p.fills],
     details: [...p.lines, eyelet([96, 62], 1.5)],
@@ -89,7 +106,7 @@ function dad(): KitPiece {
   const slider = roundRect(27, 88, 6, 10, 1.5);
   return cap({
     crown: [C([38, 82], [48, 60], [66, 56]), C([76, 52], [84, 51], apex), C([108, 52], [126, 56], [132, 68]), C([136, 78], [137, 88], [FRONT, BOTTOM - 4])],
-    brimTip: [184, 104],
+    brimTip: [190, 112],
     brimCurve: 10,
     trims: [fill(strap), shade(strap, 0.1), p.fills],
     details: [...p.lines, eyelet([96, 70], 1.5), stroke(strap), stroke(slider)],
@@ -105,7 +122,7 @@ function fivePanel(): KitPiece {
   const sideTop = path([58, 56], [Q([92, 49], [frontTop[0] - 6, frontTop[1] + 3])]);
   return cap({
     crown: [C([36, 82], [38, 56], [56, 50]), Q([92, 42], frontTop), C([137, 52], [138, 76], [FRONT, BOTTOM - 4])],
-    brimTip: [178, 98],
+    brimTip: [182, 103],
     brimCurve: 2.5,
     details: [seam(panel), seam(sideTop)],
     logo: [116, 74, 16],
@@ -121,7 +138,7 @@ function trucker(): KitPiece {
   const snap = polyline([BACK + 3, 86], [BACK + 14, 86]);
   return cap({
     crown: [C([36, 78], [46, 52], [70, 44]), Q([80, 42], meshEdge), Q([112, 36], frontTop), C([136, 44], [138, 72], [FRONT, BOTTOM - 4])],
-    brimTip: [186, 101],
+    brimTip: [194, 108],
     brimCurve: 7,
     trims: [fill(mesh, FILL2), shade(mesh, 0.06)],
     details: [stroke(path(meshEdge, [L([90, BOTTOM - 1])])), ...meshLines(), seam(snap)],

@@ -3,11 +3,11 @@
  * over the right chest, a buckled belt, two columns of buttons and two
  * slanted pocket openings; the skirt flares gently to the hem.
  */
-import { button, CX, fill, ink, L, path, piece, polyline, Q, stroke, type Pt } from "../draw";
+import { button, CX, fill, ink, L, mirrored, path, piece, polyline, Q, shade, stroke, type Pt } from "../draw";
 import type { KitPiece } from "../types";
 import { belt, fitTable, jacket, JACKET_BASE, type JacketSpec, lapels, mirrorPt, outerFit, withPanels } from "../parts-outer";
 
-const BASE = { ...JACKET_BASE, length: 240, chestW: 59, hemW: 68, sleeveLen: 122, cuffW: 24 };
+const BASE = { ...JACKET_BASE, length: 240, chestW: 59, hemW: 68, sleeveLen: 142, cuffW: 24 };
 const FITS = ["fitted", "regular", "relaxed", "oversized"];
 
 function trenchCoat(fit: string): KitPiece {
@@ -42,6 +42,10 @@ function trenchCoat(fit: string): KitPiece {
   return withPanels(piece({
     base: [fill(j.outline)],
     lines: [
+      // The sleeves lie on the body in a faint shade, so a pale coat's arms
+      // separate from its long front instead of melting into it.
+      shade(j.sleevePanel(), 0.06),
+      shade(mirrored(j.sleevePanel()), 0.06),
       lp.fills,
       wb.fills,
       ink(stroke(j.edge), j.armSeams, stroke(frontEdge), stroke(stormFlap), pockets),

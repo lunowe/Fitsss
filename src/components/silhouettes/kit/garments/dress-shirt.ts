@@ -5,7 +5,7 @@
  */
 import { button, CX, fill, ink, piece, seam, stroke } from "../draw";
 import { foldCollar, placket, topFit, vNeckUnder } from "../parts-tops";
-import { fitTable } from "../parts-outer";
+import { fitTable, phaseBreak } from "../parts-outer";
 import type { KitPiece } from "../types";
 import { torso, type TorsoSpec } from "../torso";
 
@@ -54,7 +54,7 @@ function dressShirt(fit: string): KitPiece {
     (t.cuffOuter[0] + t.cuffInner[0]) / 2 - t.sleeveDir[0] * (cuffDepth / 2),
     (t.cuffOuter[1] + t.cuffInner[1]) / 2 - t.sleeveDir[1] * (cuffDepth / 2),
   ] as const;
-  return piece({
+  return phaseBreak(piece({
     base: [fill(t.outline)],
     lines: [
       t.sleeveShade,
@@ -68,7 +68,7 @@ function dressShirt(fit: string): KitPiece {
     clip: t.outline,
     panels: t.panels,
     stripe: "v",
-  });
+  }));
 }
 
 export const DRESS_SHIRT: Record<string, KitPiece> = fitTable("dress-shirt", FITS, "regular", dressShirt);

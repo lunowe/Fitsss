@@ -355,6 +355,39 @@ export function sleevePanelsOf(right: string, sleeveAngle: number): ArtPanel[] {
   ];
 }
 
+/**
+ * Breaks a field pattern at the armholes: moves each sleeve panel's pattern
+ * across the sleeve so its stripes land half a pitch off the body's where
+ * they meet (a check lands a quarter off). A sleeve leaning ~10° from the
+ * body otherwise picks the body's stripes up almost seamlessly and the
+ * pattern seems to run on across the sleeve; cut off-match, the sleeve
+ * reads as its own panel with its own run of stripes, as a real shirt's
+ * does. `count` is the field tile's stripe count (vertical stripes: 15).
+ * Only the panel's center moves (the composer centers the tile on it); its
+ * size stays the panel's bounds.
+ */
+export function phaseBreak(p: KitPiece, count = 15): KitPiece {
+  const [bx, , bw, bh] = p.layers.box;
+  const side = Math.max(bw, bh);
+  const pitch = side / count;
+  const mod = (v: number) => ((v % pitch) + pitch) % pitch;
+  const bodyX0 = bx + bw / 2 - side / 2;
+  p.layers.panels = (p.layers.panels ?? []).map((panel) => {
+    const [x, y, w, h] = panel.box;
+    const c: Pt = [x + w / 2, y + h / 2];
+    const e = dir(panel.angle);
+    // Where sleeve and body meet: the panel's inner edge, high on the armhole.
+    const P: Pt = [c[0] > CX ? x : x + w, y + h * 0.2];
+    const body = mod(P[0] - bodyX0);
+    const sleeve = mod((P[0] - c[0]) * e[0] + (P[1] - c[1]) * e[1] + side / 2);
+    let delta = mod(sleeve - body - pitch / 2);
+    if (delta > pitch / 2) delta -= pitch;
+    const r = (n: number) => Math.round(n * 10) / 10;
+    return { ...panel, box: [r(x + delta * e[0]), r(y + delta * e[1]), w, h] as unknown as ArtPanel["box"] };
+  });
+  return p;
+}
+
 /** Attaches pattern panels to a built piece. */
 export function withPanels(p: KitPiece, panels: readonly ArtPanel[]): KitPiece {
   p.layers.panels = panels;

@@ -129,6 +129,8 @@ export interface Torso {
   hemLine(inset: number, margin?: number): string;
   /** y of the chest line, `t` of the way from the armpit to the hem. */
   bodyY(t: number): number;
+  /** Half width of the body's visible front at `y`: to its side, or to a sleeve lying over it. */
+  openW(y: number): number;
 }
 
 export function crewNeck(neckW: number, neckY: number, depth: number): Neckline {
@@ -335,10 +337,40 @@ export function torso(input: TorsoSpec): Torso {
     sleeveShade = shade(shadow, 0.12) + shade(mirrored(shadow), 0.12);
   }
 
+  // Where the hem shows: a sleeve lying over the body and hanging past the
+  // hem (a cropped top) covers the hem's ends, so hem bands and stitch lines
+  // stop at its underarm edge instead of running across the sleeve.
+  const sleeveRing: Pt[] = (() => {
+    if (!over) return [];
+    const ring: Pt[] = [];
+    const quad = (p0: Pt, c: Pt, p1: Pt) => {
+      for (let i = 0; i <= 16; i++) ring.push(lerp(lerp(p0, c, i / 16), lerp(c, p1, i / 16), i / 16));
+    };
+    quad(S1, add(lerp(S1, Co, 0.5), v, -1.5), Co);
+    quad(Ci, add(lerp(Ci, U, 0.5), v, 1.5), U);
+    for (let i = 0; i <= 16; i++) ring.push(cubicAt(U, [U[0] + (S[0] - U[0]) * 0.45, U[1] + 0.5], [S[0] - 0.5, S[1] + (U[1] - S[1]) * 0.6], S0, i / 16));
+    return ring;
+  })();
+  /** Half width of the body's visible front at `y`: to the body side, or to a sleeve lying over it. */
+  const openW = (y: number): number => {
+    let x = bodyX(y);
+    for (let i = 0; i < sleeveRing.length; i++) {
+      const a = sleeveRing[i];
+      const b = sleeveRing[(i + 1) % sleeveRing.length];
+      if ((a[1] - y) * (b[1] - y) > 0 || a[1] === b[1]) continue;
+      x = Math.min(x, a[0] + ((b[0] - a[0]) * (y - a[1])) / (b[1] - a[1]));
+    }
+    return x - CX;
+  };
+  // Does a sleeve cover the hem's ends? Then the hem detailing is cut at the sleeve.
+  const hemCovered = (depth: number) => openW(length - depth) < hemW - 0.5 || openW(length - 0.01) < hemW - 0.5;
+  const hemY = (x: number) => length + (hemCurve ? hemCurve * (1 - ((x - CX) / hemW) ** 2) : 0);
+
   const cuffStitch = (inset: number) => polyline(add(Co, u, -inset), add(Ci, u, -inset));
   const hemLine = (inset: number, margin = 2) => {
-    const l: Pt = [CX - hemW + margin, length - inset];
-    const r: Pt = [CX + hemW - margin, length - inset];
+    const w = hemCovered(inset) ? Math.min(hemW, openW(length - inset)) : hemW;
+    const l: Pt = [CX - w + margin, length - inset];
+    const r: Pt = [CX + w - margin, length - inset];
     if (!hemCurve) return polyline(l, r);
     return path(l, [Q([CX, length + hemCurve - inset], r)]);
   };
@@ -346,12 +378,26 @@ export function torso(input: TorsoSpec): Torso {
 
   const cuffBand = (depth: number) =>
     path(add(Co, u, -depth), [L(Co), L(Ci), L(add(Ci, u, -depth))], true);
-  const hemBand = (depth: number) =>
-    symmetric([CX, length - depth + hemCurve], [
-      hemCurve ? Q([CX + hemW * 0.5, length - depth + hemCurve], [CX + hemW, length - depth]) : L([CX + hemW, length - depth]),
-      L(H),
-      hemCurve ? Q([CX + hemW * 0.5, length + hemCurve], hemMid) : L(hemMid),
-    ]);
+  const hemBand = (depth: number) => {
+    if (!hemCovered(depth)) {
+      return symmetric([CX, length - depth + hemCurve], [
+        hemCurve ? Q([CX + hemW * 0.5, length - depth + hemCurve], [CX + hemW, length - depth]) : L([CX + hemW, length - depth]),
+        L(H),
+        hemCurve ? Q([CX + hemW * 0.5, length + hemCurve], hemMid) : L(hemMid),
+      ]);
+    }
+    // The band between the sleeves: its ends follow each sleeve's underarm
+    // edge, so it reads as the body's own rib, tucked under the sleeves.
+    const top = Math.min(hemW, openW(length - depth));
+    const right: Seg[] = [L([CX + top, hemY(CX + top) - depth])];
+    for (let i = 1; i <= 4; i++) {
+      const y = length - depth + (depth * i) / 4;
+      right.push(L([CX + Math.min(hemW, openW(y - (i === 4 ? 0.01 : 0))), y]));
+    }
+    const bottomW = Math.min(hemW, openW(length - 0.01));
+    right[right.length - 1] = L([CX + bottomW, hemY(CX + bottomW)]);
+    return symmetric([CX, length - depth + hemCurve], [...right, L(hemMid)]);
+  };
 
   return {
     spec,
@@ -372,5 +418,6 @@ export function torso(input: TorsoSpec): Torso {
     panels: sleevePanelsOf(sleeveClosed, sleeveAngle),
     hemLine,
     bodyY: (t) => A[1] + (length - A[1]) * t,
+    openW,
   };
 }

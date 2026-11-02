@@ -7,9 +7,9 @@
  * footbed is a loop a foot goes through and not a solid dome. The straps are
  * the garment: they carry the color and the pattern clip.
  */
-import { C, fill, FILL2, ink, L, path, piece, polyline, seam, shade, stroke, type Pt, type Seg } from "../draw";
+import { C, fill, FILL2, ink, L, path, piece, polyline, Q, seam, shade, stroke, type Pt, type Seg } from "../draw";
 import type { KitPiece } from "../types";
-import { buckle, footSole, GROUND, MOUTH, reversed, sampleCubic, smooth, splineSegs, type Sole } from "../parts-feet";
+import { buckle, footSole, GROUND, MOUTH, mouthOpening, offsetPoints, reversed, sampleCubic, smooth, splineSegs, type Sole } from "../parts-feet";
 
 const X0 = 22;
 const X1 = 184;
@@ -130,18 +130,47 @@ const sandalBase = (bed: Bed, straps: Strap[]) => [...straps.map((t) => through(
 const sandalInk = (bed: Bed, straps: Strap[], ...extra: string[]) =>
   ink(...bed.edge(straps.flatMap((t) => t.hidden)), ...straps.flatMap((t) => [stroke(t.farArch), stroke(t.band)]), ...extra);
 
+/**
+ * The slide, seen straight from the side like the closed shoes: a thick
+ * molded footbed with a flat tread, its top contoured (a heel cup that lips
+ * up at the back, a toe bar at the front), the footbed in the garment's own
+ * color over an outsole in the second, and one broad band over the instep,
+ * leaning back over the foot with a steep front. Where the foot goes in, the
+ * band's back edge shows the family's dark opening lens. Open heel, open toe:
+ * the footbed runs out well past the band at both ends.
+ */
 function slide(): KitPiece {
-  // A thick molded footbed, higher at the heel, and one broad band over the
-  // instep with steep sides: the band is most of the drawing, so it reads at
-  // grid size, and the dark far wall through it says "loop".
-  const s = footSole({ x0: X0, x1: X1, depth: 12, spring: 4, heelLift: 8, midsole: true });
-  const bed = footbedTop(s, 6.5);
-  const a = strap(bed.far, 74, 144, 23, 7, 16, 17, 6, 4, 0.25);
+  // The footbed: top edge (heel to toe), then the tread back to the heel.
+  // Thickest under the heel, thinning to a sprung toe.
+  const topEdge: Pt[] = [[21, 104.4], [26, 101.8], [33, 102.4], [44, 105.6], [60, 107.4], [80, 108], [100, 108.4], [120, 108.4], [140, 108.4], [157, 108.6], [168, 108], [177, 107.8], [183.6, 109.4]];
+  const tread: Seg[] = [
+    C([188, 110.8], [188.4, 117], [184.4, 120.6]),
+    C([180.4, 124], [170, 126], [156, 127.4]),
+    C([130, 129.4], [70, 129.4], [36, 129.4]),
+    C([24, 129.4], [18.6, 128], [18.4, 120]),
+  ];
+  const bed = path(topEdge[0], [...splineSegs(topEdge), ...tread, C([18.2, 112], [18.6, 106.6], topEdge[0])], true);
+  // The outsole: the bottom of the bed in the second color, split by a seam.
+  const splitPts: Pt[] = [[18.4, 120.6], [40, 121.6], [100, 121.4], [150, 120.2], [175, 118.4], [186.8, 116]];
+  const outsole = path(splitPts[0], [...splineSegs(splitPts), C([187.4, 117.6], [186.4, 119.2], [184.4, 120.6]), ...tread.slice(1)], true);
+  // The band: a long sloping back edge, a crown forward of the middle, a steep front.
+  const bandPts: Pt[] = [[78, 108.2], [82.4, 96], [89.4, 84.6], [99, 76.6], [111.4, 72.4], [125, 71.6], [136.6, 73.6], [145, 78.4], [150.2, 86], [152.6, 96], [153.2, 108.6]];
+  const band = path(bandPts[0], [...splineSegs(bandPts), Q([116, 109.8], bandPts[0])], true);
+  // The opening where the foot goes in, along the band's back edge.
+  const opening = mouthOpening(bandPts.slice(0, 7), 11);
+  // A bound front edge, and the heel cup's lip.
+  const binding = smooth(offsetPoints(bandPts.slice(6, -1), 3.4));
+  const cup = seam(smooth([[24, 106.2], [32, 105.4], [44, 108.4]]));
   return piece({
-    base: sandalBase(bed, [a]),
-    lines: [s.fills, sandalInk(bed, [a], seam(a.edge(3.5))), s.lines],
-    clip: a.band,
-    extent: [a.band, s.path, bed.path],
+    base: [fill(bed), fill(band)],
+    lines: [
+      fill(outsole, FILL2),
+      shade(bed, 0.06),
+      opening.shade,
+      ink(stroke(bed), seam(smooth(splitPts)), stroke(band), stroke(opening.rim), seam(binding), cup),
+    ],
+    clip: band,
+    extent: [band, bed],
   });
 }
 

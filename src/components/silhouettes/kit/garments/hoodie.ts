@@ -5,7 +5,7 @@
  * waist and an oversized one drops its shoulders like every other top; the
  * hood grows with the shoulders so every fit keeps the same head room.
  */
-import { button, C, CX, FILL2, fill, framedByType, ink, L, mirrored, path, piece, polyline, seam, shade, stroke, symmetric } from "../draw";
+import { button, C, CX, FILL2, fill, framedByType, ink, L, mirrored, path, piece, seam, shade, stroke } from "../draw";
 import { fitTable, hood } from "../parts-outer";
 import { topFit } from "../parts-tops";
 import type { KitPiece } from "../types";
@@ -42,13 +42,17 @@ function hoodie(fit: string): KitPiece {
   const grommetY = NECK_Y + OPENING - 3;
   const string = (x: number, k: number) => path([x, grommetY + 2], [C([x + 2 * k, grommetY + 16], [x + 0.5 * k, grommetY + 30], [x + 3 * k, grommetY + 42])]);
   // Kangaroo pocket: all of it at seam weight, so it sits in the cloth
-  // instead of weighing on a dark piece.
-  // A cropped body keeps a real pocket: it starts below the drawstring ends
-  // rather than at a fraction of a short body.
-  const pw = spec.chestW - 15;
-  const pBot = spec.length - RIB - 3;
-  const pTop = Math.max(spec.length - RIB - 44, t.armpit[1] + 16);
-  const pocket = symmetric([CX, pTop], [L([CX + pw - 13, pTop]), L([CX + pw, pTop + 12]), L([CX + pw, pBot]), L([CX, pBot])]);
+  // instead of weighing on a dark piece. It is sewn into the rib seam, the
+  // way a real one is, so there is no sliver of body between pocket and rib.
+  // Its depth is a share of the body below the armpit (a cropped hoodie gets
+  // a shallower pocket, not a squashed one) and it stays clear of the
+  // sleeves, which lie over the body's sides.
+  const pBot = spec.length - RIB;
+  const depth = Math.min(44, Math.max(30, (pBot - t.armpit[1]) * 0.6));
+  const pTop = pBot - depth;
+  const pw = Math.min(spec.chestW - 15, t.openW(pTop + 12) - 8, depth * 1.45);
+  const slant = Math.min(13, pw * 0.3);
+  const pocket = path([CX - pw, pBot], [L([CX - pw, pTop + 12]), L([CX - pw + slant, pTop]), L([CX + pw - slant, pTop]), L([CX + pw, pTop + 12]), L([CX + pw, pBot])]);
   // Print anchors: the graphic sits in the band between the drawstring ends
   // and the pocket, the logo on the left chest, about a fifth of the chest.
   const bandTop = grommetY + 8;
@@ -79,8 +83,6 @@ function hoodie(fit: string): KitPiece {
         stroke(string(CX - 6, -1)),
         stroke(string(CX + 6, 1)),
         seam(pocket),
-        seam(polyline([CX - pw + 13, pTop], [CX - pw, pTop + 12])),
-        seam(polyline([CX + pw - 13, pTop], [CX + pw, pTop + 12])),
       ),
       button(CX - 6, grommetY, 1.6),
       button(CX + 6, grommetY, 1.6),

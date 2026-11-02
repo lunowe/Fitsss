@@ -4,7 +4,7 @@
  */
 import { button, C, CX, fill, framedByType, ink, L, mirrored, path, piece, polyline, Q, seam, shade, stroke, symmetric, type Pt } from "../draw";
 import { topFit } from "../parts-tops";
-import { fitTable } from "../parts-outer";
+import { fitTable, phaseBreak } from "../parts-outer";
 import type { KitPiece } from "../types";
 import { torso, type Neckline, type TorsoSpec } from "../torso";
 
@@ -85,7 +85,7 @@ function shirt(fit: string): KitPiece {
     (t.cuffOuter[0] + t.cuffInner[0]) / 2 - t.sleeveDir[0] * (cuffDepth / 2),
     (t.cuffOuter[1] + t.cuffInner[1]) / 2 - t.sleeveDir[1] * (cuffDepth / 2),
   ] as const;
-  return piece({
+  return phaseBreak(piece({
     base: [fill(t.outline)],
     lines: [
       t.sleeveShade,
@@ -107,7 +107,7 @@ function shirt(fit: string): KitPiece {
     clip: t.outline,
     panels: t.panels,
     stripe: "v",
-  });
+  }));
 }
 
 export const SHIRT: Record<string, KitPiece> = framedByType(fitTable("shirt", FITS, "regular", shirt));

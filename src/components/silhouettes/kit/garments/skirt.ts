@@ -2,7 +2,7 @@
  * Skirt: an A-line skirt with a waistband and two front panel seams. The fit
  * is its length: mini, midi, maxi; the hem widens with it.
  */
-import { C, CX, fill, framedByType, ink, L, mirrored, path, piece, polyline, Q, seam, stroke, symmetric } from "../draw";
+import { C, CX, fill, framedByType, ink, L, mirrored, path, piece, polyline, Q, seam, shade, stroke, symmetric } from "../draw";
 import { fitTable } from "../parts-outer";
 import type { KitPiece } from "../types";
 
@@ -38,9 +38,25 @@ function skirt(fit: string): KitPiece {
   const seamX0 = WAIST_W * 0.5;
   const seamX1 = hemW * 0.5;
   const panel = path([CX + seamX0, WAIST_Y + BAND + 0.5], [C([CX + seamX0 + 0.5, WAIST_Y + length * 0.3], [CX + seamX1 - 1, WAIST_Y + length * 0.7], [CX + seamX1, hemY + droop * 0.75 - 0.5])]);
+  // The side panels turn away from the eye: a faint tonal shade from each
+  // panel seam out to the side gives the A its volume, and gives a white or
+  // pale skirt a body against a pale card instead of resting on thin
+  // diagonal outlines alone.
+  const sideTop: [number, number] = [CX + WAIST_W, WAIST_Y];
+  const seamEnd: [number, number] = [CX + seamX1, hemY + droop * 0.75 - 0.5];
+  const sidePanel = path(sideTop, [
+    C([CX + WAIST_W + 1, WAIST_Y + length * 0.18], [CX + WAIST_W + (hemW - WAIST_W) * 0.45, WAIST_Y + length * 0.55], [CX + hemW, hemY]),
+    Q([CX + hemW * 0.75, hemY + droop * 0.5], seamEnd),
+    C([CX + seamX1 - 1, WAIST_Y + length * 0.7], [CX + seamX0 + 0.5, WAIST_Y + length * 0.3], [CX + seamX0, WAIST_Y + BAND + 0.5]),
+    L([CX + seamX0, WAIST_Y]),
+  ], true);
   return piece({
     base: [fill(outline)],
-    lines: [ink(stroke(outline), seam(bandLine), seam(panel), seam(mirrored(panel)), seam(hemLine))],
+    lines: [
+      shade(sidePanel, 0.07),
+      shade(mirrored(sidePanel), 0.07),
+      ink(stroke(outline), seam(bandLine), seam(panel), seam(mirrored(panel)), seam(hemLine)),
+    ],
     clip: outline,
     stripe: "v",
   });

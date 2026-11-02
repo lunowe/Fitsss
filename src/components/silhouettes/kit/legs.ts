@@ -3,7 +3,7 @@
  * closed silhouette, plus hem lines. Fits are leg widths at the hip, knee and
  * hem. Half widths from the center line x = 100; y grows downwards.
  */
-import { add, C, CX, L, lerp, mirrored, path, polyline, Q, seam, symmetric, type Pt } from "./draw";
+import { add, C, CX, INK, L, lerp, mirrored, path, polyline, Q, seam, symmetric, type Pt, type Seg } from "./draw";
 
 export interface LegsSpec {
   /** y of the top of the waistband. */
@@ -117,14 +117,33 @@ export function legs(spec: LegsSpec): Legs {
     pool
       ? path([hemInner[0] + 1.5, length - inset], [C([hemInner[0] + hemW * 0.3, length - inset - pool * 0.15], [hemOuter[0] - hemW * 0.3, length - inset + pool], [hemOuter[0] - 1.5, length - inset])])
       : polyline([hemInner[0] + 1.5, length - inset], [hemOuter[0] - 1.5, length - inset]);
-  // A pooling leg breaks on the shoe: a soft fold across the leg above the
-  // hem. A slight break (a tailored leg) is a short fold in the middle of
-  // the leg, so it does not read as a turn-up; a pooled hem folds right
-  // across, and a heavily pooled one stacks a second fold above the first.
-  const breakIn = pool >= 3 ? 4 : hemW * 0.24;
-  const breakAt = (breakY: number, k: number) =>
-    path([hemInner[0] + breakIn, breakY - 1.5 * k], [C([hemInner[0] + hemW * 0.3, breakY + pool * 0.9 * k], [hemOuter[0] - hemW * 0.35, breakY + pool * 0.5 * k], [hemOuter[0] - breakIn, breakY - 1 * k])]);
-  const breakLine = breakAt(length - 11 - pool, 1) + (pool >= 6 ? breakAt(length - 20 - pool * 1.4, 0.6) : "");
+  // A pooling leg breaks on the shoe. A slight break (a tailored leg) is a
+  // short soft fold in the middle of the leg, so it does not read as a
+  // turn-up. A pooled leg stacks: two folds that start from alternate seams
+  // and die out part way across, each a crease with a tonal shadow under
+  // it, so the stack reads as cloth bunching over the shoe rather than as
+  // lines ruled across the leg.
+  const breakIn = hemW * 0.24;
+  const tailored = path([hemInner[0] + breakIn, length - 11 - pool - 1.5], [C([hemInner[0] + hemW * 0.3, length - 11 - pool * 0.1], [hemOuter[0] - hemW * 0.35, length - 11 - pool * 0.5], [hemOuter[0] - breakIn, length - 11 - pool - 1])]);
+  /** A fold from the seam at x = `from` running `reach` of the leg across towards `to`, at `y`. */
+  const fold = (from: number, to: number, y: number, reach: number, sag: number) => {
+    const at = (t: number) => from + (to - from) * t;
+    // The crease leaves the seam, swings down through the leg and lifts
+    // again as it dies out; its shadow is a crescent hanging under it.
+    const start: Pt = [at(0), y - sag * 0.5];
+    const end: Pt = [at(reach), y + sag * 0.15];
+    const crease: Seg[] = [C([at(reach * 0.3), y + sag * 1.05], [at(reach * 0.72), y + sag * 1.1], end)];
+    const shadow = path(start, [...crease, C([at(reach * 0.7), y + sag * 2.3], [at(reach * 0.28), y + sag * 2.4], [at(0), y + sag * 1.2])], true);
+    return {
+      line: path(start, crease),
+      shadow: `<path d="${shadow}" fill="${INK}" fill-opacity="0.14" stroke="none"/>`,
+    };
+  };
+  const folds = pool >= 3
+    ? [fold(hemOuter[0] - 0.4, hemInner[0], length - 13 - pool * 0.6, 0.64, 4.2), fold(hemInner[0] + 0.4, hemOuter[0], length - 27 - pool * 1.1, 0.52, 3.6)]
+    : [];
+  const breakMarks = pool >= 3 ? folds.map((f) => f.shadow + seam(f.line)).join("") : seam(tailored);
+  const breakLine = pool ? breakMarks + breakMarks.replace(/d="([^"]+)"/g, (_, d: string) => `d="${mirrored(d)}"`) : "";
   // The inseam topstitch follows the inner leg edge from the crotch to the hem.
   const inseam = (inset: number) =>
     path([CX + inset + 1, crotchY + 4], [
@@ -143,8 +162,8 @@ export function legs(spec: LegsSpec): Legs {
     kneeY,
     bandPath,
     bandLine,
-    hemLines: (inset) => seam(hemLine(inset)) + seam(mirrored(hemLine(inset))) + (pool ? seam(breakLine) + seam(mirrored(breakLine)) : ""),
-    breakLines: () => (pool ? seam(breakLine) + seam(mirrored(breakLine)) : ""),
+    hemLines: (inset) => seam(hemLine(inset)) + seam(mirrored(hemLine(inset))) + breakLine,
+    breakLines: () => breakLine,
     inseamLines: (inset) => seam(inseam(inset)) + seam(mirrored(inseam(inset))),
     outerX,
   };
