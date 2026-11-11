@@ -36,9 +36,10 @@ import {
 import { cn } from "@/lib/utils";
 import { createTrip, searchTripPlaces } from "@/server/trips";
 
-import { addDays, lengthWithNights, localToday, placeDetail } from "./format";
+import { addDays, lengthWithNights, limitText, localToday, placeDetail } from "./format";
 import { DateField } from "./DateField";
 import { readableError } from "./errors";
+import { NoteCount } from "./TripSheets";
 
 export interface StyleOption {
   id: string;
@@ -78,7 +79,12 @@ export function PlanTripForm({ styles }: { styles: StyleOption[] }) {
   const luggage = pickedLuggage ?? defaultLuggage(Math.max(days, 1));
   const canPack = place !== null && datesValid && !creating;
 
-  /** Keeps both dates inside the rules: the end follows the start and never runs past the longest trip. */
+  /**
+   * Keeps both dates inside the rules: the end follows the start and never
+   * runs past the longest trip. Run when a date field is left (and when the
+   * place changes), never per keystroke: typing passes through dates like
+   * 0002-11-20 that would snap to today.
+   */
   function clamp(nextStart: string, nextEnd: string, nextToday = today) {
     let s = nextStart;
     let e = nextEnd;
@@ -140,7 +146,6 @@ export function PlanTripForm({ styles }: { styles: StyleOption[] }) {
 
   const chosenHints = TRIP_ACTIVITIES.filter((a) => activities.includes(a.id));
   const bagHint = LUGGAGE_OPTIONS.find((option) => option.id === luggage)?.hint;
-  const noteLength = [...note].length;
 
   return (
     <>
@@ -161,7 +166,8 @@ export function PlanTripForm({ styles }: { styles: StyleOption[] }) {
                   value={start}
                   min={today}
                   max={latestStart}
-                  onChange={(value) => clamp(value, end)}
+                  onChange={setStart}
+                  onCommit={() => clamp(start, end)}
                 />
               }
             />
@@ -173,7 +179,8 @@ export function PlanTripForm({ styles }: { styles: StyleOption[] }) {
                   value={end}
                   min={isIsoDate(start) ? start : today}
                   max={latestEnd}
-                  onChange={(value) => clamp(start, value)}
+                  onChange={setEnd}
+                  onCommit={() => clamp(start, end)}
                 />
               }
             />
@@ -256,20 +263,15 @@ export function PlanTripForm({ styles }: { styles: StyleOption[] }) {
           <div className="px-4">
             <Textarea
               value={note}
-              onChange={(event) => setNote(event.target.value.replace(/\n/g, " "))}
+              onChange={(event) => setNote(limitText(event.target.value.replace(/\n/g, " "), MAX_TRIP_STEER_LENGTH))}
               placeholder="Anything special? e.g. a wedding on Saturday"
-              maxLength={MAX_TRIP_STEER_LENGTH}
               rows={2}
               aria-label="Note for the stylist"
               enterKeyHint="done"
               className="min-h-0 resize-none border-0 text-body placeholder:text-label-3"
             />
           </div>
-          {noteLength >= MAX_TRIP_STEER_LENGTH - 40 ? (
-            <SectionFooter className={cn("tabular-nums", noteLength >= MAX_TRIP_STEER_LENGTH && "text-destructive")}>
-              {noteLength} / {MAX_TRIP_STEER_LENGTH}
-            </SectionFooter>
-          ) : null}
+          <NoteCount note={note} className="px-4" />
         </section>
       </fieldset>
 

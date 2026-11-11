@@ -46,8 +46,8 @@ export function Sheet({
       <DrawerContent className={cn("mx-auto max-w-[480px]", className)}>
         <div className="flex items-start justify-between gap-3 px-4 pb-2 pt-3">
           <div className="min-w-0">
-            {title ? <DrawerTitle className="text-title-2">{title}</DrawerTitle> : <DrawerTitle className="sr-only">Sheet</DrawerTitle>}
-            {description ? <DrawerDescription className="mt-0.5">{description}</DrawerDescription> : null}
+            {title ? <DrawerTitle className="text-title-2 [overflow-wrap:anywhere]">{title}</DrawerTitle> : <DrawerTitle className="sr-only">Sheet</DrawerTitle>}
+            {description ? <DrawerDescription className="mt-0.5 [overflow-wrap:anywhere]">{description}</DrawerDescription> : null}
           </div>
           {headerTrailing ? <div className="shrink-0">{headerTrailing}</div> : null}
         </div>

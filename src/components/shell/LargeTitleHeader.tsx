@@ -101,9 +101,10 @@ export function LargeTitleHeader({
 
       <div className={cn("pt-[calc(env(safe-area-inset-top)+44px)]", className)}>
         <div className="px-4 pb-2 pt-1">
-          <h1 className="text-large-title">{title}</h1>
+          {/* A long single word (a name typed without spaces) wraps instead of widening the page. */}
+          <h1 className="text-large-title [overflow-wrap:anywhere]">{title}</h1>
           <div ref={sentinel} aria-hidden className="-mb-px h-px" />
-          {subtitle ? <p className="mt-0.5 text-subhead text-label-2">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-0.5 text-subhead text-label-2 [overflow-wrap:anywhere]">{subtitle}</p> : null}
         </div>
         {children ? <div className={cn(collapsed ? "invisible" : "")}>{children}</div> : null}
       </div>

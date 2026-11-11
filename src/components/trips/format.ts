@@ -1,4 +1,4 @@
-import { addDays, type Trip, type TripDayWeather, type TripPlace, type WeatherCondition } from "@/domain";
+import { addDays, clipText, textLength, type Trip, type TripDayWeather, type TripPlace, type WeatherCondition } from "@/domain";
 
 /**
  * Dates and short lines for a trip. Trip dates are wall dates (YYYY-MM-DD),
@@ -141,3 +141,12 @@ export function localToday(now: Date = new Date()): string {
 }
 
 export { addDays };
+
+/**
+ * Text held to `max` characters as the server counts them (code points, so an
+ * emoji is one), not UTF-16 units as `maxLength` does. Only text over the
+ * limit is touched.
+ */
+export function limitText(text: string, max: number): string {
+  return textLength(text) <= max ? text : clipText(text, max);
+}

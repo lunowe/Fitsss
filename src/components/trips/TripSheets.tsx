@@ -15,6 +15,7 @@ import {
   MAX_TRIP_NAME_LENGTH,
   MAX_TRIP_STEER_LENGTH,
   TRIP_ACTIVITIES,
+  textLength,
   type Block,
   type Category,
   type LuggageId,
@@ -25,7 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import type { SwapTarget } from "./DayPlans";
-import { dateRange, dayTitle, placeLine } from "./format";
+import { dateRange, dayTitle, limitText, placeLine } from "./format";
 import { pieceTitle, roleLabel } from "./pieces";
 import type { StyleOption } from "./PlanTripForm";
 
@@ -456,11 +457,10 @@ export function EditTripSheet({
           <Input
             value={name}
             onChange={(event) => {
-              setName(event.target.value);
+              setName(limitText(event.target.value, MAX_TRIP_NAME_LENGTH));
               setError(null);
             }}
             placeholder={trip.place.name}
-            maxLength={MAX_TRIP_NAME_LENGTH}
             aria-label="Trip name"
             enterKeyHint="done"
             className="border-0 bg-card-2 text-body placeholder:text-label-3"
@@ -574,15 +574,32 @@ export function RepackSheet({
     >
       <Textarea
         value={note}
-        onChange={(event) => setNote(event.target.value.replace(/\n/g, " "))}
+        onChange={(event) => setNote(limitText(event.target.value.replace(/\n/g, " "), MAX_TRIP_STEER_LENGTH))}
         placeholder="What should change? e.g. a wedding on Saturday"
-        maxLength={MAX_TRIP_STEER_LENGTH}
         rows={3}
         aria-label="Note for the stylist"
         enterKeyHint="done"
         className="resize-none border-0 bg-card-2 text-body placeholder:text-label-3"
       />
+      <NoteCount note={note} />
     </Sheet>
+  );
+}
+
+/** "180 / 200" once a note nears the limit, counted as the server counts. */
+export function NoteCount({ note, className }: { note: string; className?: string }) {
+  const length = textLength(note);
+  if (length < MAX_TRIP_STEER_LENGTH - 40) return null;
+  return (
+    <p
+      className={cn(
+        "mt-2 text-footnote tabular-nums",
+        length >= MAX_TRIP_STEER_LENGTH ? "text-destructive" : "text-label-2",
+        className,
+      )}
+    >
+      {length} / {MAX_TRIP_STEER_LENGTH}
+    </p>
   );
 }
 

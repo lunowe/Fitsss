@@ -40,6 +40,11 @@ const LONG_WAIT_MS = 12_000;
 /** While another tab (or an earlier visit) packs this trip, look again this often. */
 const POLL_MS = 3000;
 
+/** Whether the browser thinks it has a connection (true on the server, where it isn't asked). */
+function isOnline(): boolean {
+  return typeof navigator === "undefined" || navigator.onLine !== false;
+}
+
 /** The later of two copies of the trip: an action's answer and a server render can cross. */
 function newer(a: Trip, b: Trip): Trip {
   return b.updatedAt > a.updatedAt ? b : a;
@@ -138,8 +143,11 @@ export function TripDetail({
       return;
     } else {
       setFailure(outcome.failure);
+      // Offline, a refresh falls back to a full page load, which lands on the
+      // browser's error page: keep this page and its "You're offline" card.
+      if (outcome.failure.kind === "offline") return;
     }
-    router.refresh();
+    if (isOnline()) router.refresh();
   }
 
   // Just planned: pack once, and take `?pack=1` off the address so a reload doesn't pack again.
@@ -154,7 +162,10 @@ export function TripDetail({
   // Packed elsewhere: look again until it is done.
   useEffect(() => {
     if (!packingOnServer || packingSince !== null) return;
-    const timer = setInterval(() => router.refresh(), POLL_MS);
+    // Skipped while offline, for the same reason as after packing.
+    const timer = setInterval(() => {
+      if (isOnline()) router.refresh();
+    }, POLL_MS);
     return () => clearInterval(timer);
   }, [packingOnServer, packingSince, router]);
 
@@ -175,6 +186,11 @@ export function TripDetail({
         if (result.ok) {
           ok = true;
           setTrip((current) => newer(current, result.trip));
+        } else if (result.code === "not-found") {
+          // Deleted meanwhile (another tab, the app): say so and leave, like every other edit.
+          toast(result.error);
+          router.push("/looks?tab=trips");
+          return;
         }
       } catch {
         // Reported below.

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { LayoutGrid } from "lucide-react";
 
 import { InspoGrid } from "@/components/inspo/InspoGrid";
-import { LooksTabs, type LooksTab } from "@/components/looks/LooksTabs";
+import { LooksTabs } from "@/components/looks/LooksTabs";
 import { OutfitCard, outfitMeta } from "@/components/outfit";
 import { EmptyState, Screen } from "@/components/shell";
 import { TripsShelf, tripsSubtitle } from "@/components/trips/TripsShelf";
@@ -18,14 +18,7 @@ export const metadata: Metadata = {
   title: "Looks",
 };
 
-type Props = { searchParams: Promise<{ tab?: string | string[] }> };
-
-const TABS: readonly LooksTab[] = ["saved", "inspo", "trips"];
-
-export default async function LooksPage({ searchParams }: Props) {
-  const { tab } = await searchParams;
-  const requested = Array.isArray(tab) ? tab[0] : tab;
-  const initialTab = TABS.find((name) => name === requested) ?? "saved";
+export default async function LooksPage() {
   const [looks, inspos, styles, trips] = await Promise.all([
     listLooks(),
     listInspos(),
@@ -66,7 +59,6 @@ export default async function LooksPage({ searchParams }: Props) {
   return (
     <Screen>
       <LooksTabs
-        initialTab={initialTab}
         savedCount={looks.length}
         inspoCount={inspos.length}
         tripsSubtitle={tripsSubtitle(trips)}

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
+import type { ReactNode } from "react";
 import { Plus } from "lucide-react";
 
 import { LargeTitleHeader, SegmentedControl } from "@/components/shell";
@@ -27,7 +28,6 @@ const ADD: Partial<Record<LooksTab, { href: string; label: string }>> = {
  * other screens can link to it and Back returns to it.
  */
 export function LooksTabs({
-  initialTab = "saved",
   savedCount,
   inspoCount,
   tripsSubtitle,
@@ -35,7 +35,6 @@ export function LooksTabs({
   inspo,
   trips,
 }: {
-  initialTab?: LooksTab;
   savedCount: number;
   inspoCount: number;
   tripsSubtitle: string;
@@ -43,17 +42,13 @@ export function LooksTabs({
   inspo: ReactNode;
   trips: ReactNode;
 }) {
-  const [tab, setTab] = useState<LooksTab>(initialTab);
-  // A link to another shelf while Looks is already showing (`?tab=trips`).
-  const [linked, setLinked] = useState(initialTab);
-  if (linked !== initialTab) {
-    setLinked(initialTab);
-    setTab(initialTab);
-  }
+  // The URL is the one source: a link to `/looks` (the tab bar) shows Saved
+  // again, `?tab=trips` shows Trips, and a tap rewrites the address in place.
+  const requested = useSearchParams().get("tab");
+  const tab: LooksTab = OPTIONS.find((option) => option.value === requested)?.value ?? "saved";
 
   function choose(next: LooksTab) {
-    setTab(next);
-    // The native history API keeps Next's router in step without a round trip.
+    // The native history API keeps Next's router (and `useSearchParams`) in step without a round trip.
     window.history.replaceState(null, "", next === "saved" ? "/looks" : `/looks?tab=${next}`);
   }
 
