@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { Image as ImageIcon, Loader2, Sparkles } from "lucide-react";
+import { Image as ImageIcon, Loader2, Luggage, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { BottomBar, InsetGroup, Row, RowIcon } from "@/components/shell";
@@ -255,6 +255,15 @@ export function TodayScreen({
                 }
                 title="Restyle a picture"
                 href="/inspo/new"
+              />
+              <Row
+                leading={
+                  <RowIcon>
+                    <Luggage aria-hidden />
+                  </RowIcon>
+                }
+                title="Plan a trip"
+                href="/trips/new"
               />
             </InsetGroup>
           </div>

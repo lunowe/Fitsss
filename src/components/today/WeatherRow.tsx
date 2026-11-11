@@ -1,18 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import {
-  Cloud,
-  CloudLightning,
-  CloudRain,
-  Minus,
-  Plus,
-  Snowflake,
-  Sun,
-  Thermometer,
-  Wind,
-  type LucideIcon,
-} from "lucide-react";
+import { Minus, Plus, Thermometer, type LucideIcon } from "lucide-react";
 
 import { Chip, ChipRow, InsetGroup, Row, RowIcon, Sheet } from "@/components/shell";
 import { Button } from "@/components/ui/button";
@@ -24,14 +13,7 @@ import {
   type WeatherSnapshot,
 } from "@/domain";
 
-export const CONDITION_ICON: Record<WeatherCondition, LucideIcon> = {
-  clear: Sun,
-  cloudy: Cloud,
-  rain: CloudRain,
-  snow: Snowflake,
-  wind: Wind,
-  storm: CloudLightning,
-};
+import { CONDITION_ICON } from "./conditions";
 
 const MIN_TEMP = -30;
 const MAX_TEMP = 45;

@@ -3,21 +3,35 @@ import Link from "next/link";
 import { LayoutGrid } from "lucide-react";
 
 import { InspoGrid } from "@/components/inspo/InspoGrid";
-import { LooksTabs } from "@/components/looks/LooksTabs";
+import { LooksTabs, type LooksTab } from "@/components/looks/LooksTabs";
 import { OutfitCard, outfitMeta } from "@/components/outfit";
 import { EmptyState, Screen } from "@/components/shell";
+import { TripsShelf, tripsSubtitle } from "@/components/trips/TripsShelf";
 import { Button } from "@/components/ui/button";
 import { listBlocks } from "@/server/blocks-queries";
 import { listInspos } from "@/server/inspo-queries";
 import { listLooks } from "@/server/looks-queries";
 import { listStyles } from "@/server/styles-queries";
+import { listTripsForShelf } from "@/server/trips-queries";
 
 export const metadata: Metadata = {
   title: "Looks",
 };
 
-export default async function LooksPage() {
-  const [looks, inspos, styles] = await Promise.all([listLooks(), listInspos(), listStyles()]);
+type Props = { searchParams: Promise<{ tab?: string | string[] }> };
+
+const TABS: readonly LooksTab[] = ["saved", "inspo", "trips"];
+
+export default async function LooksPage({ searchParams }: Props) {
+  const { tab } = await searchParams;
+  const requested = Array.isArray(tab) ? tab[0] : tab;
+  const initialTab = TABS.find((name) => name === requested) ?? "saved";
+  const [looks, inspos, styles, trips] = await Promise.all([
+    listLooks(),
+    listInspos(),
+    listStyles(),
+    listTripsForShelf(),
+  ]);
 
   // Archived pieces are included so a look keeps rendering after a piece leaves the closet.
   const blocks = looks.length ? await listBlocks({ includeArchived: true }) : [];
@@ -52,8 +66,10 @@ export default async function LooksPage() {
   return (
     <Screen>
       <LooksTabs
+        initialTab={initialTab}
         savedCount={looks.length}
         inspoCount={inspos.length}
+        tripsSubtitle={tripsSubtitle(trips)}
         saved={saved}
         inspo={
           <InspoGrid
@@ -61,6 +77,7 @@ export default async function LooksPage() {
             styles={styles.map((style) => ({ id: style.id, name: style.name }))}
           />
         }
+        trips={<TripsShelf entries={trips} />}
       />
     </Screen>
   );
