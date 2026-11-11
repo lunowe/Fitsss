@@ -23,12 +23,14 @@ export function getAnthropicClient(): Anthropic {
 }
 
 /**
- * Model ids are stored OpenRouter-style ("anthropic/claude-opus-5"); the SDK
- * wants the bare name. Any other vendor prefix is left alone so the resulting
- * 404 names the model the person actually picked.
+ * Model ids are stored OpenRouter-style ("anthropic/claude-opus-5.5"); the SDK
+ * wants the bare name, and spells the version with hyphens where OpenRouter
+ * uses a dot ("claude-opus-5-5"). Any other vendor prefix is left alone so the
+ * resulting 404 names the model the person actually picked.
  */
 export function toAnthropicModel(id: string): string {
-  return id.startsWith("anthropic/") ? id.slice("anthropic/".length) : id;
+  if (!id.startsWith("anthropic/")) return id;
+  return id.slice("anthropic/".length).replace(/(\d)\.(\d)/g, "$1-$2");
 }
 
 function messageContent(call: StructuredCall<unknown>): Anthropic.ContentBlockParam[] | string {
